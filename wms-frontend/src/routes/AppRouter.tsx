@@ -25,6 +25,7 @@ import ZebraLayout from '../pages/pwa/ZebraLayout';
 import PickerView from '../pages/pwa/PickerView';
 import CortadorView from '../pages/pwa/CortadorView';
 import TransferenciasPage from '../pages/transfers/TransferenciasPage';
+import PlanificacionPage from '../pages/planning/PlanificacionPage';
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -51,6 +52,7 @@ export function AppRouter() {
           <Route path="pedidos" element={<PedidosPage />} />
           <Route path="disponibilidad" element={<DisponibilidadPage />} />
           <Route path="transito" element={<TransitoPage />} />
+          <Route path="planificacion" element={<PlanificacionPage />} />
 
           {/* Almacén */}
           <Route path="picking" element={<PickingPage />} />

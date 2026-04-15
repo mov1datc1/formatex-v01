@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Package, Scissors, PackageCheck, Truck,
   Warehouse, MapPin, ClipboardList, Bell, Users, Settings,
   ChevronLeft, ChevronRight, LogOut, ScrollText, ScanBarcode, Tag,
-  Ship, Search, ArrowRightLeft
+  Ship, Search, ArrowRightLeft, CalendarRange
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
@@ -37,6 +37,7 @@ const menuSections: MenuSection[] = [
       { label: 'Pedidos', path: '/pedidos', icon: ClipboardList, permission: 'orders' },
       { label: 'Disponibilidad', path: '/disponibilidad', icon: Search, permission: 'availability' },
       { label: 'En Tránsito', path: '/transito', icon: Ship, permission: 'transit' },
+      { label: 'Planificación', path: '/planificacion', icon: CalendarRange, permission: 'supply-planning' },
     ],
   },
   {

@@ -153,6 +153,8 @@ model SkuMaster {
   supplier         Supplier?      @relation(fields: [supplierId], references: [id])
   handlingUnits    HandlingUnit[]
   incomingShipmentLines IncomingShipmentLine[]
+  supplyPlanLines  SupplyPlanLine[]
+  reorderConfig    ReorderConfig?
 
   @@index([categoria])
   @@index([color])
@@ -174,6 +176,7 @@ model Supplier {
   skus               SkuMaster[]
   purchaseReceipts   PurchaseReceipt[]
   incomingShipments  IncomingShipment[]
+  supplyPlanLines    SupplyPlanLine[]
 }
 
 model Client {
@@ -757,6 +760,7 @@ model User {
   movements    InventoryMovement[]
   auditLogs    AuditLog[]
   transfers    Transfer[]
+  supplyPlans  SupplyPlan[] @relation("SupplyPlanCreator")
 
   @@index([roleId])
 }
@@ -900,4 +904,79 @@ model SyncLog {
   @@index([integracionId])
   @@index([estado])
   @@index([createdAt])
+}
+
+// =============================================================================
+// GRUPO 13: PLANIFICACIÓN DE ABASTECIMIENTO
+// =============================================================================
+
+model SupplyPlan {
+  id              String   @id @default(uuid())
+  mes             Int      // 1-12
+  anio            Int      // 2026
+  estado          String   @default("BORRADOR") // BORRADOR | APROBADO | EN_EJECUCION | CERRADO
+  notas           String?
+  totalEstimado   Decimal? @db.Decimal(12, 2)
+  creadoPor       String
+  aprobadoPor     String?
+  fechaAprobacion DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  lineas          SupplyPlanLine[]
+  user            User     @relation("SupplyPlanCreator", fields: [creadoPor], references: [id])
+
+  @@unique([mes, anio])
+}
+
+model SupplyPlanLine {
+  id                String   @id @default(uuid())
+  planId            String
+  skuId             String
+
+  stockActual       Float
+  transitoActual    Float
+  demandaProyectada Float
+  consumoPromedio   Float
+
+  stockMinimo       Float    @default(0)
+  diasCobertura     Float
+  necesidadNeta     Float
+
+  cantidadSugerida  Float    @default(0)
+  cantidadAprobada  Float?
+  supplierId        String?
+  precioEstimado    Decimal? @db.Decimal(10, 2)
+  prioridad         String   @default("MEDIA") // CRITICA | ALTA | MEDIA | BAJA
+  status            String   @default("PENDIENTE") // PENDIENTE | APROBADO | ORDENADO | RECIBIDO
+
+  shipmentId        String?
+  notas             String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  plan              SupplyPlan    @relation(fields: [planId], references: [id], onDelete: Cascade)
+  sku               SkuMaster     @relation(fields: [skuId], references: [id])
+  supplier          Supplier?     @relation(fields: [supplierId], references: [id])
+
+  @@unique([planId, skuId])
+  @@index([planId])
+  @@index([skuId])
+  @@index([prioridad])
+}
+
+model ReorderConfig {
+  id              String   @id @default(uuid())
+  skuId           String   @unique
+  stockMinimo     Float
+  stockSeguridad  Float    @default(0)
+  puntoReorden    Float
+  cantidadReorden Float
+  leadTimeDias    Int      @default(30)
+  activo          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  sku             SkuMaster @relation(fields: [skuId], references: [id])
 }

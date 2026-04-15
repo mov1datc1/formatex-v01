@@ -14,6 +14,7 @@ import { TransitModule } from './modules/transit/transit.module';
 import { PackingModule } from './modules/packing/packing.module';
 import { ShippingModule } from './modules/shipping/shipping.module';
 import { TransfersModule } from './modules/transfers/transfers.module';
+import { SupplyPlanningModule } from './modules/supply-planning/supply-planning.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { TransfersModule } from './modules/transfers/transfers.module';
     PackingModule,
     ShippingModule,
     TransfersModule,
+    SupplyPlanningModule,
   ],
 })
 export class AppModule {}

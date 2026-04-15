@@ -10,6 +10,9 @@ const prisma = new PrismaClient({ adapter } as any);
 
 async function main() {
   console.log('🧹 Limpiando base de datos...');
+  await prisma.supplyPlanLine.deleteMany();
+  await prisma.supplyPlan.deleteMany();
+  await prisma.reorderConfig.deleteMany();
   await prisma.syncLog.deleteMany();
   await prisma.integrationConfig.deleteMany();
   await prisma.auditLog.deleteMany();
@@ -155,7 +158,7 @@ async function main() {
   // 5. ROLES Y USUARIOS
   // =====================================================================
   console.log('👥 Creando roles y usuarios...');
-  const modules = ['dashboard','inventory','orders','cutting','reception','labeling','warehouse','admin','catalogs','reservations','transit','cobranza','facturacion'];
+  const modules = ['dashboard','inventory','orders','cutting','reception','labeling','warehouse','admin','catalogs','reservations','transit','cobranza','facturacion','supply-planning','availability','transfers'];
   const actions = ['read','create','update','delete'];
 
   const rolesConfig: Array<{name:string,desc:string,nivel:number,mods:string[]}> = [
@@ -168,6 +171,7 @@ async function main() {
     { name: 'EMPACADOR', desc: 'Empacador — empaca pedidos', nivel: 4, mods: ['dashboard','orders'] },
     { name: 'DESPACHADOR', desc: 'Despachador — envíos', nivel: 4, mods: ['dashboard','orders'] },
     { name: 'COORDINADOR_ALMACEN', desc: 'Coordinador almacén', nivel: 2, mods: ['dashboard','inventory','orders','cutting','reception','labeling','warehouse','reservations','transit'] },
+    { name: 'DIRECTOR_COMPRAS', desc: 'Director de Planeación de Compras', nivel: 1, mods: ['dashboard','inventory','orders','supply-planning','transit','catalogs','availability'] },
   ];
 
   const roles: Record<string, any> = {};
@@ -190,7 +194,8 @@ async function main() {
   await prisma.user.create({ data: { nombre: 'Pedro Ramírez (Empacador)', username: 'pedro.empaque', email: 'pedro@formatex.mx', password: passOper, roleId: roles['EMPACADOR'].id } });
   await prisma.user.create({ data: { nombre: 'Ana Hernández (Despacho)', username: 'ana.envio', email: 'ana@formatex.mx', password: passOper, roleId: roles['DESPACHADOR'].id } });
   const userCoord = await prisma.user.create({ data: { nombre: 'Roberto Coord. Almacén', username: 'roberto.coord', email: 'roberto@formatex.mx', password: passOper, roleId: roles['COORDINADOR_ALMACEN'].id } });
-  console.log('  ✅ 9 roles, 9 usuarios');
+  await prisma.user.create({ data: { nombre: 'Fernando Dir. Compras', username: 'fernando.compras', email: 'fernando@formatex.mx', password: passOper, roleId: roles['DIRECTOR_COMPRAS'].id } });
+  console.log('  ✅ 10 roles, 10 usuarios');
 
   // =====================================================================
   // 6. RECEPCIONES + HUs (batch optimized)
@@ -324,14 +329,32 @@ async function main() {
     { clave: 'tolerancia_pedido_default', valor: '20', tipo: 'number', grupo: 'pedidos' },
   ]});
 
+  // =====================================================================
+  // 11. REORDER CONFIGS
+  // =====================================================================
+  console.log('📦 Configurando puntos de reorden...');
+  const skuReorderData = [
+    { skuId: skuEnigma.id, stockMinimo: 100, stockSeguridad: 50, puntoReorden: 150, cantidadReorden: 400, leadTimeDias: 25 },
+    { skuId: skuAlgRojo.id, stockMinimo: 80, stockSeguridad: 40, puntoReorden: 120, cantidadReorden: 300, leadTimeDias: 20 },
+    { skuId: skuAlgAzul.id, stockMinimo: 80, stockSeguridad: 40, puntoReorden: 120, cantidadReorden: 250, leadTimeDias: 20 },
+    { skuId: skuPolNeg.id, stockMinimo: 60, stockSeguridad: 30, puntoReorden: 100, cantidadReorden: 250, leadTimeDias: 15 },
+    { skuId: skuDenim.id, stockMinimo: 100, stockSeguridad: 50, puntoReorden: 150, cantidadReorden: 300, leadTimeDias: 30 },
+    { skuId: skuSeda.id, stockMinimo: 30, stockSeguridad: 15, puntoReorden: 60, cantidadReorden: 120, leadTimeDias: 45 },
+    { skuId: skuLino.id, stockMinimo: 40, stockSeguridad: 20, puntoReorden: 80, cantidadReorden: 160, leadTimeDias: 35 },
+    { skuId: skuGab.id, stockMinimo: 50, stockSeguridad: 25, puntoReorden: 100, cantidadReorden: 200, leadTimeDias: 25 },
+  ];
+  await prisma.reorderConfig.createMany({ data: skuReorderData });
+  console.log('  ✅ 8 puntos de reorden configurados');
+
   console.log('\n🎉 ¡SEED COMPLETADO!');
   console.log('===================================');
   console.log(`📦 ${allHUs.length + 1} HUs (${allHUs.length} enteros + 1 retazo)`);
   console.log('📋 5 pedidos en 5 estados diferentes');
   console.log('🚛 2 embarques en tránsito');
   console.log('🔒 4 reservas (2 blandas + 2 firmes)');
-  console.log('👥 9 usuarios, 9 roles');
+  console.log('👥 10 usuarios, 10 roles');
   console.log(`📍 ${locationData.length} ubicaciones`);
+  console.log('📦 8 puntos de reorden');
   console.log('===================================');
 }
 
