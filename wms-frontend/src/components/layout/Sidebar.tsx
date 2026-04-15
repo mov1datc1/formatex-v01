@@ -97,11 +97,14 @@ export const Sidebar = () => {
       {/* Logo */}
       <div className="flex items-center justify-between px-4 h-16 border-b border-white/10">
         {!collapsed && (
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center font-bold text-sm">
-              360
-            </div>
-            <span className="font-bold text-lg tracking-tight">WMS 360+</span>
+          <Link to="/" className="flex items-center gap-2.5">
+            <img src="/logo-360.png" alt="WMS 360+" className="w-8 h-8" />
+            <span className="font-bold text-lg tracking-tight">WMS 360<span className="text-cyan-400">+</span></span>
+          </Link>
+        )}
+        {collapsed && (
+          <Link to="/" className="mx-auto">
+            <img src="/logo-360.png" alt="WMS 360+" className="w-8 h-8" />
           </Link>
         )}
         <button
