@@ -89,7 +89,7 @@ Completa el formulario con estos valores **exactos**:
 | **Branch** | `main` |
 | **Root Directory** | `wms-backend` |
 | **Runtime** | `Node` |
-| **Build Command** | `npm install && npx prisma generate && npm run build` |
+| **Build Command** | `npm install --include=dev && npx prisma generate && npm run build` |
 | **Start Command** | `npm run start:prod` |
 | **Instance Type** | `Free` (o `Starter $7/mes` para evitar cold starts) |
 
