@@ -1,0 +1,903 @@
+// =============================================================================
+// WMS 360+ FORMATEX — Prisma Schema v2
+// Distribuidora de Tela al Mayoreo — Formatextil S. de R.L. de C.V.
+// HU-Céntrico | Corte + Genealogía | FIFO | Reservas Blanda/Firme
+// Inventario en Tránsito | 9 Estados de Pedido | Flujo Real Formatex
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+// =============================================================================
+// GRUPO 1: ALMACÉN FÍSICO
+// =============================================================================
+
+model Warehouse {
+  id             String   @id @default(uuid())
+  nombre         String   // "Nave Formatex"
+  codigo         String   @unique // "NAV-001"
+  tipo           String   @default("FISICO") // "FISICO" | "VIRTUAL"
+  direccion      String?
+  metrosCuad     Float?   @default(1000)
+  clienteAsignado String? // Para bodegas virtuales - nombre del cliente
+  descripcion    String?
+  activo         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  zones          Zone[]
+  locations      Location[]
+  mermaRanges    MermaRangeConfig[]
+  transfersOrigen  Transfer[] @relation("TransferOrigen")
+  transfersDestino Transfer[] @relation("TransferDestino")
+}
+
+model Zone {
+  id           String   @id @default(uuid())
+  warehouseId  String
+  nombre       String   // "Rollos Enteros 1", "Merma 1-5m", "Corte", "Empaque"
+  codigo       String   @unique // "RE-01", "MER-01", "CORTE", "EMPAQUE"
+  tipo         ZoneType @default(ROLLOS_ENTEROS)
+  descripcion  String?
+  orden        Int      @default(0)
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  warehouse    Warehouse  @relation(fields: [warehouseId], references: [id])
+  locations    Location[]
+
+  @@index([warehouseId])
+}
+
+enum ZoneType {
+  ROLLOS_ENTEROS
+  MERMA
+  RECIBO
+  CORTE
+  EMPAQUE
+  EMBARQUE
+}
+
+model Location {
+  id           String         @id @default(uuid())
+  warehouseId  String
+  zoneId       String
+  codigo       String         @unique // "RE01-P01-R01-N1", "MER01-P01-R01"
+  pasillo      String         // "P01"
+  rack         String?        // "R01"
+  nivel        String?        // "N1"
+  tipo         LocationType   @default(RACK)
+  estado       LocationStatus @default(LIBRE)
+  capacidad    Int            @default(1)   // Cuántos HUs caben
+  activo       Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  warehouse    Warehouse      @relation(fields: [warehouseId], references: [id])
+  zone         Zone           @relation(fields: [zoneId], references: [id])
+  handlingUnits HandlingUnit[]
+
+  @@index([warehouseId])
+  @@index([zoneId])
+  @@index([estado])
+}
+
+enum LocationType {
+  RACK
+  PISO
+  STAGING    // Área temporal (corte, empaque)
+  MUELLE     // Muelle de carga/descarga
+}
+
+enum LocationStatus {
+  LIBRE
+  PARCIAL
+  OCUPADA
+  BLOQUEADA
+}
+
+// =============================================================================
+// GRUPO 2: CONFIGURACIÓN DE MERMA (Rangos configurables)
+// =============================================================================
+
+model MermaRangeConfig {
+  id            String   @id @default(uuid())
+  warehouseId   String
+  nombre        String   // "Retazos 1-5m"
+  minMetros     Float    // 1
+  maxMetros     Float    // 5
+  zonaCodigo    String   // Código de la zona asignada "MER-01"
+  pasillo       String   // "MERMA-P01"
+  orden         Int      @default(0)
+  activo        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  warehouse     Warehouse @relation(fields: [warehouseId], references: [id])
+
+  @@unique([warehouseId, minMetros, maxMetros])
+  @@index([warehouseId])
+}
+
+// =============================================================================
+// GRUPO 3: CATÁLOGOS
+// =============================================================================
+
+model SkuMaster {
+  id               String   @id @default(uuid())
+  codigo           String   @unique // "LENIGIRO" (clave real de Formatex)
+  nombre           String   // "Enigma Iron"
+  descripcion      String?
+  categoria        String?  // "Lino", "Algodón", "Poliéster", "Mezcla"
+  composicion      String?  // "100% algodón"
+  anchoMetros      Float?   // 1.5m (ancho del rollo — igual para todos)
+  color            String?
+  pesoKgPorMetro   Float?   // Peso por metro lineal
+  metrajeEstandar  Float    @default(50) // Metraje de rollo nuevo (50m)
+  unidadMedida     String   @default("MTR") // MTR = metros (como en el pedido real)
+  codigoBarras     String?  @unique
+  minStock         Float?   // Stock mínimo en metros
+  maxStock         Float?
+  precioReferencia Decimal? @db.Decimal(10, 2) // Precio referencia por metro
+  supplierId       String?
+  activo           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  supplier         Supplier?      @relation(fields: [supplierId], references: [id])
+  handlingUnits    HandlingUnit[]
+  incomingShipmentLines IncomingShipmentLine[]
+
+  @@index([categoria])
+  @@index([color])
+}
+
+model Supplier {
+  id           String   @id @default(uuid())
+  nombre       String
+  codigo       String   @unique
+  contacto     String?
+  telefono     String?
+  email        String?
+  direccion    String?
+  rfc          String?
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  skus               SkuMaster[]
+  purchaseReceipts   PurchaseReceipt[]
+  incomingShipments  IncomingShipment[]
+}
+
+model Client {
+  id           String   @id @default(uuid())
+  nombre       String
+  codigo       String   @unique
+  contacto     String?
+  telefono     String?
+  email        String?
+  direccion    String?
+  colonia      String?
+  poblacion    String?
+  estado       String?
+  cp           String?
+  pais         String?  @default("México")
+  rfc          String?
+  vendorId     String?  // Vendedor que trajo este cliente
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  vendor       Vendor?  @relation(fields: [vendorId], references: [id])
+  orders       Order[]
+
+  @@index([vendorId])
+}
+
+model Vendor {
+  id           String   @id @default(uuid())
+  nombre       String
+  codigo       String   @unique
+  telefono     String?
+  email        String?
+  comision     Decimal? @db.Decimal(5, 2) // Porcentaje de comisión
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  clients      Client[]
+  orders       Order[]  // Vendedor callejero que trajo el pedido
+}
+
+// =============================================================================
+// GRUPO 4: INVENTARIO (HU-Céntrico) ⭐
+// =============================================================================
+
+model HandlingUnit {
+  id                String       @id @default(uuid())
+  codigo            String       @unique // HU-2026-00001
+  skuId             String
+
+  // === METRAJE ===
+  metrajeOriginal   Float        // Metraje al crear este HU (50m si nuevo, 40m si retazo)
+  metrajeActual     Float        // Metraje disponible ahora
+  anchoMetros       Float?       // Ancho del rollo
+  pesoKg            Float?
+
+  // === CLASIFICACIÓN ===
+  tipoRollo         RollType     @default(ENTERO)
+  estadoHu          HuStatus     @default(DISPONIBLE)
+
+  // === UBICACIÓN ===
+  ubicacionId       String?
+
+  // === GENEALOGÍA (Trazabilidad de cortes) ===
+  parentHuId        String?      // HU padre (null si rollo nuevo de pallet)
+  generacion        Int          @default(0) // 0=original, 1=primer corte, 2=segundo...
+
+  // === RECEPCIÓN ===
+  receiptLineId     String?
+  palletId          String?      // Identificador del pallet de origen
+  loteProveedor     String?      // Lote del proveedor (opcional)
+
+  // === FIFO ===
+  fechaIngreso      DateTime     @default(now())
+
+  // === ETIQUETADO ===
+  etiquetaImpresa   Boolean      @default(false)
+  fechaEtiquetado   DateTime?
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  // === RELACIONES ===
+  sku               SkuMaster    @relation(fields: [skuId], references: [id])
+  ubicacion         Location?    @relation(fields: [ubicacionId], references: [id])
+  parentHu          HandlingUnit?  @relation("HuGenealogy", fields: [parentHuId], references: [id])
+  childHus          HandlingUnit[] @relation("HuGenealogy")
+  receiptLine       PurchaseReceiptLine? @relation(fields: [receiptLineId], references: [id])
+
+  cortesOrigen      CutOperation[]       @relation("CutSource")
+  cortesRetazo      CutOperation[]       @relation("CutRemnant")
+  movimientos       InventoryMovement[]
+  orderAssignments  OrderLineAssignment[]
+  reservations      Reservation[]
+  transferLines     TransferLine[]
+
+  @@index([skuId])
+  @@index([ubicacionId])
+  @@index([tipoRollo])
+  @@index([estadoHu])
+  @@index([fechaIngreso]) // Para FIFO
+  @@index([parentHuId])
+}
+
+enum RollType {
+  ENTERO
+  RETAZO
+}
+
+enum HuStatus {
+  DISPONIBLE
+  RESERVADO_BLANDO     // Reserva de cotización (24h, auto-expira)
+  RESERVADO            // Reserva firme (cliente aprobó)
+  EN_PICKING
+  EN_CORTE
+  EN_EMPAQUE
+  DESPACHADO
+  AGOTADO
+  DANADO
+}
+
+model InventoryMovement {
+  id            String       @id @default(uuid())
+  huId          String
+  tipo          MovementType
+  metrajeAntes  Float?
+  metrajeDespues Float?
+  ubicacionOrigen  String?
+  ubicacionDestino String?
+  referencia    String?      // Código de receipt, order, cut, etc.
+  notas         String?
+  userId        String
+  createdAt     DateTime     @default(now())
+
+  hu            HandlingUnit @relation(fields: [huId], references: [id])
+  user          User         @relation(fields: [userId], references: [id])
+
+  @@index([huId])
+  @@index([tipo])
+  @@index([createdAt])
+}
+
+enum MovementType {
+  ENTRADA
+  SALIDA
+  CORTE
+  REUBICACION
+  AJUSTE
+  CONTEO
+  RESERVA
+  TRANSFERENCIA
+}
+
+// =============================================================================
+// GRUPO 4B: SISTEMA DE RESERVAS ⭐ (Mata la doble-venta)
+// =============================================================================
+
+model Reservation {
+  id              String          @id @default(uuid())
+  orderId         String?         // Pedido asociado (puede ser null en cotización)
+  huId            String?         // HU físico reservado (null si es tránsito)
+  shipmentLineId  String?         // Línea de embarque en tránsito (null si es stock físico)
+  skuId           String          // SKU de la tela
+  metrajeReservado Float          // Metros reservados
+  tipo            ReservationType // BLANDA (24h) o FIRME
+  estado          ReservationStatus @default(ACTIVA)
+  motivoCancelacion String?
+  expiresAt       DateTime?       // Para reservas blandas — auto expira
+  creadoPor       String          // userId del ATC
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  order           Order?          @relation(fields: [orderId], references: [id])
+  hu              HandlingUnit?   @relation(fields: [huId], references: [id])
+  shipmentLine    IncomingShipmentLine? @relation(fields: [shipmentLineId], references: [id])
+
+  @@index([orderId])
+  @@index([huId])
+  @@index([skuId])
+  @@index([estado])
+  @@index([expiresAt])
+}
+
+enum ReservationType {
+  BLANDA  // Cotización — expira en 24h
+  FIRME   // Cliente aprobó — no expira
+}
+
+enum ReservationStatus {
+  ACTIVA
+  CONVERTIDA   // Blanda → Firme
+  EXPIRADA     // Auto-expiró (24h)
+  CANCELADA    // Cancelación manual
+  SURTIDA      // Pedido despachado
+}
+
+// =============================================================================
+// GRUPO 4C: INVENTARIO EN TRÁNSITO ⭐ (Ordenes de compra entrantes)
+// =============================================================================
+
+model IncomingShipment {
+  id              String              @id @default(uuid())
+  codigo          String              @unique // EMB-2026-0001
+  supplierId      String
+  ordenCompra     String?             // Referencia OC del proveedor
+  estado          IncomingShipmentStatus @default(EN_TRANSITO)
+  fechaEstimada   DateTime            // ETA — Fecha estimada de llegada
+  fechaReal       DateTime?           // Fecha real de llegada
+  transportista   String?
+  notas           String?
+  receiptId       String?             // Recepción generada al llegar
+  creadoPor       String              // userId
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  supplier        Supplier            @relation(fields: [supplierId], references: [id])
+  lineas          IncomingShipmentLine[]
+
+  @@index([supplierId])
+  @@index([estado])
+  @@index([fechaEstimada])
+}
+
+model IncomingShipmentLine {
+  id              String   @id @default(uuid())
+  shipmentId      String
+  skuId           String
+  cantidadRollos  Int      // Rollos esperados
+  metrajePorRollo Float    @default(50)
+  metrajeTotal    Float    // Total metros esperados
+  metrajeReservado Float   @default(0) // Metros ya reservados de este embarque
+  notas           String?
+  createdAt       DateTime @default(now())
+
+  shipment        IncomingShipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  sku             SkuMaster        @relation(fields: [skuId], references: [id])
+  reservations    Reservation[]
+
+  @@index([shipmentId])
+  @@index([skuId])
+}
+
+enum IncomingShipmentStatus {
+  EN_TRANSITO
+  PARCIAL       // Llegó parcialmente
+  RECIBIDO      // Todo recibido
+  CANCELADO
+}
+
+// =============================================================================
+// GRUPO 5: RECEPCIÓN
+// =============================================================================
+
+model PurchaseReceipt {
+  id            String        @id @default(uuid())
+  codigo        String        @unique // REC-2026-0001
+  supplierId    String
+  fechaRecepcion DateTime     @default(now())
+  estado        ReceiptStatus @default(PENDIENTE)
+  totalPallets  Int           @default(0)
+  totalRollos   Int           @default(0)
+  transportista String?
+  placas        String?
+  ordenCompra   String?       // Referencia a OC en CONTPAQi
+  shipmentRef   String?       // ID del IncomingShipment si viene de tránsito
+  notas         String?
+  recibidoPor   String        // userId
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  supplier      Supplier      @relation(fields: [supplierId], references: [id])
+  lineas        PurchaseReceiptLine[]
+
+  @@index([supplierId])
+  @@index([estado])
+}
+
+model PurchaseReceiptLine {
+  id             String   @id @default(uuid())
+  receiptId      String
+  skuId          String
+  cantidadRollos Int      // Cuántos rollos de este SKU
+  metrajePorRollo Float   @default(50) // Metraje de cada rollo
+  metrajeTotalRecibido Float // cantidadRollos * metrajePorRollo
+  palletRef      String?  // Referencia del pallet
+  createdAt      DateTime @default(now())
+
+  receipt        PurchaseReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  handlingUnits  HandlingUnit[]
+
+  @@index([receiptId])
+}
+
+enum ReceiptStatus {
+  PENDIENTE
+  EN_PROCESO
+  COMPLETADA
+  CANCELADA
+}
+
+// =============================================================================
+// GRUPO 6: PEDIDOS Y DESPACHO ⭐ (Flujo real Formatex — 9 estados)
+// =============================================================================
+
+model Order {
+  id              String      @id @default(uuid())
+  codigo          String      @unique // PED-2026-0001
+  folioContpaqi   String?     // Folio del pedido en CONTPAQi (PE XXXXXX)
+  clientId        String
+  vendorId        String?     // Vendedor callejero que trajo el pedido
+  atcUserId       String?     // ATC que levantó el pedido en sistema
+  estado          OrderStatus @default(COTIZADO)
+  prioridad       Int         @default(3) // 1=urgente, 5=baja
+  tolerancia      Float       @default(20) // Tolerancia ±20% en el surtido
+
+  // === FECHAS ===
+  fechaPedido     DateTime    @default(now())
+  fechaRequerida  DateTime?
+  fechaCotizacion DateTime?   // Cuando se envió la cotización
+  fechaPago       DateTime?   // Cuando el cliente pagó
+  fechaAprobCobranza DateTime? // Cuando cobranza aprobó
+
+  // === FINANCIERO ===
+  subtotal        Decimal?    @db.Decimal(12, 2)
+  descuento       Decimal?    @db.Decimal(12, 2) @default(0)
+  iva             Decimal?    @db.Decimal(12, 2)
+  total           Decimal?    @db.Decimal(12, 2)
+  metodoPago      String?     // "Banco Bancomer", "Transferencia", etc.
+  referenciaPago  String?     // Número de referencia del pago
+  comprobantePago String?     // URL/path del comprobante subido
+
+  // === FACTURACIÓN (CONTPAQi) ===
+  facturaRef      String?     // Referencia de factura en CONTPAQi
+  facturaLista    Boolean     @default(false)
+
+  // === OPERATIVO ===
+  requiereCorte   Boolean     @default(true) // La mayoría sí
+  transportista   String?
+  guiaEnvio       String?
+  notas           String?
+  condiciones     String?     // "CDJOHUBA", etc.
+  creadoPor       String      // userId
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  client          Client      @relation(fields: [clientId], references: [id])
+  vendor          Vendor?     @relation(fields: [vendorId], references: [id])
+  lineas          OrderLine[]
+  packingSlips    PackingSlip[]
+  shipments       Shipment[]
+  reservations    Reservation[]
+
+  @@index([clientId])
+  @@index([vendorId])
+  @@index([estado])
+  @@index([fechaPedido])
+  @@index([folioContpaqi])
+}
+
+enum OrderStatus {
+  // === VENTAS / ATC ===
+  COTIZADO              // ATC envió cotización al cliente (reserva BLANDA 24h)
+  POR_PAGAR             // Cliente aprobó cotización, esperando pago (reserva FIRME)
+
+  // === COBRANZA ===
+  PAGO_RECIBIDO         // Comprobante recibido por WA/email, pendiente verificación
+  POR_SURTIR            // Cobranza verificó pago vs banco, firmó → pasa a almacén
+
+  // === ALMACÉN ===
+  EN_SURTIDO            // Picker tomó el pedido y está buscando rollos
+  EN_CORTE              // En estación de corte (cortador procesando)
+  EMPACADO              // Embalado, listo para facturar
+
+  // === FACTURACIÓN / DESPACHO ===
+  FACTURADO             // Factura emitida en CONTPAQi
+  DESPACHADO            // Salió del almacén
+
+  // === OTROS ===
+  CANCELADO
+}
+
+model OrderLine {
+  id             String   @id @default(uuid())
+  orderId        String
+  skuId          String
+  metrajeRequerido Float  // Metros que pidió el cliente (ej: 100m)
+  metrajeSurtido   Float  @default(0)  // Metros efectivamente cortados/surtidos
+  precioUnitario Decimal? @db.Decimal(10, 2) // Precio por metro (ej: $107.28)
+  importe        Decimal? @db.Decimal(12, 2) // metrajeRequerido * precioUnitario
+  requiereCorte  Boolean  @default(true)
+  estado         String   @default("PENDIENTE") // PENDIENTE, EN_PROCESO, SURTIDA, CANCELADA
+  notas          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  assignments    OrderLineAssignment[]
+  cutOperations  CutOperation[]
+
+  @@index([orderId])
+}
+
+// Permite combinar múltiples HUs para surtir una línea (ej: 65m + 41m = 106m)
+model OrderLineAssignment {
+  id             String   @id @default(uuid())
+  orderLineId    String
+  huId           String
+  metrajeTomado  Float    // Metros tomados de este HU
+  requiereCorte  Boolean  @default(true)
+  cortado        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  orderLine      OrderLine    @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  hu             HandlingUnit @relation(fields: [huId], references: [id])
+
+  @@index([orderLineId])
+  @@index([huId])
+}
+
+// =============================================================================
+// GRUPO 7: CORTE ⭐ (Core del sistema)
+// =============================================================================
+
+model CutOperation {
+  id                String   @id @default(uuid())
+  codigo            String   @unique // COR-2026-00001
+  huOrigenId        String
+  orderLineId       String?
+
+  // === METRAJE ===
+  metrajeAntes      Float    // Metraje del HU antes del corte
+  metrajeCortado    Float    // Metros cortados para el pedido
+  metrajeRestante   Float    // Lo que queda (retazo)
+
+  // === RETAZO GENERADO ===
+  huRetazoId        String?  @unique // Nuevo HU del retazo (null si se agotó el rollo)
+  retazoUbicacion   String?  // A dónde fue el retazo (código de ubicación)
+
+  // === OPERADOR ===
+  cortadoPor        String   // userId
+  fechaCorte        DateTime @default(now())
+  notas             String?
+
+  createdAt         DateTime @default(now())
+
+  huOrigen          HandlingUnit  @relation("CutSource", fields: [huOrigenId], references: [id])
+  huRetazo          HandlingUnit? @relation("CutRemnant", fields: [huRetazoId], references: [id])
+  orderLine         OrderLine?    @relation(fields: [orderLineId], references: [id])
+
+  @@index([huOrigenId])
+  @@index([fechaCorte])
+}
+
+// =============================================================================
+// GRUPO 8: FULFILLMENT
+// =============================================================================
+
+model PackingSlip {
+  id            String   @id @default(uuid())
+  codigo        String   @unique // PAK-2026-0001
+  orderId       String
+  bultos        Int      @default(1)
+  pesoTotalKg   Float?
+  empacadoPor   String   // userId
+  fechaEmpaque  DateTime @default(now())
+  notas         String?
+  createdAt     DateTime @default(now())
+
+  order         Order    @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+}
+
+model Shipment {
+  id            String         @id @default(uuid())
+  codigo        String         @unique // ENV-2026-0001
+  orderId       String
+  transportista String?
+  guiaEnvio     String?
+  placas        String?
+  chofer        String?
+  estado        ShipmentStatus @default(PENDIENTE)
+  fechaEnvio    DateTime?
+  fechaEntrega  DateTime?
+  enviadoPor    String         // userId
+  notas         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  order         Order          @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@index([estado])
+}
+
+enum ShipmentStatus {
+  PENDIENTE
+  EN_TRANSITO
+  ENTREGADO
+  DEVUELTO
+}
+
+// =============================================================================
+// GRUPO 9: ALERTAS Y TAREAS
+// =============================================================================
+
+model Alert {
+  id          String    @id @default(uuid())
+  tipo        AlertType
+  titulo      String
+  mensaje     String
+  severidad   String    @default("MEDIA") // BAJA, MEDIA, ALTA, CRITICA
+  resuelta    Boolean   @default(false)
+  resueltaPor String?
+  resueltaAt  DateTime?
+  metadata    Json?     // Datos adicionales (skuId, huId, etc.)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tasks       Task[]
+
+  @@index([tipo])
+  @@index([resuelta])
+}
+
+enum AlertType {
+  STOCK_BAJO
+  RETAZO_SIN_UBICAR
+  PEDIDO_ATRASADO
+  MERMA_EXCESIVA
+  ROLLO_PERDIDO
+  CONTEO_DISCREPANCIA
+  RESERVA_EXPIRADA
+  TRANSITO_RETRASADO
+}
+
+model Task {
+  id          String     @id @default(uuid())
+  alertId     String?
+  titulo      String
+  descripcion String?
+  estado      TaskStatus @default(PENDIENTE)
+  prioridad   Int        @default(3)
+  asignadoA   String?    // userId
+  fechaLimite DateTime?
+  completadaAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  alert       Alert?     @relation(fields: [alertId], references: [id])
+
+  @@index([estado])
+  @@index([asignadoA])
+}
+
+enum TaskStatus {
+  PENDIENTE
+  EN_PROGRESO
+  COMPLETADA
+  CANCELADA
+}
+
+// =============================================================================
+// GRUPO 10: AUTH + RBAC + AUDITORÍA
+// =============================================================================
+
+model User {
+  id           String   @id @default(uuid())
+  nombre       String
+  username     String   @unique
+  email        String   @unique
+  password     String
+  roleId       String
+  activo       Boolean  @default(true)
+  ultimoLogin  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  role         Role     @relation(fields: [roleId], references: [id])
+  movements    InventoryMovement[]
+  auditLogs    AuditLog[]
+  transfers    Transfer[]
+
+  @@index([roleId])
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  nombre      String   @unique // "ATC", "COBRANZA", "PICKER", "CORTADOR", etc.
+  descripcion String?
+  nivel       Int      @default(4) // 1=Director, 2=Gerente, 3=Coordinador, 4=Operador
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  permissions RolePermission[]
+}
+
+model RolePermission {
+  id       String @id @default(uuid())
+  roleId   String
+  modulo   String // "inventory", "orders", "cutting", "reception", "reservations", "transit", etc.
+  accion   String // "read", "create", "update", "delete"
+
+  role     Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, modulo, accion])
+  @@index([roleId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  accion    String   // "LOGIN", "CREATE_HU", "CUT_ROLL", "DISPATCH_ORDER", "RESERVE_STOCK"
+  entidad   String   // "HandlingUnit", "Order", "CutOperation", "Reservation"
+  entidadId String?
+  detalle   Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([accion])
+  @@index([createdAt])
+}
+
+// =============================================================================
+// GRUPO 11: CONFIGURACIÓN DEL SISTEMA
+// =============================================================================
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  clave     String   @unique // "smtp_host", "smtp_port", "empresa_nombre"
+  valor     String
+  tipo      String   @default("string") // "string", "number", "boolean", "json"
+  grupo     String   @default("general") // "general", "smtp", "integracion"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// =============================================================================
+// GRUPO 13: TRANSFERENCIAS ENTRE ALMACENES
+// =============================================================================
+
+model Transfer {
+  id                 String         @id @default(uuid())
+  codigo             String         @unique  // TRF-2026-0001
+  warehouseOrigenId  String
+  warehouseDestinoId String
+  estado             TransferStatus @default(PENDIENTE)
+  motivo             String?        // "Asignación cliente Liverpool"
+  notas              String?
+  creadoPor          String         // userId
+  ejecutadoPor       String?        // userId que ejecutó
+  fechaEjecucion     DateTime?
+  fechaRecepcion     DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  warehouseOrigen    Warehouse      @relation("TransferOrigen", fields: [warehouseOrigenId], references: [id])
+  warehouseDestino   Warehouse      @relation("TransferDestino", fields: [warehouseDestinoId], references: [id])
+  user               User           @relation(fields: [creadoPor], references: [id])
+  lineas             TransferLine[]
+
+  @@index([warehouseOrigenId])
+  @@index([warehouseDestinoId])
+  @@index([estado])
+  @@index([createdAt])
+}
+
+model TransferLine {
+  id           String   @id @default(uuid())
+  transferId   String
+  huId         String
+  codigoHu     String   // Snapshot del código HU al transferir
+  skuNombre    String?  // Snapshot del nombre SKU
+  metraje      Float    // Metraje del HU al momento de transferir
+  tipoRollo    String?  // ENTERO | RETAZO
+  notas        String?
+  createdAt    DateTime @default(now())
+
+  transfer     Transfer      @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  hu           HandlingUnit  @relation(fields: [huId], references: [id])
+
+  @@index([transferId])
+  @@index([huId])
+}
+
+enum TransferStatus {
+  PENDIENTE
+  EN_TRANSITO
+  COMPLETADA
+  CANCELADA
+}
+
+// =============================================================================
+// GRUPO 12: INTEGRACIÓN (Fase 2 — CONTPAQi Cloud)
+// =============================================================================
+
+model IntegrationConfig {
+  id        String   @id @default(uuid())
+  nombre    String   // "CONTPAQi Cloud"
+  tipo      String   // "CONTPAQI_CLOUD"
+  config    Json     // { apiUrl, apiKey, companyId, ... }
+  activo    Boolean  @default(false)
+  ultimaSync DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SyncLog {
+  id            String   @id @default(uuid())
+  integracionId String
+  direccion     String   // "IN" (ERP→WMS) o "OUT" (WMS→ERP)
+  entidad       String   // "Order", "Invoice", "Product"
+  entidadId     String?
+  estado        String   // "SUCCESS", "ERROR", "PARTIAL"
+  detalle       Json?
+  createdAt     DateTime @default(now())
+
+  @@index([integracionId])
+  @@index([estado])
+  @@index([createdAt])
+}
