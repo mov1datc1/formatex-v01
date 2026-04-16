@@ -242,4 +242,170 @@ export class ReceptionService {
     ]);
     return { totalReceipts, totalHUs, latestReceipt };
   }
+
+  /**
+   * Suggest up to 3 smart location alternatives for incoming HUs.
+   * Scoring algorithm:
+   *   +40pts — Location has same SKU already (consolidation)
+   *   +30pts — LIBRE status (vs PARCIAL)
+   *   +20pts — Higher remaining capacity ratio
+   *   +10pts — Lower level preferred (ground = easier access)
+   *   -10pts — Already used in this batch (distribute load)
+   */
+  async suggestLocations(params: {
+    skuId: string;
+    tipoRollo: 'ENTERO' | 'RETAZO';
+    metraje: number;
+    cantidadRollos: number;
+  }) {
+    const { skuId, tipoRollo, metraje, cantidadRollos } = params;
+
+    // 1. Determine target zone type
+    let targetZoneType: string;
+    let mermaZonaCodigo: string | null = null;
+
+    if (tipoRollo === 'RETAZO') {
+      const mermaConfig = await this.prisma.mermaRangeConfig.findFirst({
+        where: { activo: true, minMetros: { lte: metraje }, maxMetros: { gte: metraje } },
+        orderBy: { orden: 'asc' },
+      });
+      mermaZonaCodigo = mermaConfig?.zonaCodigo || null;
+      targetZoneType = 'MERMA';
+    } else {
+      targetZoneType = 'ROLLOS_ENTEROS';
+    }
+
+    // 2. Get target zones
+    const zoneWhere: any = { activo: true };
+    if (mermaZonaCodigo) {
+      zoneWhere.codigo = mermaZonaCodigo;
+    } else {
+      zoneWhere.tipo = targetZoneType;
+    }
+    const targetZones = await this.prisma.zone.findMany({ where: zoneWhere, select: { id: true, codigo: true, nombre: true } });
+    const targetZoneIds = targetZones.map(z => z.id);
+
+    // 3. Get all available locations with real-time HU count
+    const locations = await this.prisma.location.findMany({
+      where: {
+        zoneId: { in: targetZoneIds },
+        estado: { in: ['LIBRE', 'PARCIAL'] },
+        activo: true,
+      },
+      include: {
+        zone: { select: { id: true, nombre: true, tipo: true, codigo: true } },
+        handlingUnits: {
+          where: { estadoHu: { not: 'AGOTADO' } },
+          select: {
+            id: true,
+            skuId: true,
+            tipoRollo: true,
+            metrajeActual: true,
+            sku: { select: { nombre: true, codigo: true, color: true } },
+          },
+        },
+        _count: { select: { handlingUnits: true } },
+      },
+    });
+
+    // 4. Score each location
+    const scored = locations.map(loc => {
+      let score = 0;
+      const currentHUs = loc.handlingUnits.filter(hu => hu.metrajeActual > 0);
+      const capacity = loc.capacidad || 2;
+      const occupied = currentHUs.length;
+      const remaining = capacity - occupied;
+      const hasSameSku = currentHUs.some(hu => hu.skuId === skuId);
+
+      // Can it fit at least 1 rollo?
+      if (remaining <= 0) return null;
+
+      // Scoring
+      if (hasSameSku) score += 40; // Consolidation bonus
+      if (loc.estado === 'LIBRE') score += 30; // Empty preferred
+      score += Math.round((remaining / capacity) * 20); // Capacity ratio
+
+      // Level preference — extract level from codigo like "RE01-P01-R01-N1"
+      const levelMatch = loc.codigo.match(/N(\d+)/i);
+      const level = levelMatch ? parseInt(levelMatch[1]) : 1;
+      score += Math.max(0, 10 - (level - 1) * 3); // Lower levels = higher score
+
+      // Can fit all rollos?
+      const canFitAll = remaining >= cantidadRollos;
+      if (canFitAll) score += 5;
+
+      return {
+        id: loc.id,
+        codigo: loc.codigo,
+        zona: loc.zone,
+        estado: loc.estado,
+        capacidad: capacity,
+        ocupados: occupied,
+        disponibles: remaining,
+        canFitAll,
+        hasSameSku,
+        husActuales: currentHUs.map(hu => ({
+          codigo: hu.sku?.codigo || '',
+          nombre: hu.sku?.nombre || '',
+          color: hu.sku?.color || '',
+          metraje: hu.metrajeActual,
+          tipo: hu.tipoRollo,
+        })),
+        score,
+        motivo: [
+          hasSameSku ? 'Mismo SKU presente (consolidación)' : null,
+          loc.estado === 'LIBRE' ? 'Ubicación completamente libre' : 'Ubicación parcialmente ocupada',
+          remaining >= cantidadRollos ? `Capacidad suficiente (${remaining} espacios libres)` : `Capacidad parcial (${remaining}/${capacity})`,
+          level === 1 ? 'Nivel bajo (fácil acceso)' : `Nivel ${level}`,
+        ].filter(Boolean),
+      };
+    }).filter(Boolean);
+
+    // 5. Sort by score descending and take top 3
+    scored.sort((a: any, b: any) => b.score - a.score);
+    const top3 = scored.slice(0, 3) as any[];
+
+    // 6. Also get fallback to RECIBO zona if no space
+    let fallback = null;
+    if (top3.length === 0) {
+      const reciboZone = await this.prisma.zone.findFirst({ where: { tipo: 'RECIBO', activo: true } });
+      if (reciboZone) {
+        const reciboLoc = await this.prisma.location.findFirst({
+          where: { zoneId: reciboZone.id, estado: { in: ['LIBRE', 'PARCIAL'] }, activo: true },
+          include: { zone: { select: { nombre: true, tipo: true, codigo: true } }, _count: { select: { handlingUnits: true } } },
+        });
+        if (reciboLoc) {
+          fallback = {
+            id: reciboLoc.id,
+            codigo: reciboLoc.codigo,
+            zona: reciboLoc.zone,
+            estado: reciboLoc.estado,
+            capacidad: reciboLoc.capacidad || 50,
+            ocupados: reciboLoc._count.handlingUnits,
+            disponibles: (reciboLoc.capacidad || 50) - reciboLoc._count.handlingUnits,
+            score: 0,
+            motivo: ['Zona de Recibo (staging temporal — no hay espacio en zonas principales)'],
+          };
+        }
+      }
+    }
+
+    // 7. Zone summary for context
+    const zoneSummary = await Promise.all(targetZones.map(async z => {
+      const [total, libre, parcial, ocupada] = await Promise.all([
+        this.prisma.location.count({ where: { zoneId: z.id, activo: true } }),
+        this.prisma.location.count({ where: { zoneId: z.id, estado: 'LIBRE', activo: true } }),
+        this.prisma.location.count({ where: { zoneId: z.id, estado: 'PARCIAL', activo: true } }),
+        this.prisma.location.count({ where: { zoneId: z.id, estado: 'OCUPADA', activo: true } }),
+      ]);
+      return { zona: z.nombre, codigo: z.codigo, total, libre, parcial, ocupada, ocupacionPct: total > 0 ? Math.round(((parcial + ocupada) / total) * 100) : 0 };
+    }));
+
+    return {
+      sugerencias: top3.length > 0 ? top3 : (fallback ? [fallback] : []),
+      seleccionada: top3.length > 0 ? top3[0] : fallback,
+      zoneSummary,
+      tipoZona: targetZoneType,
+    };
+  }
 }

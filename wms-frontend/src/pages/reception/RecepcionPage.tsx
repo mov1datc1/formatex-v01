@@ -1,8 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApi, useMutationApi } from '../../hooks/useApi';
 import type { PaginatedResponse } from '../../hooks/useApi';
 import { api } from '../../config/api';
 import toast from 'react-hot-toast';
+import { MapPin, Package, CheckCircle2, Star, Loader2, ChevronRight, Layers, ArrowRight } from 'lucide-react';
+
+interface LocationSuggestion {
+  id: string;
+  codigo: string;
+  zona: { nombre: string; tipo: string; codigo: string };
+  estado: string;
+  capacidad: number;
+  ocupados: number;
+  disponibles: number;
+  canFitAll?: boolean;
+  hasSameSku?: boolean;
+  husActuales?: Array<{ codigo: string; nombre: string; color: string; metraje: number; tipo: string }>;
+  score: number;
+  motivo: string[];
+}
 
 export default function RecepcionPage() {
   const [showForm, setShowForm] = useState(false);
@@ -19,6 +35,12 @@ export default function RecepcionPage() {
   const { data: suppliers } = useApi<PaginatedResponse<any>>(['suppliers'], '/catalog/suppliers', { limit: 100 });
   const { data: skus } = useApi<PaginatedResponse<any>>(['skus'], '/catalog/skus', { limit: 100 });
 
+  // Location suggestion state
+  const [step, setStep] = useState<'form' | 'locations' | 'done'>('form');
+  const [suggestions, setSuggestions] = useState<Record<number, { sugerencias: LocationSuggestion[]; seleccionada: LocationSuggestion | null; zoneSummary: any[] }>>({});
+  const [selectedLocations, setSelectedLocations] = useState<Record<number, string>>({});
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
   const addLinea = () => setLineas([...lineas, { skuId: '', cantidadRollos: 1, metrajePorRollo: 50, palletRef: '' }]);
   const removeLinea = (idx: number) => setLineas(lineas.filter((_, i) => i !== idx));
   const updateLinea = (idx: number, field: string, value: any) => {
@@ -27,19 +49,52 @@ export default function RecepcionPage() {
     setLineas(updated);
   };
 
-  const handleSubmit = async () => {
+  // Step 1: Validate form → load suggestions
+  const handleGetSuggestions = async () => {
     if (!supplierId) return toast.error('Selecciona un proveedor');
     if (lineas.some((l) => !l.skuId)) return toast.error('Selecciona SKU en todas las líneas');
     if (lineas.some((l) => l.cantidadRollos < 1)) return toast.error('Cantidad de rollos debe ser al menos 1');
+
+    setLoadingSuggestions(true);
+    try {
+      const results: Record<number, any> = {};
+      const selections: Record<number, string> = {};
+
+      for (let i = 0; i < lineas.length; i++) {
+        const l = lineas[i];
+        const { data } = await api.get('/reception/suggest-locations', {
+          params: { skuId: l.skuId, tipoRollo: 'ENTERO', metraje: l.metrajePorRollo, cantidadRollos: l.cantidadRollos },
+        });
+        results[i] = data;
+        // Auto-select the best suggestion
+        if (data.seleccionada) {
+          selections[i] = data.seleccionada.id;
+        }
+      }
+
+      setSuggestions(results);
+      setSelectedLocations(selections);
+      setStep('locations');
+    } catch (e) {
+      toast.error('Error obteniendo sugerencias de ubicación');
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  // Step 2: Confirm and register
+  const handleSubmit = async () => {
     try {
       const result = await mutation.mutateAsync({ supplierId, ordenCompra, transportista, lineas });
       toast.success('✅ Recepción registrada — HUs creados con ubicación asignada');
+      setStep('form');
       setShowForm(false);
       setLineas([{ skuId: '', cantidadRollos: 1, metrajePorRollo: 50, palletRef: '' }]);
       setSupplierId('');
       setOrdenCompra('');
       setTransportista('');
-      // Seleccionar automáticamente la recepción recién creada para ver los HUs
+      setSuggestions({});
+      setSelectedLocations({});
       if (result) setSelectedReceipt(result);
     } catch (e: any) {
       console.error('Error registrando recepción:', e);
@@ -55,22 +110,41 @@ export default function RecepcionPage() {
   };
 
   const totalRollos = lineas.reduce((a, l) => a + l.cantidadRollos, 0);
+  const getSkuName = (skuId: string) => skus?.data?.find((s: any) => s.id === skuId)?.nombre || '';
 
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Recepción de Rollos</h1>
-          <p className="text-gray-500 text-sm">Registro de entradas desde pallets — {resp?.total || 0} recepciones</p>
+          <p className="text-gray-500 text-sm">Registro de entradas con ubicación inteligente — {resp?.total || 0} recepciones</p>
         </div>
-        <button onClick={() => { setShowForm(!showForm); setSelectedReceipt(null); }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+        <button onClick={() => { setShowForm(!showForm); setSelectedReceipt(null); setStep('form'); }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
           {showForm ? '✕ Cerrar' : '+ Nueva Recepción'}
         </button>
       </div>
 
-      {/* Formulario de nueva recepción */}
-      {showForm && (
+      {/* ===== STEP 1: FORM ===== */}
+      {showForm && step === 'form' && (
         <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-4">
+          {/* Step indicator */}
+          <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-xs font-bold">
+              <span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-[10px]">1</span>
+              Datos de Recepción
+            </div>
+            <ChevronRight size={14} className="text-gray-300" />
+            <div className="flex items-center gap-2 px-3 py-1.5 text-gray-400 text-xs font-medium">
+              <span className="w-5 h-5 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">2</span>
+              Ubicación Inteligente
+            </div>
+            <ChevronRight size={14} className="text-gray-300" />
+            <div className="flex items-center gap-2 px-3 py-1.5 text-gray-400 text-xs font-medium">
+              <span className="w-5 h-5 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">3</span>
+              Confirmar
+            </div>
+          </div>
+
           <h2 className="text-lg font-semibold">Nueva Recepción de Pallet</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -123,21 +197,187 @@ export default function RecepcionPage() {
             ))}
           </div>
 
-          {/* Info box — Flujo */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-xs text-blue-700 font-medium mb-1">📦 Flujo automático al registrar:</p>
-            <ol className="text-xs text-blue-600 list-decimal list-inside space-y-0.5">
-              <li><b>Crear HUs</b> — Genera un código único por cada rollo</li>
-              <li><b>Ubicación inteligente</b> — Asigna ubicación en zonas de rollos enteros según disponibilidad de espacio</li>
-              <li><b>Etiquetado pendiente</b> — Los HUs quedan como ⬜ pendientes de etiqueta para imprimir en módulo Etiquetas</li>
-              <li><b>Escaneo de validación</b> — El operador escanea la etiqueta del rollo y la ubicación para confirmar colocación</li>
-            </ol>
-          </div>
-
           <div className="flex justify-end gap-3 pt-4 border-t">
             <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
-            <button onClick={handleSubmit} disabled={mutation.isPending} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50">
-              {mutation.isPending ? '⏳ Registrando...' : `📥 Registrar Recepción (${totalRollos} rollos)`}
+            <button onClick={handleGetSuggestions} disabled={loadingSuggestions}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50 flex items-center gap-2">
+              {loadingSuggestions ? <><Loader2 size={15} className="animate-spin" /> Analizando almacén...</> : <><MapPin size={15} /> Sugerir Ubicaciones</>}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== STEP 2: LOCATION SUGGESTIONS ===== */}
+      {showForm && step === 'locations' && (
+        <div className="space-y-4">
+          {/* Step indicator */}
+          <div className="bg-white rounded-xl border border-gray-100 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-1.5 text-gray-400 text-xs font-medium">
+                <span className="w-5 h-5 bg-green-500 text-white rounded-full flex items-center justify-center text-[10px]">✓</span>
+                Datos
+              </div>
+              <ChevronRight size={14} className="text-gray-300" />
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-xs font-bold">
+                <span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-[10px]">2</span>
+                Ubicación Inteligente
+              </div>
+              <ChevronRight size={14} className="text-gray-300" />
+              <div className="flex items-center gap-2 px-3 py-1.5 text-gray-400 text-xs font-medium">
+                <span className="w-5 h-5 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">3</span>
+                Confirmar
+              </div>
+            </div>
+          </div>
+
+          {/* Per-line suggestions */}
+          {lineas.map((linea, idx) => {
+            const data = suggestions[idx];
+            if (!data) return null;
+            const skuName = getSkuName(linea.skuId);
+
+            return (
+              <div key={idx} className="bg-white rounded-xl border border-gray-100 p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                      <Package size={18} className="text-blue-500" />
+                      {skuName} — {linea.cantidadRollos} rollos × {linea.metrajePorRollo}m
+                    </h3>
+                    <p className="text-xs text-gray-400 mt-0.5">Selecciona la ubicación preferida para estos rollos</p>
+                  </div>
+                  {/* Zone summary badges */}
+                  <div className="flex gap-2">
+                    {data.zoneSummary?.map((z: any) => (
+                      <div key={z.codigo} className="text-right">
+                        <p className="text-[10px] text-gray-400 font-medium">{z.zona}</p>
+                        <div className="flex items-center gap-1.5 text-[10px]">
+                          <span className="text-green-600 font-bold">{z.libre} libres</span>
+                          <span className="text-orange-500">{z.parcial} parciales</span>
+                          <span className="text-gray-400">{z.ocupacionPct}% ocup.</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3 Location cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {data.sugerencias.map((sug: LocationSuggestion, sIdx: number) => {
+                    const isSelected = selectedLocations[idx] === sug.id;
+                    const isBest = sIdx === 0;
+
+                    return (
+                      <button
+                        key={sug.id}
+                        onClick={() => setSelectedLocations({ ...selectedLocations, [idx]: sug.id })}
+                        className={`relative p-4 rounded-xl border-2 text-left transition-all ${
+                          isSelected
+                            ? 'border-blue-500 bg-blue-50/50 shadow-md ring-2 ring-blue-200'
+                            : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm'
+                        }`}
+                      >
+                        {/* Best badge */}
+                        {isBest && (
+                          <div className="absolute -top-2.5 left-3 px-2 py-0.5 bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-[9px] font-bold rounded-full flex items-center gap-1">
+                            <Star size={10} /> RECOMENDADA
+                          </div>
+                        )}
+
+                        {/* Selection indicator */}
+                        <div className={`absolute top-3 right-3 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                          isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
+                        }`}>
+                          {isSelected && <CheckCircle2 size={14} className="text-white" />}
+                        </div>
+
+                        {/* Location code */}
+                        <p className="font-mono font-bold text-lg text-gray-900 mb-1">{sug.codigo}</p>
+                        <p className="text-xs text-gray-500 mb-3">{sug.zona?.nombre}</p>
+
+                        {/* Capacity bar */}
+                        <div className="mb-3">
+                          <div className="flex justify-between text-[10px] text-gray-400 mb-1">
+                            <span>Capacidad</span>
+                            <span>{sug.ocupados}/{sug.capacidad} ocupados</span>
+                          </div>
+                          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                sug.ocupados === 0 ? 'bg-green-400' :
+                                sug.ocupados / sug.capacidad < 0.5 ? 'bg-blue-400' :
+                                sug.ocupados / sug.capacidad < 0.8 ? 'bg-orange-400' : 'bg-red-400'
+                              }`}
+                              style={{ width: `${(sug.ocupados / sug.capacidad) * 100}%` }}
+                            />
+                          </div>
+                          <p className="text-[10px] font-bold mt-1 text-green-600">{sug.disponibles} espacios libres</p>
+                        </div>
+
+                        {/* Same SKU indicator */}
+                        {sug.hasSameSku && (
+                          <div className="flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-md text-[10px] font-medium mb-2">
+                            <Layers size={11} /> Mismo SKU aquí (consolidar)
+                          </div>
+                        )}
+
+                        {/* Existing HUs */}
+                        {sug.husActuales && sug.husActuales.length > 0 && (
+                          <div className="space-y-1">
+                            <p className="text-[9px] text-gray-400 font-semibold uppercase">Contenido actual:</p>
+                            {sug.husActuales.slice(0, 3).map((hu, hIdx) => (
+                              <p key={hIdx} className="text-[10px] text-gray-500">
+                                {hu.nombre} · {hu.color} · {hu.metraje}m ({hu.tipo})
+                              </p>
+                            ))}
+                            {sug.husActuales.length > 3 && (
+                              <p className="text-[9px] text-gray-400">+{sug.husActuales.length - 3} más</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Reasons */}
+                        <div className="mt-3 space-y-0.5">
+                          {sug.motivo?.map((m: string, mIdx: number) => (
+                            <p key={mIdx} className="text-[9px] text-gray-400 flex items-start gap-1">
+                              <span className="text-green-500 mt-px">✓</span> {m}
+                            </p>
+                          ))}
+                        </div>
+
+                        {/* Score */}
+                        <div className="mt-2 pt-2 border-t border-gray-100">
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full" style={{ width: `${Math.min(sug.score, 100)}%` }} />
+                            </div>
+                            <span className="text-[9px] font-bold text-gray-400">{sug.score}pts</span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {data.sugerencias.length === 0 && (
+                  <div className="text-center py-6 text-gray-400">
+                    <MapPin size={32} className="mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm font-medium">No hay ubicaciones disponibles</p>
+                    <p className="text-xs">Las zonas de rollos enteros están llenas. Se asignará a zona de recibo.</p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Actions */}
+          <div className="flex justify-between">
+            <button onClick={() => setStep('form')} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg flex items-center gap-1.5">
+              ← Volver a datos
+            </button>
+            <button onClick={handleSubmit} disabled={mutation.isPending}
+              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-xl hover:from-blue-500 hover:to-cyan-400 text-sm font-bold disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-blue-200">
+              {mutation.isPending ? <><Loader2 size={15} className="animate-spin" /> Registrando...</> : <><CheckCircle2 size={16} /> Confirmar Recepción ({totalRollos} rollos)</>}
             </button>
           </div>
         </div>
@@ -231,7 +471,6 @@ export default function RecepcionPage() {
                 </div>
               </div>
 
-              {/* Botón para ir a Etiquetar */}
               <div className="border-t pt-3">
                 <a href="/etiquetas" className="block text-center px-4 py-2 bg-amber-100 text-amber-700 rounded-lg text-xs font-medium hover:bg-amber-200">
                   Ir a Etiquetar estos rollos

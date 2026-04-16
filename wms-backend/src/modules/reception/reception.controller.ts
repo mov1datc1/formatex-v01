@@ -28,6 +28,17 @@ export class ReceptionController {
     return this.receptionService.findReceiptById(id);
   }
 
+  @Get('suggest-locations')
+  @ApiOperation({ summary: 'Sugerir 3 ubicaciones inteligentes para HUs entrantes' })
+  suggestLocations(
+    @Query('skuId') skuId: string,
+    @Query('tipoRollo') tipoRollo: 'ENTERO' | 'RETAZO' = 'ENTERO',
+    @Query('metraje') metraje: number = 50,
+    @Query('cantidadRollos') cantidadRollos: number = 1,
+  ) {
+    return this.receptionService.suggestLocations({ skuId, tipoRollo, metraje: +metraje, cantidadRollos: +cantidadRollos });
+  }
+
   @Post()
   @ApiOperation({ summary: 'Registrar recepción de pallet (crea HUs automáticamente)' })
   register(@Body() body: any, @Req() req: any) {
