@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useApi } from '../../hooks/useApi';
+import type { PaginatedResponse } from '../../hooks/useApi';
 import { api } from '../../config/api';
 import toast from 'react-hot-toast';
 import { WmsIcon, KpiIcon } from '../../components/icons/WmsIcons';
@@ -12,7 +13,8 @@ export default function EnvioPage() {
   const [notas, setNotas] = useState('');
   const [firmaRecibido, setFirmaRecibido] = useState(false);
 
-  const { data: orders, refetch } = useApi<any[]>(['shipping-orders'], '/orders', { estado: 'FACTURADO', limit: 20 });
+  const { data: resp, refetch } = useApi<PaginatedResponse<any>>(['shipping-orders'], '/orders', { estado: 'FACTURADO', limit: 50 });
+  const orders = resp?.data || [];
 
   const loadDetail = async (orderId: string) => {
     try {

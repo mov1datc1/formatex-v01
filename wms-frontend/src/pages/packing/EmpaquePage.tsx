@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useApi } from '../../hooks/useApi';
+import type { PaginatedResponse } from '../../hooks/useApi';
 import { api } from '../../config/api';
 import toast from 'react-hot-toast';
 import { WmsIcon, KpiIcon, StatusBadge } from '../../components/icons/WmsIcons';
@@ -11,7 +12,8 @@ export default function EmpaquePage() {
   const [dimensiones, setDimensiones] = useState({ largo: 0, ancho: 0, alto: 0 });
   const [notas, setNotas] = useState('');
 
-  const { data: orders, refetch } = useApi<any[]>(['packing-orders'], '/orders', { estado: 'EMPACADO', limit: 20 });
+  const { data: resp, refetch } = useApi<PaginatedResponse<any>>(['packing-orders'], '/orders', { estado: 'EMPACADO', limit: 50 });
+  const orders = resp?.data || [];
 
   const loadDetail = async (orderId: string) => {
     try {
