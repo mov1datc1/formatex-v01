@@ -22,12 +22,6 @@ export class ReceptionController {
     return this.receptionService.getReceptionStats();
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Obtener recepción por ID' })
-  findById(@Param('id') id: string) {
-    return this.receptionService.findReceiptById(id);
-  }
-
   @Get('suggest-locations')
   @ApiOperation({ summary: 'Sugerir 3 ubicaciones inteligentes para HUs entrantes' })
   suggestLocations(
@@ -37,6 +31,12 @@ export class ReceptionController {
     @Query('cantidadRollos') cantidadRollos: number = 1,
   ) {
     return this.receptionService.suggestLocations({ skuId, tipoRollo, metraje: +metraje, cantidadRollos: +cantidadRollos });
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener recepción por ID' })
+  findById(@Param('id') id: string) {
+    return this.receptionService.findReceiptById(id);
   }
 
   @Post()
