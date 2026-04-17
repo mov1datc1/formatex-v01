@@ -42,8 +42,18 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
     return s.nombre?.toLowerCase().includes(q) || s.codigo?.toLowerCase().includes(q) || s.color?.toLowerCase().includes(q);
   });
 
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const lastFetchedRef = useRef('');
+
   const fetchSuggestions = useCallback(async (skuId: string, metraje: number) => {
     if (!skuId || !metraje || metraje <= 0) { setSuggestions(null); return; }
+
+    // Prevent re-fetching the same params (avoids infinite loop)
+    const key = `${skuId}-${metraje}`;
+    if (lastFetchedRef.current === key) return;
+    lastFetchedRef.current = key;
+
     setLoadingSugg(true);
     try {
       const resp = await api.get('/inventory/suggest-hus', { params: { skuId, metraje, limit: 20 } });
@@ -56,11 +66,11 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
         const selectedHUs = plan.items
           .filter((item: any) => item.source === 'FISICO')
           .map((item: any) => ({ huId: item.id, metrajeTomar: item.metrajeTomar }));
-        onChange(index, 'selectedHUs', selectedHUs);
+        onChangeRef.current(index, 'selectedHUs', selectedHUs);
       }
     } catch { setSuggestions(null); }
     setLoadingSugg(false);
-  }, [index, onChange]);
+  }, [index]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);

@@ -4,7 +4,7 @@ import type { PaginatedResponse, Order } from '../../hooks/useApi';
 import { api } from '../../config/api';
 import toast from 'react-hot-toast';
 import { WmsIcon, PipelineIcon, StatusBadge } from '../../components/icons/WmsIcons';
-import { X, Plus, Phone, AlertCircle } from 'lucide-react';
+import { X, Plus, Phone, AlertCircle, ShieldCheck } from 'lucide-react';
 import type { FC } from 'react';
 import type { LucideProps } from 'lucide-react';
 import OrderLineSmart from '../../components/orders/OrderLineSmart';
@@ -47,6 +47,7 @@ export default function PedidosPage() {
   const [filterEstado, setFilterEstado] = useState('');
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{ orderId: string; currentStatus: string; msg: string } | null>(null);
   const { canCreate, canUpdate } = usePermission();
 
   const { data: resp, isLoading } = useApi<PaginatedResponse<Order>>(['orders', search, filterEstado], '/orders', { search: search || undefined, estado: filterEstado || undefined, limit: 20 });
@@ -94,12 +95,24 @@ export default function PedidosPage() {
   const advanceStatus = async (orderId: string, currentStatus: string) => {
     const transition = NEXT_STATUS[currentStatus];
     if (!transition) return;
-    if (transition.confirmMsg && !confirm(transition.confirmMsg)) return;
 
+    // If this transition needs confirmation, show custom modal instead of native confirm()
+    if (transition.confirmMsg) {
+      setConfirmModal({ orderId, currentStatus, msg: transition.confirmMsg });
+      return;
+    }
+
+    await executeAdvance(orderId, currentStatus);
+  };
+
+  const executeAdvance = async (orderId: string, currentStatus: string) => {
+    const transition = NEXT_STATUS[currentStatus];
+    if (!transition) return;
     try {
       await api.put(`/orders/${orderId}/status`, { estado: transition.next });
       toast.success(`Pedido avanzado a: ${STATUS_MAP[transition.next]?.label}`);
       refetchDetail();
+      setConfirmModal(null);
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Error al cambiar estado');
     }
@@ -409,6 +422,40 @@ export default function PedidosPage() {
           )}
         </div>
       </div>
+
+      {/* === Custom Confirmation Modal === */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setConfirmModal(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 animate-fade-in" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <ShieldCheck size={24} className="text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Confirmar Acción</h3>
+                <p className="text-xs text-gray-400">{NEXT_STATUS[confirmModal.currentStatus]?.label}</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-6 bg-gray-50 rounded-xl p-4">
+              {confirmModal.msg}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmModal(null)}
+                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 text-sm font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => executeAdvance(confirmModal.orderId, confirmModal.currentStatus)}
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 text-sm font-medium transition-all shadow-sm flex items-center justify-center gap-2"
+              >
+                <ShieldCheck size={16} /> Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
