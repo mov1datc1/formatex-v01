@@ -337,7 +337,7 @@ export class OrdersService {
                 hu: {
                   include: {
                     sku: { select: { id: true, nombre: true, codigo: true, color: true } },
-                    ubicacion: { select: { id: true, codigo: true, zona: true, pasillo: true, nivel: true, posicion: true } },
+                    ubicacion: { include: { zone: { select: { nombre: true } } } },
                   },
                 },
               },
@@ -349,7 +349,7 @@ export class OrdersService {
 
     // Build flat picking list, sorted by warehouse zone/aisle for optimal route
     const items = (order as any).lineas.flatMap((line: any) =>
-      line.assignments.map((a) => ({
+      line.assignments.map((a: any) => ({
         assignmentId: a.id,
         lineId: line.id,
         huId: a.hu.id,
@@ -361,21 +361,27 @@ export class OrdersService {
         requiereCorte: a.requiereCorte,
         picked: a.hu.estadoHu === 'EN_PICKING',
         cortado: a.cortado,
-        ubicacion: a.hu.ubicacion || null,
+        ubicacion: a.hu.ubicacion ? {
+          codigo: a.hu.ubicacion.codigo,
+          pasillo: a.hu.ubicacion.pasillo,
+          rack: a.hu.ubicacion.rack,
+          nivel: a.hu.ubicacion.nivel,
+          zona: a.hu.ubicacion.zone?.nombre || '',
+        } : null,
       }))
     );
 
     // Sort by zone → aisle → level for walking efficiency
-    items.sort((a, b) => {
+    items.sort((a: any, b: any) => {
       const zA = a.ubicacion?.zona || 'Z';
       const zB = b.ubicacion?.zona || 'Z';
       if (zA !== zB) return zA.localeCompare(zB);
-      const pA = a.ubicacion?.pasillo || 999;
-      const pB = b.ubicacion?.pasillo || 999;
-      if (pA !== pB) return pA - pB;
-      const nA = a.ubicacion?.nivel || 999;
-      const nB = b.ubicacion?.nivel || 999;
-      return nA - nB;
+      const pA = a.ubicacion?.pasillo || 'ZZZ';
+      const pB = b.ubicacion?.pasillo || 'ZZZ';
+      if (pA !== pB) return pA.localeCompare(pB);
+      const nA = a.ubicacion?.nivel || 'ZZZ';
+      const nB = b.ubicacion?.nivel || 'ZZZ';
+      return nA.localeCompare(nB);
     });
 
     const o = order as any;
@@ -387,7 +393,7 @@ export class OrdersService {
       cliente: o.client?.nombre,
       modoEntrega: order.modoEntrega,
       totalItems: items.length,
-      pickedCount: items.filter(i => i.picked).length,
+      pickedCount: items.filter((i: any) => i.picked).length,
       items,
     };
   }
