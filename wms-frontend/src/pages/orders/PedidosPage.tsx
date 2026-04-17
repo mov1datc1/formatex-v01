@@ -60,18 +60,32 @@ export default function PedidosPage() {
   const [clientId, setClientId] = useState('');
   const [vendorId, setVendorId] = useState('');
   const [prioridad, setPrioridad] = useState(3);
-  const [lineas, setLineas] = useState([{ skuId: '', metrajeRequerido: 50, precioUnitario: 0 }]);
+  const [reservaHoras, setReservaHoras] = useState(168);
+  const [modoEntrega, setModoEntrega] = useState('COMPLETA');
+  const [lineas, setLineas] = useState<any[]>([{ skuId: '', metrajeRequerido: 50, precioUnitario: 0, selectedHUs: [] }]);
 
-  const addLinea = () => setLineas([...lineas, { skuId: '', metrajeRequerido: 50, precioUnitario: 0 }]);
+  const addLinea = () => setLineas([...lineas, { skuId: '', metrajeRequerido: 50, precioUnitario: 0, selectedHUs: [] }]);
 
   const handleCreate = async () => {
     if (!clientId) return toast.error('Selecciona un cliente');
     if (lineas.some(l => !l.skuId || !l.metrajeRequerido)) return toast.error('Completa todas las líneas');
     try {
-      await createMut.mutateAsync({ clientId, vendorId: vendorId || undefined, prioridad, lineas });
-      toast.success('Pedido COTIZADO creado — Reserva blanda 24h activa');
+      await createMut.mutateAsync({
+        clientId,
+        vendorId: vendorId || undefined,
+        prioridad,
+        reservaHoras,
+        modoEntrega,
+        lineas: lineas.map(l => ({
+          skuId: l.skuId,
+          metrajeRequerido: l.metrajeRequerido,
+          precioUnitario: l.precioUnitario,
+          selectedHUs: l.selectedHUs?.length ? l.selectedHUs : undefined,
+        })),
+      });
+      toast.success(`Cotización creada — HUs reservados ${reservaHoras}h · Entrega: ${modoEntrega}`);
       setShowForm(false);
-      setLineas([{ skuId: '', metrajeRequerido: 50, precioUnitario: 0 }]);
+      setLineas([{ skuId: '', metrajeRequerido: 50, precioUnitario: 0, selectedHUs: [] }]);
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Error');
     }
@@ -159,6 +173,29 @@ export default function PedidosPage() {
                 <option value={3}>Normal</option>
                 <option value={4}>Baja</option>
               </select>
+            </div>
+
+            {/* Reserva + Modo Entrega */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">⏱️ Reserva Blanda (horas)</label>
+                <select value={reservaHoras} onChange={e => setReservaHoras(+e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500">
+                  <option value={24}>24 horas (1 día)</option>
+                  <option value={48}>48 horas (2 días)</option>
+                  <option value={72}>72 horas (3 días)</option>
+                  <option value={168}>168 horas (7 días)</option>
+                  <option value={336}>336 horas (14 días)</option>
+                </select>
+                <p className="text-[10px] text-gray-400 mt-0.5">HUs reservados se liberan automáticamente si no se paga</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">📦 Modo de Entrega</label>
+                <select value={modoEntrega} onChange={e => setModoEntrega(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500">
+                  <option value="COMPLETA">Completa — Esperar todo junto</option>
+                  <option value="PARCIAL">Parcial — Entregas por separado</option>
+                </select>
+                <p className="text-[10px] text-gray-400 mt-0.5">{modoEntrega === 'PARCIAL' ? 'Se factura cada entrega por separado' : 'Una sola factura cuando todo esté listo'}</p>
+              </div>
             </div>
           </div>
 

@@ -337,8 +337,9 @@ enum MovementType {
 
 model Reservation {
   id              String          @id @default(uuid())
-  orderId         String?         // Pedido asociado (puede ser null en cotización)
-  huId            String?         // HU físico reservado (null si es tránsito)
+  orderId         String?         // Pedido asociado
+  orderLineId     String?         // Línea específica del pedido
+  huId            String?         // HU físico reservado
   shipmentLineId  String?         // Línea de embarque en tránsito (null si es stock físico)
   skuId           String          // SKU de la tela
   metrajeReservado Float          // Metros reservados
@@ -514,12 +515,14 @@ model Order {
   facturaLista    Boolean     @default(false)
 
   // === OPERATIVO ===
-  requiereCorte   Boolean     @default(true) // La mayoría sí
+  requiereCorte   Boolean     @default(true)
+  reservaHoras    Int         @default(168)  // Duración reserva blanda en horas (168h=7 días), ATC configurable
+  modoEntrega     String      @default("COMPLETA")  // COMPLETA (esperar todo) o PARCIAL (entregas separadas)
   transportista   String?
   guiaEnvio       String?
   notas           String?
-  condiciones     String?     // "CDJOHUBA", etc.
-  creadoPor       String      // userId
+  condiciones     String?
+  creadoPor       String
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 

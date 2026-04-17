@@ -4,60 +4,101 @@ import type { PaginatedResponse } from '../../hooks/useApi';
 import { api } from '../../config/api';
 import toast from 'react-hot-toast';
 import ScanInput from './ScanInput';
-import { WmsIcon, StatusBadge } from '../../components/icons/WmsIcons';
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import {
+  Package, ArrowRight, CheckCircle2, XCircle, MapPin,
+  Scissors, AlertTriangle, Navigation,
+} from 'lucide-react';
 
 export default function PickerView() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
-  const [scanResult, setScanResult] = useState<any>(null);
+  const [pickingList, setPickingList] = useState<any>(null);
+  const [lastScan, setLastScan] = useState<any>(null);
 
   const { data: ordersResp, refetch } = useApi<PaginatedResponse<any>>(['picker-orders'], '/orders', { estado: 'POR_SURTIR', limit: 20 });
   const { data: progressResp } = useApi<PaginatedResponse<any>>(['picker-progress'], '/orders', { estado: 'EN_SURTIDO', limit: 20 });
 
+  // Take an order (POR_SURTIR → EN_SURTIDO) and load its picking list
   const takeOrder = async (orderId: string) => {
     try {
       await api.put(`/orders/${orderId}/status`, { estado: 'EN_SURTIDO' });
-      toast.success('Pedido tomado — Estado: EN SURTIDO');
-      const detail = await api.get(`/orders/${orderId}`);
-      setSelectedOrder(detail.data);
+      toast.success('Pedido tomado — Cargando lista de picking...');
+      await loadPickingList(orderId);
       refetch();
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Error');
     }
   };
 
+  // Resume an in-progress order
+  const resumeOrder = async (orderId: string) => {
+    await loadPickingList(orderId);
+  };
+
+  // Load picking list from backend
+  const loadPickingList = async (orderId: string) => {
+    try {
+      const resp = await api.get(`/orders/${orderId}/picking-list`);
+      setPickingList(resp.data);
+      setSelectedOrder(resp.data);
+      setLastScan(null);
+    } catch (e: any) {
+      toast.error('Error al cargar lista de picking');
+    }
+  };
+
+  // ====== CORE: Validate scanned HU against the order ======
   const handleScan = async (code: string) => {
     if (!selectedOrder) return toast.error('Selecciona un pedido primero');
+    setLastScan(null);
+
     try {
-      const resp = await api.get(`/inventory/hus`, { params: { search: code, limit: 1 } });
-      const hu = resp.data?.data?.[0];
-      if (!hu) return toast.error(`HU "${code}" no encontrado`);
-      setScanResult(hu);
-      toast.success(`Escaneado: ${hu.codigo} — ${hu.sku?.nombre} ${hu.metrajeActual}m`);
+      const resp = await api.post(`/orders/${selectedOrder.orderId}/validate-scan`, { huCodigo: code });
+      const result = resp.data;
+
+      if (!result.valid) {
+        // ❌ REJECT — HU doesn't belong to this order
+        setLastScan({ valid: false, code, error: result.error });
+        toast.error(result.error, { duration: 5000, icon: '🚫' });
+        // Vibrate on error (if supported)
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        return;
+      }
+
+      if (result.alreadyPicked) {
+        // ⚠️ Already scanned
+        setLastScan({ valid: true, alreadyPicked: true, code, hu: result.hu });
+        toast('Ya escaneaste este HU', { icon: '⚠️', duration: 3000 });
+        return;
+      }
+
+      // ✅ VALID — Confirm the pick
+      await api.post(`/orders/lines/${result.assignment.lineId}/assign`, {
+        huId: result.hu.id,
+        metrajeTomado: result.assignment.metrajeTomar,
+      });
+
+      setLastScan({ valid: true, alreadyPicked: false, code, hu: result.hu, assignment: result.assignment });
+      toast.success(`✅ HU verificado y recogido — ${result.hu.codigo}`, { duration: 3000 });
+
+      // Vibrate on success
+      if (navigator.vibrate) navigator.vibrate(100);
+
+      // Refresh picking list
+      await loadPickingList(selectedOrder.orderId);
     } catch (e: any) {
-      toast.error('Error al buscar HU');
+      toast.error(e?.response?.data?.message || 'Error al validar escaneo');
     }
   };
 
-  const assignHU = async (lineId: string, huId: string, metraje: number) => {
-    try {
-      await api.post(`/orders/${selectedOrder.id}/assign`, { orderLineId: lineId, huId, metrajeTomado: metraje });
-      toast.success('HU asignado al pedido');
-      setScanResult(null);
-      // Refresh detail
-      const detail = await api.get(`/orders/${selectedOrder.id}`);
-      setSelectedOrder(detail.data);
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message || 'Error al asignar');
-    }
-  };
-
+  // Send to cut when all picked
   const sendToCut = async () => {
     if (!selectedOrder) return;
     try {
-      await api.put(`/orders/${selectedOrder.id}/status`, { estado: 'EN_CORTE' });
-      toast.success('Pedido enviado a CORTE');
+      await api.put(`/orders/${selectedOrder.orderId}/status`, { estado: 'EN_CORTE' });
+      toast.success('✂️ Pedido enviado a CORTE');
       setSelectedOrder(null);
+      setPickingList(null);
+      setLastScan(null);
       refetch();
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Error');
@@ -65,115 +106,189 @@ export default function PickerView() {
   };
 
   const allOrders = [...(ordersResp?.data || []), ...(progressResp?.data || [])];
+  const pickedCount = pickingList?.pickedCount || 0;
+  const totalItems = pickingList?.totalItems || 0;
+  const allPicked = totalItems > 0 && pickedCount >= totalItems;
 
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-2xl bg-blue-500 flex items-center justify-center">
-          <WmsIcon.Picking size={24} className="text-white" />
+          <Package size={24} className="text-white" />
         </div>
         <div>
-          <h1 className="text-xl font-bold">Modo Picker</h1>
-          <p className="text-xs text-gray-400">{allOrders?.length || 0} pedidos pendientes</p>
+          <h1 className="text-xl font-bold">Picking Controlado</h1>
+          <p className="text-xs text-gray-400">{allOrders?.length || 0} pedidos</p>
         </div>
       </div>
 
       {!selectedOrder ? (
-        /* Order list */
+        /* ====== ORDER LIST ====== */
         <div className="space-y-3">
           <p className="text-sm text-gray-400 font-medium uppercase tracking-wider">Selecciona un pedido:</p>
           {allOrders?.length === 0 ? (
             <div className="text-center py-12">
-              <WmsIcon.Quote size={48} className="mx-auto mb-3 text-gray-600" />
-              <p className="text-gray-400">No hay pedidos por surtir</p>
+              <Package size={48} className="mx-auto mb-3 text-gray-700" />
+              <p className="text-gray-500">No hay pedidos por surtir</p>
             </div>
           ) : allOrders?.map((o: any) => (
             <button
               key={o.id}
-              onClick={() => o.estado === 'POR_SURTIR' ? takeOrder(o.id) : (async () => { const d = await api.get(`/orders/${o.id}`); setSelectedOrder(d.data); })()}
-              className="w-full text-left bg-gray-800 rounded-2xl p-4 hover:bg-gray-700 active:scale-[0.98] transition-all border border-gray-700"
+              onClick={() => o.estado === 'POR_SURTIR' ? takeOrder(o.id) : resumeOrder(o.id)}
+              className="w-full text-left bg-gray-900 rounded-2xl p-4 active:scale-[0.98] transition-all border border-gray-800"
             >
               <div className="flex justify-between items-center">
                 <div>
-                  <span className="font-mono font-bold text-primary-400">{o.codigo}</span>
-                  <StatusBadge
-                    icon={o.estado === 'EN_SURTIDO' ? WmsIcon.InFulfill : WmsIcon.ToFulfill}
-                    label={o.estado === 'EN_SURTIDO' ? 'En Surtido' : 'Por Surtir'}
-                    bgClass={o.estado === 'EN_SURTIDO' ? 'bg-indigo-900/50' : 'bg-blue-900/50'}
-                    textClass={o.estado === 'EN_SURTIDO' ? 'text-indigo-300' : 'text-blue-300'}
-                  />
+                  <span className="font-mono font-bold text-blue-400">{o.codigo}</span>
+                  <span className={`ml-2 text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                    o.estado === 'EN_SURTIDO' ? 'bg-indigo-900/50 text-indigo-300' : 'bg-blue-900/50 text-blue-300'
+                  }`}>{o.estado === 'EN_SURTIDO' ? 'En Surtido' : 'Por Surtir'}</span>
                 </div>
-                <ArrowRight size={20} className="text-gray-500" />
+                <ArrowRight size={18} className="text-gray-600" />
               </div>
               <p className="text-sm text-gray-300 mt-1">{o.client?.nombre}</p>
-              <p className="text-xs text-gray-500">{o._count?.lineas || o.lineas?.length} líneas · {o.prioridad <= 2 ? '⚡ Urgente' : 'Normal'}</p>
+              <p className="text-xs text-gray-600">{o._count?.lineas || o.lineas?.length} líneas · {o.prioridad <= 2 ? '⚡ Urgente' : 'Normal'}</p>
             </button>
           ))}
         </div>
       ) : (
-        /* Order detail + scanning */
+        /* ====== PICKING MODE ====== */
         <div className="space-y-4">
-          <div className="bg-gray-800 rounded-2xl p-4 border border-gray-700">
+          {/* Order header + progress */}
+          <div className="bg-gray-900 rounded-2xl p-4 border border-gray-800">
             <div className="flex justify-between items-center mb-3">
               <div>
-                <span className="font-mono font-bold text-lg text-primary-400">{selectedOrder.codigo}</span>
-                <p className="text-sm text-gray-300">{selectedOrder.client?.nombre}</p>
+                <span className="font-mono font-bold text-lg text-blue-400">{pickingList?.codigo}</span>
+                <p className="text-sm text-gray-300">{pickingList?.cliente}</p>
               </div>
-              <button onClick={() => setSelectedOrder(null)} className="px-3 py-2 bg-gray-700 rounded-xl text-sm text-gray-300">← Volver</button>
+              <button onClick={() => { setSelectedOrder(null); setPickingList(null); setLastScan(null); }}
+                className="px-3 py-1.5 bg-gray-800 rounded-xl text-xs text-gray-300">← Volver</button>
             </div>
 
-            {/* Lines */}
-            <div className="space-y-2">
-              {selectedOrder.lineas?.map((line: any) => {
-                const progress = line.metrajeRequerido > 0 ? (line.metrajeSurtido / line.metrajeRequerido) * 100 : 0;
-                const complete = progress >= 100;
-                return (
-                  <div key={line.id} className={`p-3 rounded-xl border ${complete ? 'bg-emerald-900/20 border-emerald-700' : 'bg-gray-700 border-gray-600'}`}>
-                    <div className="flex justify-between text-sm">
-                      <span className="font-medium text-white">{line.sku?.nombre || 'Tela'}</span>
-                      <span className={complete ? 'text-emerald-400' : 'text-amber-400'}>
-                        {line.metrajeSurtido}/{line.metrajeRequerido}m
-                      </span>
-                    </div>
-                    <div className="w-full h-2 bg-gray-600 rounded-full mt-2 overflow-hidden">
-                      <div className={`h-full rounded-full transition-all ${complete ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, progress)}%` }} />
-                    </div>
-                    {/* Assign scanned HU to this line */}
-                    {scanResult && !complete && (
-                      <button
-                        onClick={() => assignHU(line.id, scanResult.id, Math.min(scanResult.metrajeActual, line.metrajeRequerido - line.metrajeSurtido))}
-                        className="mt-2 w-full py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium active:scale-[0.98]"
-                      >
-                        Asignar {scanResult.codigo} ({scanResult.metrajeActual}m)
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+            {/* Progress bar */}
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-gray-400 font-medium">Progreso de picking</span>
+              <span className={`text-sm font-bold ${allPicked ? 'text-emerald-400' : 'text-blue-400'}`}>
+                {pickedCount}/{totalItems} HUs
+              </span>
+            </div>
+            <div className="w-full h-3 bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${allPicked ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                style={{ width: `${totalItems > 0 ? (pickedCount / totalItems) * 100 : 0}%` }}
+              />
             </div>
           </div>
 
-          {/* Scan */}
-          <ScanInput onScan={handleScan} placeholder="Escanear rollo..." />
+          {/* Picking list — HUs to find */}
+          <div className="space-y-2">
+            <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+              <Navigation size={12} /> Ruta de picking
+            </p>
+            {pickingList?.items?.map((item: any, idx: number) => (
+              <div
+                key={item.assignmentId}
+                className={`p-3 rounded-xl border transition-all ${
+                  item.picked
+                    ? 'bg-emerald-900/20 border-emerald-800/50'
+                    : 'bg-gray-900 border-gray-800'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    {/* Status icon */}
+                    {item.picked ? (
+                      <CheckCircle2 size={20} className="text-emerald-400 flex-shrink-0" />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full border-2 border-gray-600 flex items-center justify-center text-[9px] text-gray-500 font-bold flex-shrink-0">
+                        {idx + 1}
+                      </div>
+                    )}
+                    <div>
+                      <p className={`font-mono font-bold text-sm ${item.picked ? 'text-emerald-400 line-through' : 'text-white'}`}>
+                        {item.huCodigo}
+                      </p>
+                      <p className="text-xs text-gray-400">{item.skuNombre} · {item.skuColor}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-sm">{item.metrajeTomar}m</p>
+                    {item.requiereCorte && (
+                      <span className="text-[9px] text-orange-400 flex items-center gap-0.5 justify-end">
+                        <Scissors size={9} /> Cortar
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-          {/* Scanned result */}
-          {scanResult && (
-            <div className="bg-blue-900/30 border border-blue-700 rounded-2xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle2 size={18} className="text-blue-400" />
-                <span className="font-bold text-blue-300">Rollo Escaneado</span>
+                {/* Location guide */}
+                {!item.picked && item.ubicacion && (
+                  <div className="mt-2 flex items-center gap-2 bg-blue-900/30 rounded-lg px-3 py-2">
+                    <MapPin size={14} className="text-blue-400 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-blue-300">
+                        Ve a: {item.ubicacion.codigo}
+                      </p>
+                      <p className="text-[10px] text-blue-400/60">
+                        Zona {item.ubicacion.zona} · Pasillo {item.ubicacion.pasillo} · Nivel {item.ubicacion.nivel}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {!item.picked && !item.ubicacion && (
+                  <div className="mt-2 flex items-center gap-2 bg-amber-900/30 rounded-lg px-3 py-2">
+                    <AlertTriangle size={14} className="text-amber-400 flex-shrink-0" />
+                    <p className="text-[10px] text-amber-300">Sin ubicación asignada — consultar a supervisor</p>
+                  </div>
+                )}
               </div>
-              <p className="font-mono text-lg text-white">{scanResult.codigo}</p>
-              <p className="text-sm text-gray-300">{scanResult.sku?.nombre} — {scanResult.metrajeActual}m</p>
-              <p className="text-xs text-gray-500">{scanResult.ubicacion?.codigo}</p>
+            ))}
+          </div>
+
+          {/* Scan input */}
+          <ScanInput onScan={handleScan} placeholder="Escanear HU del pedido..." />
+
+          {/* Last scan result feedback */}
+          {lastScan && (
+            <div className={`rounded-2xl p-4 border ${
+              lastScan.valid
+                ? lastScan.alreadyPicked
+                  ? 'bg-amber-900/30 border-amber-700'
+                  : 'bg-emerald-900/30 border-emerald-700'
+                : 'bg-red-900/30 border-red-700'
+            }`}>
+              <div className="flex items-center gap-2 mb-1">
+                {lastScan.valid ? (
+                  lastScan.alreadyPicked ? (
+                    <><AlertTriangle size={18} className="text-amber-400" /><span className="font-bold text-amber-300">Ya escaneado</span></>
+                  ) : (
+                    <><CheckCircle2 size={18} className="text-emerald-400" /><span className="font-bold text-emerald-300">HU Verificado ✅</span></>
+                  )
+                ) : (
+                  <><XCircle size={18} className="text-red-400" /><span className="font-bold text-red-300">HU Rechazado 🚫</span></>
+                )}
+              </div>
+              <p className="font-mono text-sm text-white">{lastScan.code}</p>
+              {lastScan.error && <p className="text-xs text-red-300 mt-1">{lastScan.error}</p>}
+              {lastScan.hu && (
+                <p className="text-xs text-gray-400 mt-0.5">{lastScan.hu.sku?.nombre} · {lastScan.hu.metrajeActual}m</p>
+              )}
             </div>
           )}
 
-          {/* Send to cut */}
-          <button onClick={sendToCut} className="w-full py-4 bg-gradient-to-r from-purple-600 to-violet-600 text-white rounded-2xl text-lg font-bold active:scale-[0.98] transition-transform flex items-center justify-center gap-2 shadow-lg">
-            <WmsIcon.Cut size={22} />
-            Enviar a Corte
+          {/* Send to cut button */}
+          <button
+            onClick={sendToCut}
+            disabled={!allPicked}
+            className={`w-full py-4 rounded-2xl text-lg font-bold transition-all flex items-center justify-center gap-2 shadow-lg ${
+              allPicked
+                ? 'bg-gradient-to-r from-purple-600 to-violet-600 text-white active:scale-[0.98]'
+                : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+            }`}
+          >
+            <Scissors size={22} />
+            {allPicked ? 'Enviar a Corte ✂️' : `Faltan ${totalItems - pickedCount} HUs por escanear`}
           </button>
         </div>
       )}

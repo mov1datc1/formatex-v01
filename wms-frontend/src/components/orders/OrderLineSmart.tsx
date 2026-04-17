@@ -49,9 +49,18 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
       const resp = await api.get('/inventory/suggest-hus', { params: { skuId, metraje, limit: 20 } });
       setSuggestions(resp.data);
       setShowSuggestions(true);
+
+      // Auto-select fulfillment plan HUs for the order
+      const plan = resp.data?.fulfillmentPlan;
+      if (plan?.items?.length > 0) {
+        const selectedHUs = plan.items
+          .filter((item: any) => item.source === 'FISICO')
+          .map((item: any) => ({ huId: item.id, metrajeTomar: item.metrajeTomar }));
+        onChange(index, 'selectedHUs', selectedHUs);
+      }
     } catch { setSuggestions(null); }
     setLoadingSugg(false);
-  }, []);
+  }, [index, onChange]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -372,7 +381,7 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
               {/* === INDIVIDUAL HU VIEW === */}
               {viewMode === 'individual' && suggestions?.suggestions?.length > 0 && (
                 <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                  {suggestions.suggestions.map((hu: any, i: number) => (
+                  {suggestions.suggestions.map((hu: any) => (
                     <div key={hu.id} className={`px-3 py-2.5 rounded-lg border text-xs transition-all ${
                       hu.source === 'TRANSITO'
                         ? 'bg-blue-50/60 border-blue-200'
