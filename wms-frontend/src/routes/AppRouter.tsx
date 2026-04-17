@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
@@ -36,7 +36,8 @@ import PlanificacionPage from '../pages/planning/PlanificacionPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const user = useSelector((state: RootState) => state.auth.user);
-  if (!user?.token) return <Navigate to="/login" replace />;
+  const location = useLocation();
+  if (!user?.token) return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   return <>{children}</>;
 }
 

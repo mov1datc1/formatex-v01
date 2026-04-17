@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
@@ -14,9 +14,13 @@ interface LoginForm {
 
 export const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Where to redirect after login (supports /zebra PWA flow)
+  const from = (location.state as any)?.from || '/';
 
   const {
     register,
@@ -31,7 +35,7 @@ export const Login = () => {
       const { token, user } = response.data;
       dispatch(loginSuccess({ ...user, token }));
       toast.success(`¡Bienvenido, ${user.nombre}!`);
-      navigate('/');
+      navigate(from);
     } catch (error: any) {
       const msg = error.response?.data?.message || 'Error al iniciar sesión';
       toast.error(msg);
