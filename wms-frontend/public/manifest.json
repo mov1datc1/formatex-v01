@@ -1,0 +1,18 @@
+{
+  "name": "WMS 360+ | Formatex",
+  "short_name": "WMS 360+",
+  "description": "Sistema de Gestión de Almacén — FORMA TEXTIL S. DE R.L. DE C.V.",
+  "start_url": "/zebra",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo-360.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

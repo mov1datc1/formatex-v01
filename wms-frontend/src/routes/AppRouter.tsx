@@ -24,6 +24,12 @@ import EnvioPage from '../pages/shipping/EnvioPage';
 import ZebraLayout from '../pages/pwa/ZebraLayout';
 import PickerView from '../pages/pwa/PickerView';
 import CortadorView from '../pages/pwa/CortadorView';
+import PwaEmpaqueView from '../pages/pwa/PwaEmpaqueView';
+import PwaEnvioView from '../pages/pwa/PwaEnvioView';
+import PwaRecepcionView from '../pages/pwa/PwaRecepcionView';
+import PwaEtiquetasView from '../pages/pwa/PwaEtiquetasView';
+import PwaRollosView from '../pages/pwa/PwaRollosView';
+import PwaRetazosView from '../pages/pwa/PwaRetazosView';
 import TransferenciasPage from '../pages/transfers/TransferenciasPage';
 import PlanificacionPage from '../pages/planning/PlanificacionPage';
 
@@ -77,11 +83,17 @@ export function AppRouter() {
           <Route path="config" element={<ConfigPage />} />
         </Route>
 
-        {/* Zebra PWA — separate layout */}
+        {/* PWA / Zebra — mobile-first layout with bottom nav */}
         <Route path="/zebra" element={<ProtectedRoute><ZebraLayout /></ProtectedRoute>}>
-          <Route index element={<Navigate to="/zebra/picker" replace />} />
-          <Route path="picker" element={<PickerView />} />
-          <Route path="cortador" element={<CortadorView />} />
+          <Route index element={<Navigate to="/zebra/picking" replace />} />
+          <Route path="picking" element={<PickerView />} />
+          <Route path="corte" element={<CortadorView />} />
+          <Route path="empaque" element={<PwaEmpaqueView />} />
+          <Route path="envio" element={<PwaEnvioView />} />
+          <Route path="recepcion" element={<PwaRecepcionView />} />
+          <Route path="etiquetas" element={<PwaEtiquetasView />} />
+          <Route path="rollos" element={<PwaRollosView />} />
+          <Route path="retazos" element={<PwaRetazosView />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
@@ -89,3 +101,4 @@ export function AppRouter() {
     </BrowserRouter>
   );
 }
+
