@@ -32,6 +32,7 @@ import PwaRollosView from '../pages/pwa/PwaRollosView';
 import PwaRetazosView from '../pages/pwa/PwaRetazosView';
 import TransferenciasPage from '../pages/transfers/TransferenciasPage';
 import PlanificacionPage from '../pages/planning/PlanificacionPage';
+import FacturacionPage from '../pages/invoicing/FacturacionPage';
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -67,6 +68,9 @@ export function AppRouter() {
           <Route path="empaque" element={<EmpaquePage />} />
           <Route path="envio" element={<EnvioPage />} />
           <Route path="transferencias" element={<TransferenciasPage />} />
+
+          {/* Facturación */}
+          <Route path="facturacion" element={<FacturacionPage />} />
 
           {/* Inventario */}
           <Route path="recepcion" element={<RecepcionPage />} />

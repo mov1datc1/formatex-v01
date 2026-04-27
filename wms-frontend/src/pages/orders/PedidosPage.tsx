@@ -4,7 +4,7 @@ import type { PaginatedResponse, Order } from '../../hooks/useApi';
 import { api } from '../../config/api';
 import toast from 'react-hot-toast';
 import { WmsIcon, PipelineIcon, StatusBadge } from '../../components/icons/WmsIcons';
-import { X, Plus, Phone, AlertCircle, ShieldCheck } from 'lucide-react';
+import { X, Plus, Phone, AlertCircle, ShieldCheck, FileText, Download, Mail, Printer, Loader2 } from 'lucide-react';
 import type { FC } from 'react';
 import type { LucideProps } from 'lucide-react';
 import OrderLineSmart from '../../components/orders/OrderLineSmart';
@@ -31,7 +31,7 @@ const NEXT_STATUS: Record<string, { next: string; label: string; icon: FC<Lucide
   POR_SURTIR:     { next: 'EN_SURTIDO',     label: 'Tomar Pedido (Picker)',icon: WmsIcon.InFulfill },
   EN_SURTIDO:     { next: 'EN_CORTE',       label: 'Enviar a Corte',       icon: WmsIcon.InCut },
   EN_CORTE:       { next: 'EMPACADO',       label: 'Marcar Empacado',      icon: WmsIcon.Packed },
-  EMPACADO:       { next: 'FACTURADO',      label: 'Marcar Facturado',     icon: WmsIcon.Invoiced },
+  // EMPACADO → FACTURADO is now handled by the Facturapi invoice flow, not a simple status change
   FACTURADO:      { next: 'DESPACHADO',     label: 'Despachar',            icon: WmsIcon.Dispatched },
 };
 
@@ -48,6 +48,9 @@ export default function PedidosPage() {
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ orderId: string; currentStatus: string; msg: string } | null>(null);
+  const [invoiceModal, setInvoiceModal] = useState<string | null>(null); // orderId to invoice
+  const [invoicing, setInvoicing] = useState(false);
+  const [invoiceForm, setInvoiceForm] = useState({ formaPago: '03', metodoPago: 'PUE', usoCfdi: 'G03', condicionesPago: '' });
   const { canCreate, canUpdate } = usePermission();
 
   const { data: resp, isLoading } = useApi<PaginatedResponse<Order>>(['orders', search, filterEstado], '/orders', { search: search || undefined, estado: filterEstado || undefined, limit: 20 });
@@ -354,7 +357,15 @@ export default function PedidosPage() {
                 );
               })()}
 
-              {/* Advance button */}
+              {/* Advance button — EMPACADO uses Facturapi instead */}
+              {canUpdate('orders') && detail.estado === 'EMPACADO' && !detail.facturapiId && (
+                <button
+                  onClick={() => setInvoiceModal(detail.id)}
+                  className="w-full px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-700 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-800 text-sm font-medium transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
+                >
+                  <FileText size={16} /> 🧾 Facturar (CFDI 4.0)
+                </button>
+              )}
               {canUpdate('orders') && NEXT_STATUS[detail.estado] && (() => {
                 const t = NEXT_STATUS[detail.estado];
                 const Icon = t.icon;
@@ -373,6 +384,94 @@ export default function PedidosPage() {
                 {detail.referenciaPago && <div className="flex justify-between text-blue-600"><span>Ref. Pago:</span><span>{detail.referenciaPago}</span></div>}
                 {detail.facturaRef && <div className="flex justify-between text-emerald-600"><span>Factura:</span><span>{detail.facturaRef}</span></div>}
               </div>
+
+              {/* === FACTURA CFDI Section === */}
+              {detail.facturapiId && (
+                <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <FileText size={16} className="text-emerald-600" />
+                    <h4 className="text-sm font-bold text-emerald-800">Factura CFDI</h4>
+                    <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-semibold ${detail.facturaStatus === 'valid' ? 'bg-emerald-200 text-emerald-800' : 'bg-red-200 text-red-800'}`}>
+                      {detail.facturaStatus === 'valid' ? '✅ Vigente' : '❌ Cancelada'}
+                    </span>
+                  </div>
+                  <div className="space-y-1 text-xs">
+                    {detail.uuidFiscal && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">UUID:</span>
+                        <span className="font-mono text-emerald-700 text-[11px]">{detail.uuidFiscal}</span>
+                      </div>
+                    )}
+                    {detail.facturaSerie && detail.facturaFolio && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Serie-Folio:</span>
+                        <span className="font-semibold">{detail.facturaSerie}-{detail.facturaFolio}</span>
+                      </div>
+                    )}
+                    {detail.facturadaAt && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Timbrada:</span>
+                        <span>{new Date(detail.facturadaAt).toLocaleString('es-MX')}</span>
+                      </div>
+                    )}
+                  </div>
+                  {/* Action buttons */}
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await api.get(`/invoicing/${detail.id}/pdf`, { responseType: 'blob' });
+                          const url = window.URL.createObjectURL(new Blob([res.data]));
+                          const a = document.createElement('a'); a.href = url; a.download = `factura-${detail.codigo}.pdf`; a.click();
+                          window.URL.revokeObjectURL(url);
+                        } catch { toast.error('Error al descargar PDF'); }
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-red-100 text-red-700 rounded-lg text-xs font-medium hover:bg-red-200 transition-colors"
+                    >
+                      <Download size={13} /> PDF
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await api.get(`/invoicing/${detail.id}/xml`, { responseType: 'blob' });
+                          const url = window.URL.createObjectURL(new Blob([res.data]));
+                          const a = document.createElement('a'); a.href = url; a.download = `factura-${detail.codigo}.xml`; a.click();
+                          window.URL.revokeObjectURL(url);
+                        } catch { toast.error('Error al descargar XML'); }
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-200 transition-colors"
+                    >
+                      <Download size={13} /> XML
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await api.get(`/invoicing/${detail.id}/pdf`, { responseType: 'blob' });
+                          const url = window.URL.createObjectURL(new Blob([res.data]));
+                          const printWin = window.open(url);
+                          printWin?.addEventListener('load', () => printWin.print());
+                        } catch { toast.error('Error al imprimir'); }
+                      }}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors"
+                    >
+                      <Printer size={13} />
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const email = detail.client?.email || prompt('Email del cliente:');
+                        if (!email) return;
+                        try {
+                          await api.post(`/invoicing/${detail.id}/email`, { email });
+                          toast.success(`📧 Factura enviada a ${email}`);
+                        } catch { toast.error('Error al enviar email'); }
+                      }}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-purple-100 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-200 transition-colors"
+                    >
+                      <Mail size={13} />
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Order Lines */}
               <div className="border-t pt-3">
@@ -451,6 +550,138 @@ export default function PedidosPage() {
                 className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 text-sm font-medium transition-all shadow-sm flex items-center justify-center gap-2"
               >
                 <ShieldCheck size={16} /> Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === FACTURAR CFDI MODAL === */}
+      {invoiceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => !invoicing && setInvoiceModal(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-6 animate-fade-in" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <FileText size={24} className="text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Facturar — CFDI 4.0</h3>
+                <p className="text-xs text-gray-400">Timbrado automático con Facturapi</p>
+              </div>
+            </div>
+
+            {/* Método de Pago */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Método de Pago</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setInvoiceForm({ ...invoiceForm, metodoPago: 'PUE', formaPago: '03' })}
+                    className={`p-3 rounded-xl border-2 text-left transition-all ${
+                      invoiceForm.metodoPago === 'PUE'
+                        ? 'border-emerald-500 bg-emerald-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold">PUE — Pagado</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">Pago en una sola exhibición</p>
+                  </button>
+                  <button
+                    onClick={() => setInvoiceForm({ ...invoiceForm, metodoPago: 'PPD', formaPago: '99' })}
+                    className={`p-3 rounded-xl border-2 text-left transition-all ${
+                      invoiceForm.metodoPago === 'PPD'
+                        ? 'border-amber-500 bg-amber-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold">PPD — Crédito</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">Pago en parcialidades o diferido</p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Forma de Pago — solo si PUE */}
+              {invoiceForm.metodoPago === 'PUE' && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Forma de Pago</label>
+                  <select
+                    value={invoiceForm.formaPago}
+                    onChange={(e) => setInvoiceForm({ ...invoiceForm, formaPago: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                  >
+                    <option value="01">01 — Efectivo</option>
+                    <option value="02">02 — Cheque nominativo</option>
+                    <option value="03">03 — Transferencia electrónica</option>
+                    <option value="04">04 — Tarjeta de crédito</option>
+                    <option value="28">28 — Tarjeta de débito</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Condiciones de pago — solo si PPD */}
+              {invoiceForm.metodoPago === 'PPD' && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Condiciones de Pago</label>
+                  <input
+                    type="text"
+                    value={invoiceForm.condicionesPago}
+                    onChange={(e) => setInvoiceForm({ ...invoiceForm, condicionesPago: e.target.value })}
+                    placeholder="Ej: Crédito 30 días"
+                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                  />
+                </div>
+              )}
+
+              {/* Uso CFDI */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Uso del CFDI</label>
+                <select
+                  value={invoiceForm.usoCfdi}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, usoCfdi: e.target.value })}
+                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                >
+                  <option value="G01">G01 — Adquisición de mercancías</option>
+                  <option value="G03">G03 — Gastos en general</option>
+                  <option value="P01">P01 — Por definir</option>
+                  <option value="S01">S01 — Sin efectos fiscales</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Info */}
+            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700">
+              <p>💡 Se generará un CFDI de Ingreso con timbrado automático ante el SAT. El XML y PDF estarán disponibles para descarga inmediatamente.</p>
+            </div>
+
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setInvoiceModal(null)}
+                disabled={invoicing}
+                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  setInvoicing(true);
+                  try {
+                    const { data } = await api.post(`/invoicing/${invoiceModal}/create`, invoiceForm);
+                    toast.success(`✅ Factura timbrada — UUID: ${data.uuid?.substring(0, 8)}...`);
+                    setInvoiceModal(null);
+                    refetchDetail();
+                  } catch (e: any) {
+                    toast.error(e?.response?.data?.message || 'Error al facturar');
+                  }
+                  setInvoicing(false);
+                }}
+                disabled={invoicing}
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-700 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-800 text-sm font-medium transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {invoicing ? (
+                  <><Loader2 size={16} className="animate-spin" /> Timbrando...</>
+                ) : (
+                  <><FileText size={16} /> Facturar y Timbrar</>
+                )}
               </button>
             </div>
           </div>

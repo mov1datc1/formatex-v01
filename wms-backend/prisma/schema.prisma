@@ -193,6 +193,8 @@ model Client {
   cp           String?
   pais         String?  @default("México")
   rfc          String?
+  regimenFiscal String?  // Clave SAT: "601", "612", "616", etc.
+  usoCfdi       String?  @default("G03") // Uso CFDI default del cliente
   vendorId     String?  // Vendedor que trajo este cliente
   activo       Boolean  @default(true)
   createdAt    DateTime @default(now())
@@ -510,9 +512,17 @@ model Order {
   referenciaPago  String?     // Número de referencia del pago
   comprobantePago String?     // URL/path del comprobante subido
 
-  // === FACTURACIÓN (CONTPAQi) ===
-  facturaRef      String?     // Referencia de factura en CONTPAQi
+  // === FACTURACIÓN CFDI (Facturapi) ===
+  facturaRef      String?     // Referencia legacy CONTPAQi
   facturaLista    Boolean     @default(false)
+  facturapiId     String?     // ID de la factura en Facturapi
+  uuidFiscal      String?     // UUID del CFDI (folio fiscal SAT)
+  facturaSerie    String?     // Serie de la factura (ej: "A")
+  facturaFolio    String?     // Folio consecutivo
+  facturaXmlUrl   String?     // URL de descarga XML
+  facturaPdfUrl   String?     // URL de descarga PDF
+  facturaStatus   String?     // "valid", "canceled"
+  facturadaAt     DateTime?   // Fecha/hora de timbrado
 
   // === OPERATIVO ===
   requiereCorte   Boolean     @default(true)
