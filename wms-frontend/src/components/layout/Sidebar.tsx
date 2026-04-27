@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Package, Scissors, PackageCheck, Truck,
   Warehouse, MapPin, ClipboardList, Bell, Users, Settings,
   ChevronLeft, ChevronRight, LogOut, ScrollText, ScanBarcode, Tag,
-  Ship, Search, ArrowRightLeft, CalendarRange, FileText
+  Ship, Search, ArrowRightLeft, CalendarRange, FileText, BadgeDollarSign
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
@@ -28,6 +28,7 @@ const menuSections: MenuSection[] = [
     items: [
       { label: 'Dashboard', path: '/', icon: LayoutDashboard },
       { label: 'Ubicaciones', path: '/almacen', icon: MapPin, permission: 'warehouse' },
+      { label: 'Catálogos', path: '/catalogos', icon: ClipboardList, permission: 'catalog' },
       { label: 'Alertas', path: '/alertas', icon: Bell, permission: 'alerts' },
     ],
   },
@@ -37,6 +38,17 @@ const menuSections: MenuSection[] = [
       { label: 'Pedidos', path: '/pedidos', icon: ClipboardList, permission: 'orders' },
       { label: 'Disponibilidad', path: '/disponibilidad', icon: Search, permission: 'availability' },
       { label: 'En Tránsito', path: '/transito', icon: Ship, permission: 'transit' },
+    ],
+  },
+  {
+    title: 'Cobranza',
+    items: [
+      { label: 'Cobranza', path: '/cobranza', icon: BadgeDollarSign, permission: 'cobranza' },
+    ],
+  },
+  {
+    title: 'Planificación',
+    items: [
       { label: 'Planificación', path: '/planificacion', icon: CalendarRange, permission: 'supply-planning' },
     ],
   },
@@ -47,8 +59,13 @@ const menuSections: MenuSection[] = [
       { label: 'Corte', path: '/corte', icon: Scissors, permission: 'cutting' },
       { label: 'Empaque', path: '/empaque', icon: PackageCheck, permission: 'packing' },
       { label: 'Envío', path: '/envio', icon: Truck, permission: 'shipping' },
-      { label: 'Facturación', path: '/facturacion', icon: FileText, permission: 'orders' },
       { label: 'Transferencias', path: '/transferencias', icon: ArrowRightLeft, permission: 'transfers' },
+    ],
+  },
+  {
+    title: 'Facturación',
+    items: [
+      { label: 'Facturación', path: '/facturacion', icon: FileText, permission: 'facturacion' },
     ],
   },
   {
@@ -63,7 +80,6 @@ const menuSections: MenuSection[] = [
   {
     title: 'Sistema',
     items: [
-      { label: 'Catálogos', path: '/catalogos', icon: ClipboardList, permission: 'catalog' },
       { label: 'Almacén', path: '/almacen-config', icon: Warehouse, permission: 'warehouse' },
       { label: 'Admin', path: '/admin', icon: Users, permission: 'admin' },
       { label: 'Config', path: '/config', icon: Settings, permission: 'admin' },

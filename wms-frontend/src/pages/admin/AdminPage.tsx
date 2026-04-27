@@ -7,8 +7,9 @@ import toast from 'react-hot-toast';
 type Tab = 'users' | 'roles';
 
 const MODULOS = [
-  'orders', 'availability', 'transit',
+  'orders', 'availability', 'transit', 'cobranza', 'supply-planning',
   'picking', 'cutting', 'packing', 'shipping', 'transfers',
+  'facturacion',
   'reception', 'inventory',
   'warehouse', 'catalog', 'admin', 'alerts', 'fulfillment',
 ];
