@@ -99,24 +99,24 @@ export default function CatalogosPage() {
     switch (tab) {
       case 'skus': return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Input label="Código *" field="codigo" />
-          <Input label="Nombre *" field="nombre" />
-          <Input label="Categoría" field="categoria" placeholder="Algodón, Poliéster..." />
-          <Input label="Color" field="color" />
-          <Input label="Composición" field="composicion" placeholder="100% algodón" />
-          <Input label="Ancho (m)" field="anchoMetros" type="number" />
-          <Input label="Metraje Estándar" field="metrajeEstandar" type="number" />
-          <Input label="Código Barras" field="codigoBarras" />
+          {renderInput('Código *', 'codigo')}
+          {renderInput('Nombre *', 'nombre')}
+          {renderInput('Categoría', 'categoria', { placeholder: 'Algodón, Poliéster...' })}
+          {renderInput('Color', 'color')}
+          {renderInput('Composición', 'composicion', { placeholder: '100% algodón' })}
+          {renderInput('Ancho (m)', 'anchoMetros', { type: 'number' })}
+          {renderInput('Metraje Estándar', 'metrajeEstandar', { type: 'number' })}
+          {renderInput('Código Barras', 'codigoBarras')}
         </div>
       );
       case 'suppliers': return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Input label="Código *" field="codigo" />
-          <Input label="Nombre *" field="nombre" />
-          <Input label="Contacto" field="contacto" />
-          <Input label="Teléfono" field="telefono" />
-          <Input label="Email" field="email" />
-          <Input label="RFC" field="rfc" />
+          {renderInput('Código *', 'codigo')}
+          {renderInput('Nombre *', 'nombre')}
+          {renderInput('Contacto', 'contacto')}
+          {renderInput('Teléfono', 'telefono')}
+          {renderInput('Email', 'email')}
+          {renderInput('RFC', 'rfc')}
         </div>
       );
       case 'clients': return (
@@ -125,13 +125,13 @@ export default function CatalogosPage() {
           <div>
             <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Datos Generales</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Input label="Código *" field="codigo" />
-              <Input label="Razón Social / Nombre *" field="nombre" hint="Debe coincidir con la Constancia de Situación Fiscal del SAT" />
-              <Input label="Contacto" field="contacto" />
-              <Input label="Teléfono" field="telefono" />
-              <Input label="Email" field="email" type="email" />
-              <Input label="Dirección" field="direccion" />
-              <Input label="País" field="pais" placeholder="México" />
+              {renderInput('Código *', 'codigo')}
+              {renderInput('Razón Social / Nombre *', 'nombre', { hint: 'Debe coincidir con la Constancia de Situación Fiscal del SAT' })}
+              {renderInput('Contacto', 'contacto')}
+              {renderInput('Teléfono', 'telefono')}
+              {renderInput('Email', 'email', { type: 'email' })}
+              {renderInput('Dirección', 'direccion')}
+              {renderInput('País', 'pais', { placeholder: 'México' })}
             </div>
           </div>
 
@@ -145,57 +145,58 @@ export default function CatalogosPage() {
               ⚠️ Estos datos son <strong>obligatorios</strong> para emitir facturas. Deben coincidir exactamente con la Constancia de Situación Fiscal del cliente.
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Input label="RFC *" field="rfc" hint="13 caracteres PM, 12 PF" placeholder="XAXX010101000" />
-              <Input label="Código Postal Fiscal *" field="cp" hint="C.P. del domicilio fiscal registrado en SAT" placeholder="06600" />
-              <Select
-                label="Régimen Fiscal *"
-                field="regimenFiscal"
-                options={REGIMENES_FISCALES}
-                hint="Del catálogo SAT c_RegimenFiscal"
-              />
-              <Select
-                label="Uso del CFDI"
-                field="usoCfdi"
-                options={USOS_CFDI}
-                hint="Default para facturas de este cliente"
-              />
+              {renderInput('RFC *', 'rfc', { hint: '13 caracteres PM, 12 PF', placeholder: 'XAXX010101000' })}
+              {renderInput('Código Postal Fiscal *', 'cp', { hint: 'C.P. del domicilio fiscal registrado en SAT', placeholder: '06600' })}
+              {renderSelect('Régimen Fiscal *', 'regimenFiscal', REGIMENES_FISCALES, 'Del catálogo SAT c_RegimenFiscal')}
+              {renderSelect('Uso del CFDI', 'usoCfdi', USOS_CFDI, 'Default para facturas de este cliente')}
             </div>
           </div>
         </div>
       );
       case 'vendors': return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Input label="Código *" field="codigo" />
-          <Input label="Nombre *" field="nombre" />
-          <Input label="Teléfono" field="telefono" />
-          <Input label="Email" field="email" />
+          {renderInput('Código *', 'codigo')}
+          {renderInput('Nombre *', 'nombre')}
+          {renderInput('Teléfono', 'telefono')}
+          {renderInput('Email', 'email')}
         </div>
       );
     }
   };
 
-  function Input({ label, field, type = 'text', placeholder, hint, className = '' }: { label: string; field: string; type?: string; placeholder?: string; hint?: string; className?: string }) {
-    return (
-      <div className={className}>
-        <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
-        <input type={type} value={formData[field] || ''} onChange={(e) => setFormData({ ...formData, [field]: type === 'number' ? +e.target.value : e.target.value })} placeholder={placeholder} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" />
-        {hint && <p className="text-[10px] text-gray-400 mt-0.5">{hint}</p>}
-      </div>
-    );
-  }
+  // Stable input change handler (avoids re-mount issues)
+  const updateField = (field: string, value: any) => {
+    setFormData((prev: any) => ({ ...prev, [field]: value }));
+  };
 
-  function Select({ label, field, options, hint }: { label: string; field: string; options: { clave: string; label: string }[]; hint?: string }) {
-    return (
-      <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
-        <select value={formData[field] || ''} onChange={(e) => setFormData({ ...formData, [field]: e.target.value })} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
-          <option value="">Seleccionar...</option>
-          {options.map((o) => <option key={o.clave} value={o.clave}>{o.label}</option>)}
-        </select>
-        {hint && <p className="text-[10px] text-gray-400 mt-0.5">{hint}</p>}
-      </div>
-    );
-  }
+  const renderInput = (label: string, field: string, opts?: { type?: string; placeholder?: string; hint?: string }) => (
+    <div>
+      <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+      <input
+        type={opts?.type || 'text'}
+        value={formData[field] ?? ''}
+        onChange={(e) => updateField(field, opts?.type === 'number' ? +e.target.value : e.target.value)}
+        placeholder={opts?.placeholder}
+        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+      />
+      {opts?.hint && <p className="text-[10px] text-gray-400 mt-0.5">{opts.hint}</p>}
+    </div>
+  );
+
+  const renderSelect = (label: string, field: string, options: { clave: string; label: string }[], hint?: string) => (
+    <div>
+      <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+      <select
+        value={formData[field] || ''}
+        onChange={(e) => updateField(field, e.target.value)}
+        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+      >
+        <option value="">Seleccionar...</option>
+        {options.map((o) => <option key={o.clave} value={o.clave}>{o.label}</option>)}
+      </select>
+      {hint && <p className="text-[10px] text-gray-400 mt-0.5">{hint}</p>}
+    </div>
+  );
 
   const columns: Record<Tab, { key: string; label: string }[]> = {
     skus: [{ key: 'codigo', label: 'Código' }, { key: 'nombre', label: 'Nombre' }, { key: 'categoria', label: 'Categoría' }, { key: 'color', label: 'Color' }, { key: 'metrajeEstandar', label: 'Metraje Std.' }],
