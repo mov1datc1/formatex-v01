@@ -61,7 +61,9 @@ export default function CatalogosPage() {
   const handleUpdate = async () => {
     if (!editingId) return;
     try {
-      await api.put(`${endpoint}/${editingId}`, formData);
+      // Strip read-only and relation fields that Prisma won't accept
+      const { id, createdAt, updatedAt, vendor, orders, activo, vendorId: _vid, ...editableData } = formData;
+      await api.put(`${endpoint}/${editingId}`, editableData);
       toast.success('✅ Actualizado exitosamente');
       closeForm();
       refetch();

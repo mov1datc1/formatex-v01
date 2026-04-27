@@ -94,7 +94,21 @@ export class CatalogService {
   }
 
   async updateClient(id: string, data: any) {
-    return this.prisma.client.update({ where: { id }, data });
+    // Only allow editable fields to prevent Prisma errors
+    const { codigo, nombre, contacto, telefono, email, direccion, pais, rfc, cp, regimenFiscal, usoCfdi } = data;
+    const updateData: any = {};
+    if (codigo !== undefined) updateData.codigo = codigo;
+    if (nombre !== undefined) updateData.nombre = nombre;
+    if (contacto !== undefined) updateData.contacto = contacto;
+    if (telefono !== undefined) updateData.telefono = telefono;
+    if (email !== undefined) updateData.email = email;
+    if (direccion !== undefined) updateData.direccion = direccion;
+    if (pais !== undefined) updateData.pais = pais;
+    if (rfc !== undefined) updateData.rfc = rfc;
+    if (cp !== undefined) updateData.cp = cp;
+    if (regimenFiscal !== undefined) updateData.regimenFiscal = regimenFiscal;
+    if (usoCfdi !== undefined) updateData.usoCfdi = usoCfdi;
+    return this.prisma.client.update({ where: { id }, data: updateData });
   }
 
   async deleteClient(id: string) {
