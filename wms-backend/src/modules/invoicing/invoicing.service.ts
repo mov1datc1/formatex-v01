@@ -124,8 +124,14 @@ export class InvoicingService {
   async testConnection(): Promise<{ ok: boolean; organization?: any; error?: string }> {
     try {
       const facturapi = await this.getFacturapiClient();
-      const org = await facturapi.organizations.list();
-      return { ok: true, organization: org?.data?.[0] || null };
+      // Use invoices.list (works with org keys) instead of organizations.list (requires user key)
+      const result = await facturapi.invoices.list({ limit: 1 });
+      return {
+        ok: true,
+        organization: {
+          name: `Conexión OK — ${result.total_results ?? 0} facturas en la cuenta`,
+        },
+      };
     } catch (err: any) {
       return { ok: false, error: err.message || 'Error de conexión' };
     }
