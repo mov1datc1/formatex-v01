@@ -24,15 +24,15 @@ const STATUS_MAP: Record<string, { label: string; color: string; icon: FC<Lucide
   CANCELADO:      { label: 'Cancelado',       color: 'bg-red-100 text-red-700',        icon: WmsIcon.Cancelled,  iconBg: 'bg-red-100', iconColor: 'text-red-700', area: '—' },
 };
 
-const NEXT_STATUS: Record<string, { next: string; label: string; icon: FC<LucideProps>; confirmMsg?: string }> = {
-  COTIZADO:       { next: 'POR_PAGAR',      label: 'Marcar Por Pagar',    icon: WmsIcon.Payment },
-  POR_PAGAR:      { next: 'PAGO_RECIBIDO',  label: 'Registrar Pago',      icon: WmsIcon.PayReceived },
-  PAGO_RECIBIDO:  { next: 'POR_SURTIR',     label: 'Aprobar (Cobranza)',   icon: WmsIcon.Verified, confirmMsg: '¿Confirmas que el pago fue verificado contra el banco?' },
-  POR_SURTIR:     { next: 'EN_SURTIDO',     label: 'Tomar Pedido (Picker)',icon: WmsIcon.InFulfill },
-  EN_SURTIDO:     { next: 'EN_CORTE',       label: 'Enviar a Corte',       icon: WmsIcon.InCut },
-  EN_CORTE:       { next: 'EMPACADO',       label: 'Marcar Empacado',      icon: WmsIcon.Packed },
+const NEXT_STATUS: Record<string, { next: string; label: string; icon: FC<LucideProps>; confirmMsg?: string; requiredModule: string }> = {
+  COTIZADO:       { next: 'POR_PAGAR',      label: 'Marcar Por Pagar',    icon: WmsIcon.Payment, requiredModule: 'orders' },
+  POR_PAGAR:      { next: 'PAGO_RECIBIDO',  label: 'Registrar Pago',      icon: WmsIcon.PayReceived, requiredModule: 'orders' },
+  PAGO_RECIBIDO:  { next: 'POR_SURTIR',     label: 'Aprobar (Cobranza)',   icon: WmsIcon.Verified, confirmMsg: '¿Confirmas que el pago fue verificado contra el banco?', requiredModule: 'cobranza' },
+  POR_SURTIR:     { next: 'EN_SURTIDO',     label: 'Tomar Pedido (Picker)',icon: WmsIcon.InFulfill, requiredModule: 'picking' },
+  EN_SURTIDO:     { next: 'EN_CORTE',       label: 'Enviar a Corte',       icon: WmsIcon.InCut, requiredModule: 'picking' },
+  EN_CORTE:       { next: 'EMPACADO',       label: 'Marcar Empacado',      icon: WmsIcon.Packed, requiredModule: 'cutting' },
   // EMPACADO → FACTURADO is now handled by the Facturapi invoice flow, not a simple status change
-  FACTURADO:      { next: 'DESPACHADO',     label: 'Despachar',            icon: WmsIcon.Dispatched },
+  FACTURADO:      { next: 'DESPACHADO',     label: 'Despachar',            icon: WmsIcon.Dispatched, requiredModule: 'shipping' },
 };
 
 const PRIORITY_MAP: Record<number, { label: string; color: string }> = {
@@ -51,7 +51,7 @@ export default function PedidosPage() {
   const [invoiceModal, setInvoiceModal] = useState<string | null>(null); // orderId to invoice
   const [invoicing, setInvoicing] = useState(false);
   const [invoiceForm, setInvoiceForm] = useState({ formaPago: '03', metodoPago: 'PUE', usoCfdi: 'G03', condicionesPago: '' });
-  const { canCreate, canUpdate } = usePermission();
+  const { canCreate, canUpdate, isAdmin } = usePermission();
 
   const { data: resp, isLoading } = useApi<PaginatedResponse<Order>>(['orders', search, filterEstado], '/orders', { search: search || undefined, estado: filterEstado || undefined, limit: 20 });
   const { data: detail, refetch: refetchDetail } = useApi<any>(['order-detail', selectedOrder], `/orders/${selectedOrder}`, {}, !!selectedOrder);
@@ -358,7 +358,7 @@ export default function PedidosPage() {
               })()}
 
               {/* Advance button — EMPACADO uses Facturapi instead */}
-              {canUpdate('orders') && detail.estado === 'EMPACADO' && !detail.facturapiId && (
+              {(isAdmin || canUpdate('facturacion')) && detail.estado === 'EMPACADO' && !detail.facturapiId && (
                 <button
                   onClick={() => setInvoiceModal(detail.id)}
                   className="w-full px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-700 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-800 text-sm font-medium transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
@@ -366,9 +366,11 @@ export default function PedidosPage() {
                   <FileText size={16} /> 🧾 Facturar (CFDI 4.0)
                 </button>
               )}
-              {canUpdate('orders') && NEXT_STATUS[detail.estado] && (() => {
+              {NEXT_STATUS[detail.estado] && (() => {
                 const t = NEXT_STATUS[detail.estado];
                 const Icon = t.icon;
+                const hasPermission = isAdmin || canUpdate(t.requiredModule);
+                if (!hasPermission) return null;
                 return (
                   <button onClick={() => advanceStatus(detail.id, detail.estado)} className="w-full px-4 py-2.5 bg-primary-500 text-white rounded-xl hover:bg-primary-600 text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-sm">
                     <Icon size={16} /> {t.label}

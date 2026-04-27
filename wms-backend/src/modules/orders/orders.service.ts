@@ -432,9 +432,12 @@ export class OrdersService {
       if (extraData?.metodoPago) updateData.metodoPago = extraData.metodoPago;
     }
 
-    // PAGO_RECIBIDO → POR_SURTIR: Convert soft reservations to firm
+    // PAGO_RECIBIDO → POR_SURTIR: Convert soft reservations to firm + capture cobranza data
     if (estado === 'POR_SURTIR') {
       updateData.fechaAprobCobranza = new Date();
+      if (extraData?.cobradorNombre) updateData.cobradorNombre = extraData.cobradorNombre;
+      if (extraData?.cobranzaNotas) updateData.cobranzaNotas = extraData.cobranzaNotas;
+      if (extraData?.cobranzaEvidencia) updateData.cobranzaEvidencia = extraData.cobranzaEvidencia;
 
       // Upgrade all BLANDA → FIRME reservas
       await this.prisma.reservation.updateMany({

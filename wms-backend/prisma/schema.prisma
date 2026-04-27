@@ -502,6 +502,9 @@ model Order {
   fechaCotizacion DateTime?   // Cuando se envió la cotización
   fechaPago       DateTime?   // Cuando el cliente pagó
   fechaAprobCobranza DateTime? // Cuando cobranza aprobó
+  cobradorNombre     String?   // Nombre de quien validó en cobranza
+  cobranzaNotas      String?   // Notas del cobrador
+  cobranzaEvidencia  String?   // URL de evidencia de pago
 
   // === FINANCIERO ===
   subtotal        Decimal?    @db.Decimal(12, 2)
