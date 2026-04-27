@@ -26,7 +26,7 @@ export default function ConfigPage() {
   const [facturapiKey, setFacturapiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
-  const [connectionResult, setConnectionResult] = useState<{ ok: boolean; org?: string } | null>(null);
+  const [connectionResult, setConnectionResult] = useState<{ ok: boolean; org?: string; error?: string } | null>(null);
 
   // Initialize Facturapi key from settings
   useEffect(() => {
@@ -108,6 +108,7 @@ export default function ConfigPage() {
       setConnectionResult({
         ok: data.ok,
         org: data.organization?.legal_name || data.organization?.name || 'Organización detectada',
+        error: data.error,
       });
       if (data.ok) {
         toast.success('✅ Conexión exitosa con Facturapi');
@@ -115,8 +116,11 @@ export default function ConfigPage() {
         toast.error(`❌ Error: ${data.error}`);
       }
     } catch (e: any) {
-      setConnectionResult({ ok: false });
-      toast.error('❌ Error al conectar con Facturapi');
+      const errMsg = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Error desconocido';
+      const errStatus = e?.response?.status || 'N/A';
+      setConnectionResult({ ok: false, error: `[${errStatus}] ${errMsg}` });
+      toast.error(`❌ Error [${errStatus}]: ${errMsg}`);
+      console.error('Test connection error:', { status: errStatus, data: e?.response?.data, message: e?.message });
     }
     setTestingConnection(false);
   };
@@ -327,7 +331,7 @@ export default function ConfigPage() {
                     ) : (
                       <>
                         <XCircle size={16} />
-                        <span>Error de conexión. Verifica la API Key.</span>
+                        <span>{connectionResult.error || 'Error de conexión. Verifica la API Key.'}</span>
                       </>
                     )}
                   </div>
