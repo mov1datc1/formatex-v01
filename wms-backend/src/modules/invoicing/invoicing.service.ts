@@ -6,10 +6,11 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 
-// Facturapi SDK — imported dynamically to avoid issues if not installed
+// Facturapi SDK — handle both ESM and CJS imports
 let Facturapi: any;
 try {
-  Facturapi = require('facturapi');
+  const mod = require('facturapi');
+  Facturapi = mod.default || mod;
 } catch {
   // Will throw at runtime if used without installing
 }
