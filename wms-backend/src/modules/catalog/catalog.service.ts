@@ -86,8 +86,20 @@ export class CatalogService {
     return this.prisma.client.create({ data });
   }
 
+  async findClientById(id: string) {
+    return this.prisma.client.findUniqueOrThrow({
+      where: { id },
+      include: { vendor: true },
+    });
+  }
+
   async updateClient(id: string, data: any) {
     return this.prisma.client.update({ where: { id }, data });
+  }
+
+  async deleteClient(id: string) {
+    // Soft delete — mark as inactive
+    return this.prisma.client.update({ where: { id }, data: { activo: false } });
   }
 
   // ===== VENDORS =====

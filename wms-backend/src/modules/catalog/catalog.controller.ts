@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CatalogService } from './catalog.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -67,6 +67,12 @@ export class CatalogController {
     return this.catalogService.findAllClients({ search, page, limit });
   }
 
+  @Get('clients/:id')
+  @ApiOperation({ summary: 'Obtener cliente por ID' })
+  findClientById(@Param('id') id: string) {
+    return this.catalogService.findClientById(id);
+  }
+
   @Post('clients')
   @ApiOperation({ summary: 'Crear cliente' })
   createClient(@Body() body: any) {
@@ -77,6 +83,12 @@ export class CatalogController {
   @ApiOperation({ summary: 'Actualizar cliente' })
   updateClient(@Param('id') id: string, @Body() body: any) {
     return this.catalogService.updateClient(id, body);
+  }
+
+  @Delete('clients/:id')
+  @ApiOperation({ summary: 'Desactivar cliente (soft delete)' })
+  deleteClient(@Param('id') id: string) {
+    return this.catalogService.deleteClient(id);
   }
 
   // ===== VENDORS =====
