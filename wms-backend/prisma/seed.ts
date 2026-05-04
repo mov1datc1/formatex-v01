@@ -10,6 +10,10 @@ const prisma = new PrismaClient({ adapter } as any);
 
 async function main() {
   console.log('🧹 Limpiando base de datos...');
+  await prisma.commissionPeriod.deleteMany();
+  await prisma.clientCreditConfig.deleteMany();
+  await prisma.invoicePayment.deleteMany();
+  await prisma.priceListConfig.deleteMany();
   await prisma.supplyPlanLine.deleteMany();
   await prisma.supplyPlan.deleteMany();
   await prisma.reorderConfig.deleteMany();
@@ -346,6 +350,32 @@ async function main() {
   await prisma.reorderConfig.createMany({ data: skuReorderData });
   console.log('  ✅ 8 puntos de reorden configurados');
 
+  // =====================================================================
+  // 12. LISTAS DE PRECIOS (F1-F5) — Comisiones Vendedor
+  // =====================================================================
+  console.log('🏷️  Creando listas de precios...');
+  await prisma.priceListConfig.createMany({ data: [
+    { codigo: 'F1', nombre: 'Lista 1 — Premium (precio máximo)', comisionPct: 2.50, descripcion: 'Precio de lista sin descuento. Máxima comisión para el vendedor.', orden: 1 },
+    { codigo: 'F2', nombre: 'Lista 2 — Estándar', comisionPct: 2.25, descripcion: 'Precio estándar con descuento menor.', orden: 2 },
+    { codigo: 'F3', nombre: 'Lista 3 — Descuento medio', comisionPct: 2.00, descripcion: 'Descuento intermedio para clientes regulares.', orden: 3 },
+    { codigo: 'F4', nombre: 'Lista 4 — Descuento alto', comisionPct: 1.75, descripcion: 'Descuento alto para clientes frecuentes.', orden: 4 },
+    { codigo: 'F5', nombre: 'Lista 5 — Máximo descuento', comisionPct: 1.75, descripcion: 'Máximo descuento autorizado. Mínima comisión.', orden: 5 },
+  ]});
+  console.log('  ✅ 5 listas de precios (F1=2.50%, F2=2.25%, F3=2.00%, F4=1.75%, F5=1.75%)');
+
+  // =====================================================================
+  // 13. CRÉDITO DE CLIENTES
+  // =====================================================================
+  console.log('💳 Configurando crédito de clientes...');
+  await prisma.clientCreditConfig.createMany({ data: [
+    { clientId: cli1.id, creditoHabilitado: true, plazoDefault: 30, listaDefault: 'F2', descuentoMaximo: 15 },
+    { clientId: cli2.id, creditoHabilitado: true, plazoDefault: 60, listaDefault: 'F3', descuentoMaximo: 20 },
+    { clientId: cli3.id, creditoHabilitado: true, plazoDefault: 30, listaDefault: 'F2', descuentoMaximo: 10 },
+    { clientId: cli4.id, creditoHabilitado: true, plazoDefault: 90, listaDefault: 'F4', descuentoMaximo: 25 },
+    { clientId: cli5.id, creditoHabilitado: true, plazoDefault: 60, listaDefault: 'F3', descuentoMaximo: 20 },
+  ]});
+  console.log('  ✅ 5 perfiles de crédito configurados');
+
   console.log('\n🎉 ¡SEED COMPLETADO!');
   console.log('===================================');
   console.log(`📦 ${allHUs.length + 1} HUs (${allHUs.length} enteros + 1 retazo)`);
@@ -355,6 +385,8 @@ async function main() {
   console.log('👥 10 usuarios, 10 roles');
   console.log(`📍 ${locationData.length} ubicaciones`);
   console.log('📦 8 puntos de reorden');
+  console.log('🏷️  5 listas de precios (F1-F5)');
+  console.log('💳 5 perfiles de crédito');
   console.log('===================================');
 }
 
