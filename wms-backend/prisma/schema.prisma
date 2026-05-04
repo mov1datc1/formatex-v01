@@ -202,6 +202,7 @@ model Client {
 
   vendor       Vendor?  @relation(fields: [vendorId], references: [id])
   orders       Order[]
+  creditConfig ClientCreditConfig?
 
   @@index([vendorId])
 }
@@ -527,6 +528,14 @@ model Order {
   facturaStatus   String?     // "valid", "canceled"
   facturadaAt     DateTime?   // Fecha/hora de timbrado
 
+  // === CRÉDITO / PPD ===
+  metodoPagoCfdi  String      @default("PUE") // PUE o PPD
+  condicionesPago String?     // "Crédito 30 días", "Crédito 60 días"
+  plazoDias       Int?        // 30, 60, 90
+  saldoPendiente  Decimal?    @db.Decimal(12, 2) // Saldo por cobrar (null si PUE)
+  estadoPago      String      @default("NA") // NA (PUE), PENDIENTE, PARCIAL, PAGADA
+  fechaVencimiento DateTime?  // Fecha límite de pago
+
   // === OPERATIVO ===
   requiereCorte   Boolean     @default(true)
   reservaHoras    Int         @default(168)  // Duración reserva blanda en horas (168h=7 días), ATC configurable
@@ -545,12 +554,14 @@ model Order {
   packingSlips    PackingSlip[]
   shipments       Shipment[]
   reservations    Reservation[]
+  payments        InvoicePayment[]
 
   @@index([clientId])
   @@index([vendorId])
   @@index([estado])
   @@index([fechaPedido])
   @@index([folioContpaqi])
+  @@index([estadoPago])
 }
 
 enum OrderStatus {
@@ -583,6 +594,13 @@ model OrderLine {
   metrajeSurtido   Float  @default(0)  // Metros efectivamente cortados/surtidos
   precioUnitario Decimal? @db.Decimal(10, 2) // Precio por metro (ej: $107.28)
   importe        Decimal? @db.Decimal(12, 2) // metrajeRequerido * precioUnitario
+
+  // === LISTA DE PRECIOS Y COMISIÓN ===
+  listaPrecios   String?  // "F1", "F2", "F3", "F4", "F5"
+  precioLista    Decimal? @db.Decimal(10, 2) // Precio original de lista antes de descuento
+  descuentoPct   Decimal? @db.Decimal(5, 2) @default(0) // % descuento aplicado en esta línea
+  comisionPct    Decimal? @db.Decimal(5, 2)  // % comisión del vendedor según lista
+
   requiereCorte  Boolean  @default(true)
   estado         String   @default("PENDIENTE") // PENDIENTE, EN_PROCESO, SURTIDA, CANCELADA
   notas          String?
@@ -995,4 +1013,101 @@ model ReorderConfig {
   updatedAt       DateTime @updatedAt
 
   sku             SkuMaster @relation(fields: [skuId], references: [id])
+}
+
+// =============================================================================
+// GRUPO 14: LISTAS DE PRECIOS Y COMISIONES
+// =============================================================================
+
+model PriceListConfig {
+  id              String   @id @default(uuid())
+  codigo          String   @unique  // "F1", "F2", "F3", "F4", "F5"
+  nombre          String   // "Lista 1 - Premium", "Lista 2 - Estándar"
+  comisionPct     Decimal  @db.Decimal(5, 2) // % comisión vendedor: 2.50, 2.25, 2.00, 1.75
+  descripcion     String?
+  orden           Int      @default(0)
+  activo          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// =============================================================================
+// GRUPO 15: PAGOS PPD (Parcialidades / Diferido)
+// =============================================================================
+
+model InvoicePayment {
+  id                     String   @id @default(uuid())
+  orderId                String   // Factura/Order que se está pagando
+  monto                  Decimal  @db.Decimal(12, 2) // Monto total de este pago
+  montoAplicado          Decimal  @db.Decimal(12, 2) // Porción aplicada a ESTA factura
+  formaPago              String   // Clave SAT: "03" transferencia, "01" efectivo
+  referenciaPago         String?  // Referencia bancaria
+  fechaPago              DateTime @default(now())
+
+  // === COMPLEMENTO DE PAGO CFDI (tipo P) ===
+  complementoFacturapiId String?  // ID del CFDI tipo P en Facturapi
+  complementoUuid        String?  // UUID fiscal del complemento
+  complementoStatus      String?  // "valid", "canceled"
+  complementoEmitidoAt   DateTime?
+
+  // === MULTI-FACTURA: agrupa pagos del mismo desembolso ===
+  pagoGrupoId            String?  // Agrupa pagos que salieron del mismo pago del cliente
+
+  registradoPor          String   // userId de cobranza
+  notas                  String?
+  evidenciaUrl           String?  // Comprobante de pago (imagen/PDF)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  order                  Order    @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@index([pagoGrupoId])
+  @@index([fechaPago])
+}
+
+// =============================================================================
+// GRUPO 16: CRÉDITO DE CLIENTES
+// =============================================================================
+
+model ClientCreditConfig {
+  id              String   @id @default(uuid())
+  clientId        String   @unique
+
+  // === CRÉDITO ===
+  creditoHabilitado Boolean @default(true)
+  plazoDefault    Int      @default(30)  // 30, 60, 90 días
+  montoMaximo     Decimal? @db.Decimal(12, 2) // Null = sin límite (informal)
+
+  // === DESCUENTOS PRECONFIGURADOS ===
+  listaDefault    String?  // Lista de precios default: "F1", "F2", etc.
+  descuentoMaximo Decimal  @db.Decimal(5, 2) @default(20) // % máximo que un vendedor puede dar
+
+  // === BLOQUEO ===
+  bloqueado       Boolean  @default(false) // Cobranza puede bloquear ventas
+  motivoBloqueo   String?
+  bloqueadoPor    String?
+  bloqueadoAt     DateTime?
+
+  notas           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  client          Client   @relation(fields: [clientId], references: [id])
+}
+
+// =============================================================================
+// GRUPO 17: PERIODOS DE COMISIONES
+// =============================================================================
+
+model CommissionPeriod {
+  id              String   @id @default(uuid())
+  codigo          String   @unique  // COM-2026-05-Q1 (quincena 1 mayo 2026)
+  fechaInicio     DateTime
+  fechaFin        DateTime
+  estado          String   @default("ABIERTO") // ABIERTO, CERRADO, PAGADO
+  creadoPor       String
+  cerradoAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

@@ -8,7 +8,7 @@ import {
 
 interface OrderLineSmartProps {
   index: number;
-  line: { skuId: string; metrajeRequerido: number; precioUnitario: number; selectedHuId?: string };
+  line: { skuId: string; metrajeRequerido: number; precioUnitario: number; selectedHuId?: string; listaPrecios?: string; descuentoPct?: number };
   skus: any[];
   onChange: (index: number, field: string, value: any) => void;
   onRemove: (index: number) => void;
@@ -86,7 +86,9 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
     setSkuSearch(''); setShowSkuDropdown(false);
   };
 
-  const importe = line.metrajeRequerido * line.precioUnitario;
+  const descPct = line.descuentoPct || 0;
+  const precioConDescuento = line.precioUnitario * (1 - descPct / 100);
+  const importe = line.metrajeRequerido * precioConDescuento;
   const plan = suggestions?.fulfillmentPlan;
 
   // Status colors for the plan
@@ -101,7 +103,7 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
       {/* Row 1: SKU + Metraje + Price + Amount */}
       <div className="grid grid-cols-12 gap-3 items-end">
         {/* SKU Search/Select */}
-        <div className="col-span-5" ref={skuRef}>
+        <div className="col-span-3" ref={skuRef}>
           <label className="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Tela</label>
           <div className="relative">
             <div
@@ -152,15 +154,41 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
         </div>
 
         {/* Metraje */}
-        <div className="col-span-2">
+        <div className="col-span-1">
           <label className="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Metros</label>
           <input type="number" min={1} value={line.metrajeRequerido}
             onChange={(e) => onChange(index, 'metrajeRequerido', +e.target.value)}
             className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400" />
         </div>
 
-        {/* Precio */}
+        {/* Lista de Precios */}
         <div className="col-span-2">
+          <label className="block text-xs font-semibold text-violet-500 mb-1 uppercase tracking-wide">Lista</label>
+          <select
+            value={line.listaPrecios || ''}
+            onChange={(e) => onChange(index, 'listaPrecios', e.target.value)}
+            className="w-full px-3 py-2 bg-white border border-violet-200 rounded-lg text-sm focus:ring-2 focus:ring-violet-400"
+          >
+            <option value="">Sin lista</option>
+            <option value="F1">F1 — Premium (2.50%)</option>
+            <option value="F2">F2 — Estándar (2.25%)</option>
+            <option value="F3">F3 — Desc. Medio (2.00%)</option>
+            <option value="F4">F4 — Desc. Alto (1.75%)</option>
+            <option value="F5">F5 — Máx. Desc. (1.75%)</option>
+          </select>
+        </div>
+
+        {/* Descuento % */}
+        <div className="col-span-1">
+          <label className="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Desc %</label>
+          <input type="number" step={0.5} min={0} max={50}
+            value={line.descuentoPct || 0}
+            onChange={(e) => onChange(index, 'descuentoPct', +e.target.value)}
+            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400" />
+        </div>
+
+        {/* Precio */}
+        <div className="col-span-1">
           <label className="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">$/m</label>
           <input type="number" step={0.01} value={line.precioUnitario}
             onChange={(e) => onChange(index, 'precioUnitario', +e.target.value)}
@@ -171,6 +199,9 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
         <div className="col-span-2 text-right">
           <label className="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Importe</label>
           <p className="text-sm font-bold text-emerald-600 py-2">${importe.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+          {descPct > 0 && (
+            <p className="text-[10px] text-gray-400 -mt-1">${precioConDescuento.toFixed(2)}/m (-{descPct}%)</p>
+          )}
         </div>
 
         {/* Remove */}
