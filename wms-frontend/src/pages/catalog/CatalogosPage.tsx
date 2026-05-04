@@ -3,7 +3,7 @@ import { useApi, useMutationApi } from '../../hooks/useApi';
 import type { PaginatedResponse } from '../../hooks/useApi';
 import { api } from '../../config/api';
 import toast from 'react-hot-toast';
-import { Pencil, Trash2, X, Plus, Search, FileText, AlertTriangle } from 'lucide-react';
+import { Pencil, Trash2, X, Plus, Search, FileText, AlertTriangle, CreditCard, Shield } from 'lucide-react';
 
 type Tab = 'skus' | 'suppliers' | 'clients' | 'vendors';
 
@@ -151,6 +151,61 @@ export default function CatalogosPage() {
               {renderSelect('Uso del CFDI', 'usoCfdi', USOS_CFDI, 'Default para facturas de este cliente')}
             </div>
           </div>
+
+          {/* Config de Crédito */}
+          {editingId && (
+            <div className="border-t pt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <CreditCard size={14} className="text-violet-600" />
+                <h3 className="text-xs font-semibold text-violet-700 uppercase">Crédito y Descuentos</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Plazo Default (días)</label>
+                  <select value={formData.creditPlazo || 30} onChange={(e) => updateField('creditPlazo', +e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                    <option value={30}>30 días</option>
+                    <option value={60}>60 días</option>
+                    <option value={90}>90 días</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Lista de Precios Default</label>
+                  <select value={formData.creditLista || ''} onChange={(e) => updateField('creditLista', e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                    <option value="">Sin asignar</option>
+                    <option value="F1">F1 — Premium (2.50%)</option>
+                    <option value="F2">F2 — Estándar (2.25%)</option>
+                    <option value="F3">F3 — Desc. Medio (2.00%)</option>
+                    <option value="F4">F4 — Desc. Alto (1.75%)</option>
+                    <option value="F5">F5 — Máx. Descuento (1.75%)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Desc. Máximo (%)</label>
+                  <input type="number" step="0.5" min={0} max={50}
+                    value={formData.creditDescMax ?? 20}
+                    onChange={(e) => updateField('creditDescMax', +e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" />
+                  <p className="text-[10px] text-gray-400 mt-0.5">Máximo que un vendedor puede otorgar</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Estado</label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <button
+                      onClick={() => updateField('creditBloqueado', !formData.creditBloqueado)}
+                      className={`px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                        formData.creditBloqueado ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'
+                      }`}
+                    >
+                      <Shield size={12} />
+                      {formData.creditBloqueado ? '🔒 Bloqueado' : '✅ Activo'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
       case 'vendors': return (
