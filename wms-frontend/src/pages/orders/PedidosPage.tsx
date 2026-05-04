@@ -66,9 +66,9 @@ export default function PedidosPage() {
   const [prioridad, setPrioridad] = useState(3);
   const [reservaHoras, setReservaHoras] = useState(168);
   const [modoEntrega, setModoEntrega] = useState('COMPLETA');
-  const [lineas, setLineas] = useState<any[]>([{ skuId: '', metrajeRequerido: 50, precioUnitario: 0, selectedHUs: [] }]);
+  const [lineas, setLineas] = useState<any[]>([{ skuId: '', metrajeRequerido: 50, precioUnitario: 0, listaPrecios: '', descuentoPct: 0, selectedHUs: [] }]);
 
-  const addLinea = () => setLineas([...lineas, { skuId: '', metrajeRequerido: 50, precioUnitario: 0, selectedHUs: [] }]);
+  const addLinea = () => setLineas([...lineas, { skuId: '', metrajeRequerido: 50, precioUnitario: 0, listaPrecios: '', descuentoPct: 0, selectedHUs: [] }]);
 
   const handleCreate = async () => {
     if (!clientId) return toast.error('Selecciona un cliente');
@@ -84,12 +84,14 @@ export default function PedidosPage() {
           skuId: l.skuId,
           metrajeRequerido: l.metrajeRequerido,
           precioUnitario: l.precioUnitario,
+          listaPrecios: l.listaPrecios || undefined,
+          descuentoPct: l.descuentoPct || 0,
           selectedHUs: l.selectedHUs?.length ? l.selectedHUs : undefined,
         })),
       });
       toast.success(`Cotización creada — HUs reservados ${reservaHoras}h · Entrega: ${modoEntrega}`);
       setShowForm(false);
-      setLineas([{ skuId: '', metrajeRequerido: 50, precioUnitario: 0, selectedHUs: [] }]);
+      setLineas([{ skuId: '', metrajeRequerido: 50, precioUnitario: 0, listaPrecios: '', descuentoPct: 0, selectedHUs: [] }]);
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Error');
     }
