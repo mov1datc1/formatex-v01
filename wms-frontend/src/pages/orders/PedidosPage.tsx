@@ -4,7 +4,7 @@ import type { PaginatedResponse, Order } from '../../hooks/useApi';
 import { api } from '../../config/api';
 import toast from 'react-hot-toast';
 import { WmsIcon, PipelineIcon, StatusBadge } from '../../components/icons/WmsIcons';
-import { X, Plus, Phone, AlertCircle, ShieldCheck, FileText, Download, Mail, Printer, Loader2 } from 'lucide-react';
+import { X, Plus, Phone, AlertCircle, ShieldCheck, FileText, Download, Mail, Printer, Loader2, Info } from 'lucide-react';
 import type { FC } from 'react';
 import type { LucideProps } from 'lucide-react';
 import OrderLineSmart from '../../components/orders/OrderLineSmart';
@@ -484,8 +484,17 @@ export default function PedidosPage() {
                   <div key={line.id} className="p-3 bg-gray-50 rounded-xl mb-2">
                     <div className="flex justify-between text-sm">
                       <span className="font-medium">{line.metrajeRequerido}m solicitados</span>
-                      <span className={line.metrajeSurtido >= line.metrajeRequerido ? 'text-emerald-600 font-semibold' : 'text-amber-600'}>
+                      <span className={`flex items-center gap-1 ${line.metrajeSurtido >= line.metrajeRequerido ? 'text-emerald-600 font-semibold' : 'text-amber-600'}`}>
                         {line.metrajeSurtido}m surtidos
+                        {line.metrajeSurtido === 0 && ['EN_CORTE','EMPACADO','FACTURADO','DESPACHADO'].includes(detail.estado) && (
+                          <span className="relative group">
+                            <Info size={14} className="text-amber-500 cursor-help" />
+                            <span className="absolute bottom-full right-0 mb-1.5 w-64 px-3 py-2 bg-gray-900 text-white text-[11px] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 leading-relaxed">
+                              ⚠️ <strong>0m surtidos</strong> porque el pedido avanzó sin pasar por el escaneo físico del Picker (PWA Zebra). En producción, el picker escanea cada HU y ahí se registran los metros surtidos.
+                              <span className="absolute bottom-0 right-4 translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900" />
+                            </span>
+                          </span>
+                        )}
                       </span>
                     </div>
                     {line.precioUnitario && <p className="text-xs text-gray-400">${Number(line.precioUnitario).toFixed(2)}/m — Importe: ${Number(line.importe || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>}
