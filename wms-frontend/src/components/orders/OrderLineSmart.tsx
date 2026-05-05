@@ -166,7 +166,12 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
           <label className="block text-xs font-semibold text-violet-500 mb-1 uppercase tracking-wide">Lista</label>
           <select
             value={line.listaPrecios || ''}
-            onChange={(e) => onChange(index, 'listaPrecios', e.target.value)}
+            onChange={(e) => {
+              const lista = e.target.value;
+              onChange(index, 'listaPrecios', lista);
+              const discountMap: Record<string, number> = { F1: 2.5, F2: 2.25, F3: 2.0, F4: 1.75, F5: 1.75 };
+              onChange(index, 'descuentoPct', discountMap[lista] ?? 0);
+            }}
             className="w-full px-3 py-2 bg-white border border-violet-200 rounded-lg text-sm focus:ring-2 focus:ring-violet-400"
           >
             <option value="">Sin lista</option>
