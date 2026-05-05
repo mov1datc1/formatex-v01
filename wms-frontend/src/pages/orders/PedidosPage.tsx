@@ -235,9 +235,11 @@ export default function PedidosPage() {
                   line={l}
                   skus={skus?.data || []}
                   onChange={(i, field, value) => {
-                    const n = [...lineas];
-                    (n[i] as any)[field] = value;
-                    setLineas(n);
+                    setLineas(prev => {
+                      const n = [...prev];
+                      (n[i] as any)[field] = value;
+                      return n;
+                    });
                   }}
                   onRemove={(i) => setLineas(lineas.filter((_, j) => j !== i))}
                   canRemove={lineas.length > 1}
