@@ -663,7 +663,7 @@ export class InvoicingService {
       amount: Number(p.montoAplicado),
       installment: idx + 1,
       last_balance: Number(p.order.saldoPendiente || 0) + Number(p.montoAplicado),
-      taxes: [{ type: 'IVA', rate: 0.16, base: Number(p.montoAplicado) / 1.16, amount: (Number(p.montoAplicado) / 1.16) * 0.16 }],
+      taxes: [{ type: 'IVA', rate: 0.16, base: Math.round(Number(p.montoAplicado) / 1.16 * 100) / 100 }],
     }));
 
     try {
@@ -770,7 +770,6 @@ export class InvoicingService {
                 type: 'IVA',
                 rate: 0.16,
                 base: Math.round((totalPagado / 1.16) * 100) / 100,
-                amount: Math.round(((totalPagado / 1.16) * 0.16) * 100) / 100,
               }],
             }],
           }],
