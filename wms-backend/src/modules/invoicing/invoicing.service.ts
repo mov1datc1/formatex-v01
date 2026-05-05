@@ -273,7 +273,21 @@ export class InvoicingService {
         `✅ Factura creada: UUID=${invoice.uuid} | ID=${invoice.id}`,
       );
 
-      // 5. Actualizar orden en DB
+      // 5. Actualizar orden en DB — incluir campos PPD si aplica
+      const isPPD = metodoPago === 'PPD';
+      const orderTotal = Number(order.total || 0);
+
+      // Calcular plazo y fecha de vencimiento para PPD
+      let plazoDias: number | null = null;
+      let fechaVencimiento: Date | null = null;
+      if (isPPD) {
+        // Extraer plazo de condiciones de pago (e.g. "Crédito 30 días" → 30)
+        const plazoMatch = options?.condicionesPago?.match(/(\d+)/);
+        plazoDias = plazoMatch ? parseInt(plazoMatch[1], 10) : 30;
+        fechaVencimiento = new Date();
+        fechaVencimiento.setDate(fechaVencimiento.getDate() + plazoDias);
+      }
+
       const updated = await this.prisma.order.update({
         where: { id: orderId },
         data: {
@@ -285,9 +299,15 @@ export class InvoicingService {
           facturaFolio: String(invoice.folio_number || ''),
           facturaStatus: invoice.status || 'valid',
           facturadaAt: new Date(),
-          // URLs de descarga (Facturapi genera automáticamente)
+          // URLs de descarga
           facturaXmlUrl: `facturapi://${invoice.id}/xml`,
           facturaPdfUrl: `facturapi://${invoice.id}/pdf`,
+          // PPD fields
+          metodoPagoCfdi: metodoPago,
+          saldoPendiente: isPPD ? orderTotal : 0,
+          estadoPago: isPPD ? 'PENDIENTE' : 'NA',
+          plazoDias,
+          fechaVencimiento,
         },
       });
 
