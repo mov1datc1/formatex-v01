@@ -410,6 +410,66 @@ export class InvoicingService {
   }
 
   // -----------------------------------------------------------------------
+  // DESCARGAR COMPLEMENTO PDF/XML (por Facturapi ID del complemento)
+  // -----------------------------------------------------------------------
+  async downloadComplementFile(complementFacturapiId: string, type: 'pdf' | 'xml'): Promise<Buffer> {
+    const facturapi = await this.getFacturapiClient();
+    const stream = type === 'pdf'
+      ? await facturapi.invoices.downloadPdf(complementFacturapiId)
+      : await facturapi.invoices.downloadXml(complementFacturapiId);
+
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+      chunks.push(Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+  }
+
+  // -----------------------------------------------------------------------
+  // LISTAR COMPLEMENTOS EMITIDOS
+  // -----------------------------------------------------------------------
+  async listComplements(search?: string) {
+    const where: any = {
+      complementoFacturapiId: { not: null },
+    };
+    if (search) {
+      where.OR = [
+        { complementoUuid: { contains: search, mode: 'insensitive' } },
+        { order: { codigo: { contains: search, mode: 'insensitive' } } },
+        { order: { client: { nombre: { contains: search, mode: 'insensitive' } } } },
+      ];
+    }
+
+    const payments = await this.prisma.invoicePayment.findMany({
+      where,
+      orderBy: { complementoEmitidoAt: 'desc' },
+      include: {
+        order: {
+          include: {
+            client: { select: { nombre: true, rfc: true, codigo: true } },
+          },
+        },
+      },
+    });
+
+    return payments.map(p => ({
+      id: p.id,
+      orderId: p.orderId,
+      orderCode: p.order.codigo,
+      clientName: p.order.client?.nombre || '—',
+      clientRfc: p.order.client?.rfc || '—',
+      facturaUuid: p.order.uuidFiscal,
+      complementoFacturapiId: p.complementoFacturapiId,
+      complementoUuid: p.complementoUuid,
+      complementoStatus: p.complementoStatus,
+      complementoEmitidoAt: p.complementoEmitidoAt,
+      monto: p.monto,
+      montoAplicado: p.montoAplicado,
+      formaPago: p.formaPago,
+    }));
+  }
+
+  // -----------------------------------------------------------------------
   // ENVIAR POR EMAIL
   // -----------------------------------------------------------------------
   async sendByEmail(orderId: string, email: string) {

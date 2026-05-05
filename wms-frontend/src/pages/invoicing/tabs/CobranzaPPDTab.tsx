@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import {
   CreditCard, AlertTriangle, Clock, CheckCircle2,
   DollarSign, Search, X, FileCheck, Loader2,
+  Download, FileText, Printer,
 } from 'lucide-react';
 
 export default function CobranzaPPDTab() {
@@ -16,19 +17,26 @@ export default function CobranzaPPDTab() {
   // Dashboard KPIs
   const { data: dashboard } = useApi<any>(['ppd-dashboard'], '/invoicing/ppd-dashboard');
 
-  // ALL PPD invoices (not just pending)
+  // ALL PPD invoices
   const { data: resp, isLoading, refetch } = useApi<any>(
     ['invoice-history', 'ppd-all', clientSearch],
     '/invoicing/history',
     { metodoPago: 'PPD', search: clientSearch || undefined, limit: 50 },
   );
 
-  // Show: pending + partial + pagadas without complement
-  const invoices = (resp?.data || []).filter((i: any) => i.metodoPagoCfdi === 'PPD' && i.estadoPago !== 'NA');
+  // List of emitted complements
+  const { data: complements, refetch: refetchComplements } = useApi<any[]>(
+    ['complements-list'],
+    '/invoicing/complements',
+  );
 
-  // Separate pending (for payment selection) from pagadas (for complement)
+  const invoices = (resp?.data || []).filter((i: any) => i.metodoPagoCfdi === 'PPD' && i.estadoPago !== 'NA');
   const pendingInvoices = invoices.filter((i: any) => i.estadoPago !== 'PAGADA');
-  const paidNoComplement = invoices.filter((i: any) => i.estadoPago === 'PAGADA');
+  const paidInvoices = invoices.filter((i: any) => i.estadoPago === 'PAGADA');
+
+  // Check if an order already has a complement
+  const complementMap = new Map<string, any>();
+  (complements || []).forEach((c: any) => complementMap.set(c.orderId, c));
 
   const toggleSelect = (id: string) => {
     setSelectedOrders(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -54,10 +62,26 @@ export default function CobranzaPPDTab() {
       const res = await api.post(`/invoicing/orders/${orderId}/complement`);
       toast.success(`✅ Complemento CFDI-P emitido — UUID: ${res.data.complementUuid || 'OK'}`);
       refetch();
+      refetchComplements();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Error al emitir complemento de pago');
     } finally {
       setEmittingComplement(null);
+    }
+  };
+
+  const downloadComplement = async (complementId: string, type: 'pdf' | 'xml', code: string) => {
+    try {
+      const res = await api.get(`/invoicing/complements/${complementId}/${type}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `complemento-${code}.${type}`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success(`📄 ${type.toUpperCase()} descargado`);
+    } catch {
+      toast.error(`Error al descargar ${type.toUpperCase()}`);
     }
   };
 
@@ -104,10 +128,12 @@ export default function CobranzaPPDTab() {
         )}
       </div>
 
-      {/* ===== FACTURAS PENDIENTES DE PAGO ===== */}
+      {/* ===== SECTION 1: FACTURAS PENDIENTES DE PAGO ===== */}
       <div className="bg-white rounded-xl border overflow-hidden">
-        <div className="px-4 py-2.5 bg-gray-50 border-b">
+        <div className="px-4 py-2.5 bg-gray-50 border-b flex items-center gap-2">
+          <Clock size={14} className="text-blue-500" />
           <h4 className="text-xs font-semibold text-gray-600 uppercase">Facturas PPD — Pendientes de Pago</h4>
+          <span className="ml-auto text-xs text-gray-400">{pendingInvoices.length} factura(s)</span>
         </div>
         <table className="w-full text-sm">
           <thead>
@@ -156,13 +182,13 @@ export default function CobranzaPPDTab() {
         </table>
       </div>
 
-      {/* ===== FACTURAS PAGADAS — EMITIR COMPLEMENTO ===== */}
-      {paidNoComplement.length > 0 && (
+      {/* ===== SECTION 2: FACTURAS PAGADAS — EMITIR/VER COMPLEMENTO ===== */}
+      {paidInvoices.length > 0 && (
         <div className="bg-white rounded-xl border overflow-hidden">
-          <div className="px-4 py-2.5 bg-emerald-50 border-b">
-            <h4 className="text-xs font-semibold text-emerald-700 uppercase flex items-center gap-2">
-              <FileCheck size={14} /> Facturas Pagadas — Emitir Complemento de Pago (CFDI-P)
-            </h4>
+          <div className="px-4 py-2.5 bg-emerald-50 border-b flex items-center gap-2">
+            <FileCheck size={14} className="text-emerald-600" />
+            <h4 className="text-xs font-semibold text-emerald-700 uppercase">Facturas Pagadas — Complemento de Pago (CFDI-P)</h4>
+            <span className="ml-auto text-xs text-emerald-500">{paidInvoices.length} pagada(s)</span>
           </div>
           <table className="w-full text-sm">
             <thead>
@@ -170,14 +196,15 @@ export default function CobranzaPPDTab() {
                 <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Pedido</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Cliente</th>
                 <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Total</th>
-                <th className="text-center px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Estado</th>
                 <th className="text-center px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Complemento</th>
-                <th className="text-center px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Acción</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase">UUID Complemento</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {paidNoComplement.map((inv: any) => {
-                const hasComplement = inv.complementoEmitido || inv.invoicePayments?.some((p: any) => p.complementoUuid);
+              {paidInvoices.map((inv: any) => {
+                const comp = complementMap.get(inv.id);
+                const hasComplement = !!comp;
                 return (
                   <tr key={inv.id} className="border-b last:border-0 hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-mono text-xs font-semibold text-primary-600">{inv.codigo}</td>
@@ -186,18 +213,33 @@ export default function CobranzaPPDTab() {
                       ${Number(inv.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">✅ Pagada</span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
                       {hasComplement ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">📄 Emitido</span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
+                          <CheckCircle2 size={10} /> Emitido
+                        </span>
                       ) : (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">⏳ Pendiente</span>
                       )}
                     </td>
+                    <td className="px-4 py-3">
+                      {hasComplement ? (
+                        <span className="font-mono text-[11px] text-gray-600">{comp.complementoUuid?.substring(0, 18)}...</span>
+                      ) : (
+                        <span className="text-xs text-gray-300">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-center">
                       {hasComplement ? (
-                        <span className="text-xs text-gray-400">—</span>
+                        <div className="flex items-center justify-center gap-1">
+                          <button onClick={() => downloadComplement(comp.complementoFacturapiId, 'pdf', inv.codigo)}
+                            title="Descargar PDF" className="p-1.5 rounded-lg hover:bg-red-100 text-red-600 transition-colors">
+                            <Download size={14} />
+                          </button>
+                          <button onClick={() => downloadComplement(comp.complementoFacturapiId, 'xml', inv.codigo)}
+                            title="Descargar XML" className="p-1.5 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors">
+                            <FileText size={14} />
+                          </button>
+                        </div>
                       ) : (
                         <button
                           onClick={() => handleEmitComplement(inv.id)}
@@ -220,8 +262,74 @@ export default function CobranzaPPDTab() {
         </div>
       )}
 
+      {/* ===== SECTION 3: HISTORIAL DE COMPLEMENTOS EMITIDOS ===== */}
+      {(complements || []).length > 0 && (
+        <div className="bg-white rounded-xl border overflow-hidden">
+          <div className="px-4 py-2.5 bg-violet-50 border-b flex items-center gap-2">
+            <FileCheck size={14} className="text-violet-600" />
+            <h4 className="text-xs font-semibold text-violet-700 uppercase">Historial de Complementos de Pago (CFDI-P)</h4>
+            <span className="ml-auto text-xs text-violet-400">{(complements || []).length} emitido(s)</span>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b">
+                <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Pedido</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Cliente</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase">UUID Complemento</th>
+                <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Monto</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Forma Pago</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Status</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Emitido</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Descargar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(complements || []).map((c: any) => (
+                <tr key={c.id} className="border-b last:border-0 hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 font-mono text-xs font-semibold text-primary-600">{c.orderCode}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{c.clientName}</td>
+                  <td className="px-4 py-3">
+                    <span className="font-mono text-[11px] text-violet-600 bg-violet-50 px-2 py-0.5 rounded">
+                      {c.complementoUuid?.substring(0, 24)}...
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono font-semibold text-emerald-600">
+                    ${Number(c.montoAplicado || c.monto || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="px-4 py-3 text-center text-xs text-gray-500">
+                    {c.formaPago === '03' ? '03-Transferencia' : c.formaPago === '01' ? '01-Efectivo' : c.formaPago || '—'}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      c.complementoStatus === 'valid' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {c.complementoStatus === 'valid' ? <><CheckCircle2 size={10} /> Vigente</> : c.complementoStatus}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500">
+                    {c.complementoEmitidoAt ? new Date(c.complementoEmitidoAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-center gap-1">
+                      <button onClick={() => downloadComplement(c.complementoFacturapiId, 'pdf', c.orderCode)}
+                        title="PDF" className="p-1.5 rounded-lg hover:bg-red-100 text-red-600 transition-colors">
+                        <Download size={14} />
+                      </button>
+                      <button onClick={() => downloadComplement(c.complementoFacturapiId, 'xml', c.orderCode)}
+                        title="XML" className="p-1.5 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors">
+                        <FileText size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* Payment Modal */}
-      {showPayModal && <PaymentModal orderIds={selectedOrders} onClose={() => { setShowPayModal(false); setSelectedOrders([]); refetch(); }} />}
+      {showPayModal && <PaymentModal orderIds={selectedOrders} onClose={() => { setShowPayModal(false); setSelectedOrders([]); refetch(); refetchComplements(); }} />}
     </>
   );
 }
@@ -243,7 +351,7 @@ function PaymentModal({ orderIds, onClose }: { orderIds: string[]; onClose: () =
         monto: Number(monto),
         formaPago,
         referencia: referencia || undefined,
-        registradoPor: 'current-user', // TODO: get from auth
+        registradoPor: 'current-user',
         notas: notas || undefined,
       });
       toast.success(`💰 Pago registrado — ${res.data.payments?.length || 0} factura(s) actualizadas`);

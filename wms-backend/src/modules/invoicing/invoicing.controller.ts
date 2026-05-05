@@ -89,6 +89,41 @@ export class InvoicingController {
     return this.invoicingService.emitComplementByOrder(orderId);
   }
 
+  // Download complement PDF/XML (uses Facturapi invoice ID directly)
+  @Get('complements/:complementId/pdf')
+  async downloadComplementPdf(
+    @Param('complementId') complementId: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.invoicingService.downloadComplementFile(complementId, 'pdf');
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="complemento-${complementId}.pdf"`,
+      'Content-Length': buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get('complements/:complementId/xml')
+  async downloadComplementXml(
+    @Param('complementId') complementId: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.invoicingService.downloadComplementFile(complementId, 'xml');
+    res.set({
+      'Content-Type': 'application/xml',
+      'Content-Disposition': `attachment; filename="complemento-${complementId}.xml"`,
+      'Content-Length': buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  // List all complements
+  @Get('complements')
+  async listComplements(@Query('search') search?: string) {
+    return this.invoicingService.listComplements(search);
+  }
+
   // =======================================================================
   // DASHBOARD PPD (Cobranza)
   // =======================================================================
