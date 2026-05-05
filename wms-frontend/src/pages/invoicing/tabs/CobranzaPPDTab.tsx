@@ -336,6 +336,8 @@ export default function CobranzaPPDTab() {
 
 // ====== MODAL DE PAGO ======
 function PaymentModal({ orderIds, onClose }: { orderIds: string[]; onClose: () => void }) {
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const [fechaPago, setFechaPago] = useState(today);
   const [monto, setMonto] = useState('');
   const [formaPago, setFormaPago] = useState('03');
   const [referencia, setReferencia] = useState('');
@@ -344,12 +346,14 @@ function PaymentModal({ orderIds, onClose }: { orderIds: string[]; onClose: () =
 
   const handleSubmit = async () => {
     if (!monto || Number(monto) <= 0) return toast.error('Ingresa un monto válido');
+    if (!fechaPago) return toast.error('Selecciona la fecha del pago');
     setLoading(true);
     try {
       const res = await api.post('/invoicing/payments', {
         orderIds,
         monto: Number(monto),
         formaPago,
+        fechaPago,
         referencia: referencia || undefined,
         registradoPor: 'current-user',
         notas: notas || undefined,
@@ -371,10 +375,17 @@ function PaymentModal({ orderIds, onClose }: { orderIds: string[]; onClose: () =
         <p className="text-xs text-gray-500">{orderIds.length} factura(s) seleccionada(s). El pago se distribuye FIFO (más antigua primero).</p>
 
         <div className="space-y-3">
-          <div>
-            <label className="text-xs font-medium text-gray-600">Monto del pago *</label>
-            <input type="number" step="0.01" value={monto} onChange={e => setMonto(e.target.value)}
-              placeholder="$0.00" className="w-full mt-1 px-3 py-2.5 border rounded-xl text-sm" />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-600">Fecha del pago *</label>
+              <input type="date" value={fechaPago} onChange={e => setFechaPago(e.target.value)} max={today}
+                className="w-full mt-1 px-3 py-2.5 border rounded-xl text-sm" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600">Monto del pago *</label>
+              <input type="number" step="0.01" value={monto} onChange={e => setMonto(e.target.value)}
+                placeholder="$0.00" className="w-full mt-1 px-3 py-2.5 border rounded-xl text-sm" />
+            </div>
           </div>
           <div>
             <label className="text-xs font-medium text-gray-600">Forma de pago *</label>

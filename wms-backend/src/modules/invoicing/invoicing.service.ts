@@ -610,13 +610,15 @@ export class InvoicingService {
     orderIds: string[];
     monto: number;
     formaPago: string;
+    fechaPago?: string;
     referencia?: string;
     evidenciaUrl?: string;
     registradoPor: string;
     notas?: string;
     emitirComplemento?: boolean;
   }) {
-    const { orderIds, monto, formaPago, referencia, evidenciaUrl, registradoPor, notas } = data;
+    const { orderIds, monto, formaPago, fechaPago, referencia, evidenciaUrl, registradoPor, notas } = data;
+    const paymentDate = fechaPago ? new Date(fechaPago) : new Date();
 
     // Validate orders exist and are PPD
     const orders = await this.prisma.order.findMany({
@@ -654,7 +656,7 @@ export class InvoicingService {
           montoAplicado: aplicado,
           formaPago,
           referenciaPago: referencia,
-          fechaPago: new Date(),
+          fechaPago: paymentDate,
           pagoGrupoId,
           registradoPor,
           notas,
