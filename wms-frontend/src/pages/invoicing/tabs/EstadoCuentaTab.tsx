@@ -8,8 +8,9 @@ export default function EstadoCuentaTab() {
   const [clientSearch, setClientSearch] = useState('');
 
   // Get clients list for dropdown
-  const { data: clients } = useApi<any[]>(['clients-list'], '/catalogs/clients');
-  const filteredClients = (clients || []).filter((c: any) =>
+  const { data: clientsResp } = useApi<any>(['clients-list-stmt'], '/catalog/clients', { limit: 200 });
+  const allClients = clientsResp?.data || clientsResp || [];
+  const filteredClients = (allClients).filter((c: any) =>
     !clientSearch || c.nombre?.toLowerCase().includes(clientSearch.toLowerCase()) || c.codigo?.toLowerCase().includes(clientSearch.toLowerCase())
   );
 
