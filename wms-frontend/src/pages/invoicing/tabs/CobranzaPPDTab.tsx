@@ -51,7 +51,7 @@ export default function CobranzaPPDTab() {
   const handleEmitComplement = async (orderId: string) => {
     setEmittingComplement(orderId);
     try {
-      const res = await api.post(`/invoicing/payments/${orderId}/complement`);
+      const res = await api.post(`/invoicing/orders/${orderId}/complement`);
       toast.success(`✅ Complemento CFDI-P emitido — UUID: ${res.data.complementUuid || 'OK'}`);
       refetch();
     } catch (err: any) {

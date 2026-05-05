@@ -84,6 +84,11 @@ export class InvoicingController {
     return this.invoicingService.emitPaymentComplement(groupId);
   }
 
+  @Post('orders/:orderId/complement')
+  async emitComplementByOrder(@Param('orderId') orderId: string) {
+    return this.invoicingService.emitComplementByOrder(orderId);
+  }
+
   // =======================================================================
   // DASHBOARD PPD (Cobranza)
   // =======================================================================

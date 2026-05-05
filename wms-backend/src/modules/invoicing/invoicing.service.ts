@@ -714,6 +714,104 @@ export class InvoicingService {
   }
 
   // -----------------------------------------------------------------------
+  // EMITIR COMPLEMENTO POR ORDER ID (busca pagos de esa orden)
+  // -----------------------------------------------------------------------
+  async emitComplementByOrder(orderId: string) {
+    // Find any payments for this order that don't have a complement yet
+    const payments = await this.prisma.invoicePayment.findMany({
+      where: { orderId, complementoFacturapiId: null },
+    });
+
+    if (payments.length > 0) {
+      // Use the first payment's groupId to emit complement
+      return this.emitPaymentComplement(payments[0].pagoGrupoId!);
+    }
+
+    // No InvoicePayment records — the order was paid via the "Registrar Pago" 
+    // flow in Cobranza which updated saldoPendiente directly.
+    // We need to create an InvoicePayment record first, then emit the complement.
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { client: true },
+    });
+
+    if (!order) throw new NotFoundException('Pedido no encontrado');
+    if (!order.uuidFiscal) throw new BadRequestException('Este pedido no tiene factura emitida');
+    if (order.estadoPago !== 'PAGADA') throw new BadRequestException('La factura no está completamente pagada aún');
+
+    const client = order.client as any;
+    if (!client?.rfc) throw new BadRequestException('El cliente no tiene RFC registrado');
+
+    // Emit complement directly via Facturapi
+    const facturapi = await this.getFacturapiClient();
+    const totalPagado = Number(order.total || 0);
+
+    try {
+      const complementPayload = {
+        type: 'P',
+        customer: {
+          legal_name: client.nombre,
+          tax_id: client.rfc,
+          tax_system: client.regimenFiscal || '601',
+          address: { zip: client.cp || '44870' },
+        },
+        complements: [{
+          type: 'pago',
+          data: [{
+            payment_form: '03', // Transferencia (default)
+            date: new Date().toISOString(),
+            amount: totalPagado,
+            related_documents: [{
+              uuid: order.uuidFiscal,
+              amount: totalPagado,
+              installment: 1,
+              last_balance: totalPagado,
+              taxes: [{
+                type: 'IVA',
+                rate: 0.16,
+                base: Math.round((totalPagado / 1.16) * 100) / 100,
+                amount: Math.round(((totalPagado / 1.16) * 0.16) * 100) / 100,
+              }],
+            }],
+          }],
+        }],
+      };
+
+      const complement = await facturapi.invoices.create(complementPayload);
+      this.logger.log(`✅ Complemento emitido para orden ${order.codigo}: UUID=${complement.uuid}`);
+
+      // Create the InvoicePayment record
+      const grupoId = `CPL-${Date.now()}`;
+      await this.prisma.invoicePayment.create({
+        data: {
+          orderId,
+          pagoGrupoId: grupoId,
+          monto: totalPagado,
+          montoAplicado: totalPagado,
+          formaPago: '03',
+          fechaPago: new Date(),
+          registradoPor: 'system',
+          complementoFacturapiId: complement.id,
+          complementoUuid: complement.uuid,
+          complementoStatus: complement.status || 'valid',
+          complementoEmitidoAt: new Date(),
+        },
+      });
+
+      return {
+        success: true,
+        complementId: complement.id,
+        complementUuid: complement.uuid,
+        status: complement.status,
+        total: totalPagado,
+      };
+    } catch (err: any) {
+      this.logger.error(`Error al emitir complemento: ${err.message}`, err.stack);
+      throw new BadRequestException(`Error al emitir complemento: ${err.message}`);
+    }
+  }
+
+  // -----------------------------------------------------------------------
   // ESTADO DE CUENTA DEL CLIENTE
   // -----------------------------------------------------------------------
   async getClientStatement(clientId: string, params?: { desde?: string; hasta?: string }) {
