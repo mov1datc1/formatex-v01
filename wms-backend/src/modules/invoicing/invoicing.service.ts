@@ -679,7 +679,6 @@ export class InvoicingService {
           type: 'pago',
           data: [{
             payment_form: payments[0].formaPago,
-            amount: payments.reduce((sum: number, p: any) => sum + Number(p.montoAplicado), 0),
             related_documents: relatedDocs,
           }],
         }],
@@ -758,9 +757,8 @@ export class InvoicingService {
         complements: [{
           type: 'pago',
           data: [{
-            payment_form: '03', // Transferencia (default)
+            payment_form: '03',
             date: new Date().toISOString(),
-            amount: totalPagado,
             related_documents: [{
               uuid: order.uuidFiscal,
               amount: totalPagado,
