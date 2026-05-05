@@ -4,25 +4,31 @@ import { api } from '../../../config/api';
 import toast from 'react-hot-toast';
 import {
   CreditCard, AlertTriangle, Clock, CheckCircle2,
-  DollarSign, Search, ChevronDown, X, Upload,
+  DollarSign, Search, X, FileCheck, Loader2,
 } from 'lucide-react';
 
 export default function CobranzaPPDTab() {
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [showPayModal, setShowPayModal] = useState(false);
   const [clientSearch, setClientSearch] = useState('');
+  const [emittingComplement, setEmittingComplement] = useState<string | null>(null);
 
   // Dashboard KPIs
   const { data: dashboard } = useApi<any>(['ppd-dashboard'], '/invoicing/ppd-dashboard');
 
-  // Facturas PPD pendientes (todas)
+  // ALL PPD invoices (not just pending)
   const { data: resp, isLoading, refetch } = useApi<any>(
-    ['invoice-history', 'ppd-pending', clientSearch],
+    ['invoice-history', 'ppd-all', clientSearch],
     '/invoicing/history',
     { metodoPago: 'PPD', search: clientSearch || undefined, limit: 50 },
   );
 
-  const invoices = (resp?.data || []).filter((i: any) => i.estadoPago !== 'PAGADA' && i.estadoPago !== 'NA');
+  // Show: pending + partial + pagadas without complement
+  const invoices = (resp?.data || []).filter((i: any) => i.metodoPagoCfdi === 'PPD' && i.estadoPago !== 'NA');
+
+  // Separate pending (for payment selection) from pagadas (for complement)
+  const pendingInvoices = invoices.filter((i: any) => i.estadoPago !== 'PAGADA');
+  const paidNoComplement = invoices.filter((i: any) => i.estadoPago === 'PAGADA');
 
   const toggleSelect = (id: string) => {
     setSelectedOrders(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -40,6 +46,19 @@ export default function CobranzaPPDTab() {
     if (inv.fechaVencimiento && new Date(inv.fechaVencimiento) < new Date()) return '🔴 Vencida';
     if (inv.estadoPago === 'PARCIAL') return '🟡 Parcial';
     return '🔵 Pendiente';
+  };
+
+  const handleEmitComplement = async (orderId: string) => {
+    setEmittingComplement(orderId);
+    try {
+      const res = await api.post(`/invoicing/payments/${orderId}/complement`);
+      toast.success(`✅ Complemento CFDI-P emitido — UUID: ${res.data.complementUuid || 'OK'}`);
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Error al emitir complemento de pago');
+    } finally {
+      setEmittingComplement(null);
+    }
   };
 
   return (
@@ -85,13 +104,16 @@ export default function CobranzaPPDTab() {
         )}
       </div>
 
-      {/* Table */}
+      {/* ===== FACTURAS PENDIENTES DE PAGO ===== */}
       <div className="bg-white rounded-xl border overflow-hidden">
+        <div className="px-4 py-2.5 bg-gray-50 border-b">
+          <h4 className="text-xs font-semibold text-gray-600 uppercase">Facturas PPD — Pendientes de Pago</h4>
+        </div>
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b">
               <th className="px-4 py-3 w-10"><input type="checkbox" className="rounded"
-                onChange={e => setSelectedOrders(e.target.checked ? invoices.map((i: any) => i.id) : [])} /></th>
+                onChange={e => setSelectedOrders(e.target.checked ? pendingInvoices.map((i: any) => i.id) : [])} /></th>
               <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Pedido</th>
               <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Cliente</th>
               <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Total</th>
@@ -104,12 +126,12 @@ export default function CobranzaPPDTab() {
           <tbody>
             {isLoading ? (
               <tr><td colSpan={8} className="text-center py-12 text-gray-400">Cargando...</td></tr>
-            ) : invoices.length === 0 ? (
-              <tr><td colSpan={8} className="text-center py-12 text-gray-400">
-                <CheckCircle2 size={40} className="mx-auto mb-3 text-emerald-300" />
-                <p className="font-medium text-gray-500">Sin facturas PPD pendientes</p>
+            ) : pendingInvoices.length === 0 ? (
+              <tr><td colSpan={8} className="text-center py-8 text-gray-400">
+                <CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-300" />
+                <p className="text-sm text-gray-500">Sin facturas PPD pendientes de pago</p>
               </td></tr>
-            ) : invoices.map((inv: any) => (
+            ) : pendingInvoices.map((inv: any) => (
               <tr key={inv.id} className={`border-b last:border-0 hover:bg-gray-50 transition-colors ${selectedOrders.includes(inv.id) ? 'bg-emerald-50' : ''}`}>
                 <td className="px-4 py-3"><input type="checkbox" className="rounded"
                   checked={selectedOrders.includes(inv.id)} onChange={() => toggleSelect(inv.id)} /></td>
@@ -133,6 +155,70 @@ export default function CobranzaPPDTab() {
           </tbody>
         </table>
       </div>
+
+      {/* ===== FACTURAS PAGADAS — EMITIR COMPLEMENTO ===== */}
+      {paidNoComplement.length > 0 && (
+        <div className="bg-white rounded-xl border overflow-hidden">
+          <div className="px-4 py-2.5 bg-emerald-50 border-b">
+            <h4 className="text-xs font-semibold text-emerald-700 uppercase flex items-center gap-2">
+              <FileCheck size={14} /> Facturas Pagadas — Emitir Complemento de Pago (CFDI-P)
+            </h4>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b">
+                <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Pedido</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Cliente</th>
+                <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Total</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Estado</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Complemento</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paidNoComplement.map((inv: any) => {
+                const hasComplement = inv.complementoEmitido || inv.invoicePayments?.some((p: any) => p.complementoUuid);
+                return (
+                  <tr key={inv.id} className="border-b last:border-0 hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 font-mono text-xs font-semibold text-primary-600">{inv.codigo}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{inv.client?.nombre || '—'}</td>
+                    <td className="px-4 py-3 text-right font-mono text-gray-600">
+                      ${Number(inv.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">✅ Pagada</span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {hasComplement ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">📄 Emitido</span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">⏳ Pendiente</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {hasComplement ? (
+                        <span className="text-xs text-gray-400">—</span>
+                      ) : (
+                        <button
+                          onClick={() => handleEmitComplement(inv.id)}
+                          disabled={emittingComplement === inv.id}
+                          className="px-3 py-1.5 bg-violet-600 text-white rounded-lg text-xs font-semibold hover:bg-violet-700 disabled:opacity-50 transition-colors flex items-center gap-1.5 mx-auto"
+                        >
+                          {emittingComplement === inv.id ? (
+                            <><Loader2 size={12} className="animate-spin" /> Emitiendo...</>
+                          ) : (
+                            <><FileCheck size={12} /> Emitir CFDI-P</>
+                          )}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Payment Modal */}
       {showPayModal && <PaymentModal orderIds={selectedOrders} onClose={() => { setShowPayModal(false); setSelectedOrders([]); refetch(); }} />}
