@@ -123,7 +123,7 @@ export default function PedidosPage() {
     }
   };
 
-  const subtotal = lineas.reduce((a, l) => a + l.metrajeRequerido * l.precioUnitario, 0);
+  const subtotal = lineas.reduce((a, l) => a + l.metrajeRequerido * l.precioUnitario * (1 - (l.descuentoPct || 0) / 100), 0);
   const iva = subtotal * 0.16;
   const total = subtotal + iva;
 
