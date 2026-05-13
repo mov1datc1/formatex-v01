@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ShoppingCart, ListOrdered, Inbox, History, Plus } from 'lucide-react';
 import OCListTab from './OCListTab';
 import ReceptionQueueTab from './ReceptionQueueTab';
@@ -21,9 +21,9 @@ export default function ComprasPage() {
 
   // Stats
   const [stats, setStats] = useState<any>(null);
-  useState(() => {
+  useEffect(() => {
     api.get('/purchasing/stats').then(r => setStats(r.data)).catch(() => {});
-  });
+  }, []);
 
   return (
     <div className="space-y-6">
