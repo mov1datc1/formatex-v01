@@ -147,4 +147,67 @@ export class CatalogService {
     const result = await this.prisma.skuMaster.findMany({ where: { activo: true }, select: { categoria: true }, distinct: ['categoria'] });
     return result.map((r) => r.categoria).filter(Boolean);
   }
+
+  // ===== BULK IMPORT =====
+  async bulkCreateSkus(items: any[]) {
+    const results = { created: 0, errors: [] as { row: number; error: string }[] };
+    for (let i = 0; i < items.length; i++) {
+      try {
+        const { codigo, nombre, categoria, color, composicion, anchoMetros, metrajeEstandar, codigoBarras } = items[i];
+        if (!codigo || !nombre) { results.errors.push({ row: i + 1, error: 'Código y nombre son obligatorios' }); continue; }
+        await this.prisma.skuMaster.create({
+          data: { codigo, nombre, categoria, color, composicion, anchoMetros: anchoMetros ? Number(anchoMetros) : null, metrajeEstandar: metrajeEstandar ? Number(metrajeEstandar) : 50, codigoBarras },
+        });
+        results.created++;
+      } catch (e: any) {
+        results.errors.push({ row: i + 1, error: e.code === 'P2002' ? `Código duplicado: ${items[i].codigo}` : (e.message || 'Error desconocido') });
+      }
+    }
+    return results;
+  }
+
+  async bulkCreateSuppliers(items: any[]) {
+    const results = { created: 0, errors: [] as { row: number; error: string }[] };
+    for (let i = 0; i < items.length; i++) {
+      try {
+        const { codigo, nombre, contacto, telefono, email, rfc } = items[i];
+        if (!codigo || !nombre) { results.errors.push({ row: i + 1, error: 'Código y nombre son obligatorios' }); continue; }
+        await this.prisma.supplier.create({ data: { codigo, nombre, contacto, telefono, email, rfc } });
+        results.created++;
+      } catch (e: any) {
+        results.errors.push({ row: i + 1, error: e.code === 'P2002' ? `Código duplicado: ${items[i].codigo}` : (e.message || 'Error desconocido') });
+      }
+    }
+    return results;
+  }
+
+  async bulkCreateClients(items: any[]) {
+    const results = { created: 0, errors: [] as { row: number; error: string }[] };
+    for (let i = 0; i < items.length; i++) {
+      try {
+        const { codigo, nombre, contacto, telefono, email, direccion, pais, rfc, cp, regimenFiscal, usoCfdi } = items[i];
+        if (!codigo || !nombre) { results.errors.push({ row: i + 1, error: 'Código y nombre son obligatorios' }); continue; }
+        await this.prisma.client.create({ data: { codigo, nombre, contacto, telefono, email, direccion, pais, rfc, cp, regimenFiscal, usoCfdi } });
+        results.created++;
+      } catch (e: any) {
+        results.errors.push({ row: i + 1, error: e.code === 'P2002' ? `Código duplicado: ${items[i].codigo}` : (e.message || 'Error desconocido') });
+      }
+    }
+    return results;
+  }
+
+  async bulkCreateVendors(items: any[]) {
+    const results = { created: 0, errors: [] as { row: number; error: string }[] };
+    for (let i = 0; i < items.length; i++) {
+      try {
+        const { codigo, nombre, telefono, email } = items[i];
+        if (!codigo || !nombre) { results.errors.push({ row: i + 1, error: 'Código y nombre son obligatorios' }); continue; }
+        await this.prisma.vendor.create({ data: { codigo, nombre, telefono, email } });
+        results.created++;
+      } catch (e: any) {
+        results.errors.push({ row: i + 1, error: e.code === 'P2002' ? `Código duplicado: ${items[i].codigo}` : (e.message || 'Error desconocido') });
+      }
+    }
+    return results;
+  }
 }

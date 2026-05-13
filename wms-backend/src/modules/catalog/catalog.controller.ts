@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CatalogService } from './catalog.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -41,6 +41,13 @@ export class CatalogController {
     return this.catalogService.updateSku(id, body);
   }
 
+  @Post('skus/bulk')
+  @ApiOperation({ summary: 'Importar SKUs masivamente desde CSV' })
+  bulkCreateSkus(@Body() body: { items: any[] }) {
+    if (!body.items?.length) throw new BadRequestException('No se recibieron items');
+    return this.catalogService.bulkCreateSkus(body.items);
+  }
+
   // ===== SUPPLIERS =====
   @Get('suppliers')
   @ApiOperation({ summary: 'Listar proveedores' })
@@ -58,6 +65,13 @@ export class CatalogController {
   @ApiOperation({ summary: 'Actualizar proveedor' })
   updateSupplier(@Param('id') id: string, @Body() body: any) {
     return this.catalogService.updateSupplier(id, body);
+  }
+
+  @Post('suppliers/bulk')
+  @ApiOperation({ summary: 'Importar proveedores masivamente desde CSV' })
+  bulkCreateSuppliers(@Body() body: { items: any[] }) {
+    if (!body.items?.length) throw new BadRequestException('No se recibieron items');
+    return this.catalogService.bulkCreateSuppliers(body.items);
   }
 
   // ===== CLIENTS =====
@@ -91,6 +105,13 @@ export class CatalogController {
     return this.catalogService.deleteClient(id);
   }
 
+  @Post('clients/bulk')
+  @ApiOperation({ summary: 'Importar clientes masivamente desde CSV' })
+  bulkCreateClients(@Body() body: { items: any[] }) {
+    if (!body.items?.length) throw new BadRequestException('No se recibieron items');
+    return this.catalogService.bulkCreateClients(body.items);
+  }
+
   // ===== VENDORS =====
   @Get('vendors')
   @ApiOperation({ summary: 'Listar vendedores' })
@@ -108,5 +129,12 @@ export class CatalogController {
   @ApiOperation({ summary: 'Actualizar vendedor' })
   updateVendor(@Param('id') id: string, @Body() body: any) {
     return this.catalogService.updateVendor(id, body);
+  }
+
+  @Post('vendors/bulk')
+  @ApiOperation({ summary: 'Importar vendedores masivamente desde CSV' })
+  bulkCreateVendors(@Body() body: { items: any[] }) {
+    if (!body.items?.length) throw new BadRequestException('No se recibieron items');
+    return this.catalogService.bulkCreateVendors(body.items);
   }
 }

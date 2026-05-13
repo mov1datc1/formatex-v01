@@ -1,17 +1,18 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useApi, useMutationApi } from '../../hooks/useApi';
 import type { PaginatedResponse } from '../../hooks/useApi';
 import { api } from '../../config/api';
 import toast from 'react-hot-toast';
-import { Pencil, Trash2, X, Plus, Search, FileText, AlertTriangle, CreditCard, Shield } from 'lucide-react';
+import { Pencil, Trash2, X, Plus, Search, FileText, AlertTriangle, CreditCard, Shield, Upload, Download, Layers, Truck, Users, UserCheck, BookOpen, CheckCircle2 } from 'lucide-react';
+import { KpiIcon } from '../../components/icons/WmsIcons';
 
 type Tab = 'skus' | 'suppliers' | 'clients' | 'vendors';
 
-const TABS: { key: Tab; label: string; icon: string }[] = [
-  { key: 'skus', label: 'Telas (SKUs)', icon: '🧵' },
-  { key: 'suppliers', label: 'Proveedores', icon: '🏭' },
-  { key: 'clients', label: 'Clientes', icon: '👤' },
-  { key: 'vendors', label: 'Vendedores', icon: '💼' },
+const TABS: { key: Tab; label: string; icon: any; csvHeaders: string[] }[] = [
+  { key: 'skus', label: 'Telas (SKUs)', icon: Layers, csvHeaders: ['codigo','nombre','categoria','color','composicion','anchoMetros','metrajeEstandar','codigoBarras'] },
+  { key: 'suppliers', label: 'Proveedores', icon: Truck, csvHeaders: ['codigo','nombre','contacto','telefono','email','rfc'] },
+  { key: 'clients', label: 'Clientes', icon: Users, csvHeaders: ['codigo','nombre','contacto','telefono','email','direccion','pais','rfc','cp','regimenFiscal','usoCfdi'] },
+  { key: 'vendors', label: 'Vendedores', icon: UserCheck, csvHeaders: ['codigo','nombre','telefono','email'] },
 ];
 
 // Catálogos SAT para dropdowns
@@ -43,6 +44,9 @@ export default function CatalogosPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({});
   const [deleteModal, setDeleteModal] = useState<any>(null);
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [csvResult, setCsvResult] = useState<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const endpoint = tab === 'skus' ? '/catalog/skus' : tab === 'suppliers' ? '/catalog/suppliers' : tab === 'clients' ? '/catalog/clients' : '/catalog/vendors';
   const { data: resp, isLoading, refetch } = useApi<PaginatedResponse<any>>([tab, search], endpoint, { search: search || undefined, limit: 50 });
@@ -93,6 +97,42 @@ export default function CatalogosPage() {
     setShowForm(false);
     setEditingId(null);
     setFormData({});
+  };
+
+  // === CSV Bulk Upload ===
+  const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvUploading(true); setCsvResult(null);
+    try {
+      const text = await file.text();
+      const lines = text.split('\n').filter(l => l.trim());
+      if (lines.length < 2) { toast.error('El CSV debe tener al menos un encabezado y una fila'); setCsvUploading(false); return; }
+      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+      const items = lines.slice(1).map(line => {
+        const vals = line.split(',').map(v => v.trim().replace(/"/g, ''));
+        const obj: any = {};
+        headers.forEach((h, i) => { if (vals[i]) obj[h] = vals[i]; });
+        return obj;
+      }).filter(item => item.codigo && item.nombre);
+      if (!items.length) { toast.error('No se encontraron filas válidas (requiere columnas: codigo, nombre)'); setCsvUploading(false); return; }
+      const bulkEndpoint = `${endpoint}/bulk`;
+      const { data } = await api.post(bulkEndpoint, { items });
+      setCsvResult(data);
+      toast.success(`${data.created} registros creados${data.errors?.length ? `, ${data.errors.length} errores` : ''}`);
+      refetch();
+    } catch (err: any) { toast.error(err?.response?.data?.message || 'Error al procesar CSV'); }
+    setCsvUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const downloadTemplate = () => {
+    const tabConfig = TABS.find(t => t.key === tab)!;
+    const csv = tabConfig.csvHeaders.join(',') + '\n';
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `plantilla_${tab}.csv`; a.click();
+    URL.revokeObjectURL(url);
   };
 
   const renderForm = () => {
@@ -263,43 +303,86 @@ export default function CatalogosPage() {
   // Check if client has all CFDI fields
   const isCfdiReady = (item: any) => item.rfc && item.cp && item.regimenFiscal;
 
+  const activeTab = TABS.find(t => t.key === tab)!;
+  const TabIcon = activeTab.icon;
+
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="space-y-5 animate-fade-in">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Catálogos</h1>
-          <p className="text-gray-500 text-sm">Gestión de datos maestros</p>
+        <div className="flex items-center gap-3">
+          <KpiIcon icon={BookOpen} gradient="from-violet-500 to-purple-600" />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Catálogos</h1>
+            <p className="text-gray-500 text-sm">Gestión de datos maestros — {resp?.total || 0} registros en {activeTab.label}</p>
+          </div>
         </div>
-        <button onClick={() => { setShowForm(!showForm); setEditingId(null); setFormData({}); }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center gap-2 transition-colors">
-          {showForm ? <><X size={14} /> Cerrar</> : <><Plus size={14} /> Nuevo</>}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={downloadTemplate} className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors" title="Descargar plantilla CSV">
+            <Download size={15} /> Plantilla
+          </button>
+          <label className={`flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-medium hover:bg-emerald-100 transition-colors cursor-pointer border border-emerald-200 ${csvUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+            <Upload size={15} /> {csvUploading ? 'Subiendo...' : 'Carga CSV'}
+            <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleCSVUpload} disabled={csvUploading} />
+          </label>
+          <button onClick={() => { setShowForm(!showForm); setEditingId(null); setFormData({}); setCsvResult(null); }}
+            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl text-sm font-semibold shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 transition-all">
+            {showForm ? <><X size={15} /> Cerrar</> : <><Plus size={15} /> Nuevo</>}
+          </button>
+        </div>
       </div>
 
+      {/* CSV Result Banner */}
+      {csvResult && (
+        <div className={`flex items-start gap-3 p-4 rounded-xl border ${csvResult.errors?.length ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'}`}>
+          <CheckCircle2 size={18} className={csvResult.errors?.length ? 'text-amber-500 mt-0.5' : 'text-emerald-500 mt-0.5'} />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-gray-800">{csvResult.created} registros importados exitosamente</p>
+            {csvResult.errors?.length > 0 && (
+              <div className="mt-1">
+                <p className="text-xs text-amber-700 font-medium">{csvResult.errors.length} errores:</p>
+                <ul className="text-xs text-amber-600 mt-0.5 max-h-20 overflow-y-auto">
+                  {csvResult.errors.slice(0, 5).map((e: any, i: number) => <li key={i}>Fila {e.row}: {e.error}</li>)}
+                  {csvResult.errors.length > 5 && <li>...y {csvResult.errors.length - 5} más</li>}
+                </ul>
+              </div>
+            )}
+          </div>
+          <button onClick={() => setCsvResult(null)} className="p-1 hover:bg-white/50 rounded"><X size={14} className="text-gray-400" /></button>
+        </div>
+      )}
+
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-        {TABS.map((t) => (
-          <button key={t.key} onClick={() => { setTab(t.key); setSearch(''); closeForm(); }}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t.key ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-            <span>{t.icon}</span> {t.label}
-          </button>
-        ))}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          return (
+            <button key={t.key} onClick={() => { setTab(t.key); setSearch(''); closeForm(); setCsvResult(null); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${tab === t.key ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'}`}>
+              <Icon size={16} /> {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Form */}
       {showForm && (
-        <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-4">
-          <h2 className="text-lg font-semibold">
-            {editingId ? `✏️ Editar ${TABS.find((t) => t.key === tab)?.label}` : `Nuevo ${TABS.find((t) => t.key === tab)?.label}`}
-          </h2>
+        <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-violet-50"><TabIcon size={20} className="text-violet-500" /></div>
+            <h2 className="text-lg font-bold text-gray-900">
+              {editingId ? `Editar ${activeTab.label}` : `Nuevo ${activeTab.label}`}
+            </h2>
+          </div>
           {renderForm()}
           <div className="flex justify-end gap-3 pt-4 border-t">
-            <button onClick={closeForm} className="px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100">Cancelar</button>
+            <button onClick={closeForm} className="px-5 py-2.5 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 text-sm font-medium transition-colors">Cancelar</button>
             <button
               onClick={editingId ? handleUpdate : handleCreate}
               disabled={createMut.isPending}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-blue-700 transition-colors"
+              className="px-6 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl text-sm font-semibold disabled:opacity-50 shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 transition-all"
             >
-              {createMut.isPending ? '⏳ Guardando...' : editingId ? '💾 Guardar Cambios' : '✅ Crear'}
+              {createMut.isPending ? 'Guardando...' : editingId ? 'Guardar Cambios' : 'Crear Registro'}
             </button>
           </div>
         </div>
@@ -308,15 +391,16 @@ export default function CatalogosPage() {
       {/* Search */}
       <div className="relative max-w-md">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar..." className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm" />
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Buscar en ${activeTab.label.toLowerCase()}...`} className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all" />
       </div>
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
         {isLoading ? <div className="p-8 text-center text-gray-400">Cargando...</div> : !resp?.data?.length ? (
           <div className="p-12 text-center text-gray-400">
-            <p className="text-4xl mb-2">{TABS.find((t) => t.key === tab)?.icon}</p>
-            <p>No hay registros. Haz clic en "+ Nuevo" para empezar.</p>
+            <TabIcon size={40} className="mx-auto mb-3 text-gray-300" />
+            <p className="text-sm font-medium text-gray-500">No hay registros en {activeTab.label}</p>
+            <p className="text-xs mt-1">Usa "+ Nuevo" o "Carga CSV" para agregar</p>
           </div>
         ) : (
           <table className="w-full text-sm">
