@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Package, Scissors, PackageCheck, Truck,
   Warehouse, MapPin, ClipboardList, Bell, Users, Settings,
   ChevronLeft, ChevronRight, LogOut, ScrollText, ScanBarcode, Tag,
-  Ship, Search, ArrowRightLeft, CalendarRange, FileText, BadgeDollarSign
+  Ship, Search, ArrowRightLeft, CalendarRange, FileText, BadgeDollarSign, ShoppingCart
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
@@ -44,6 +44,12 @@ const menuSections: MenuSection[] = [
     title: 'Cobranza',
     items: [
       { label: 'Cobranza', path: '/cobranza', icon: BadgeDollarSign, permission: 'cobranza' },
+    ],
+  },
+  {
+    title: 'Compras',
+    items: [
+      { label: 'Compras', path: '/compras', icon: ShoppingCart, permission: 'compras' },
     ],
   },
   {

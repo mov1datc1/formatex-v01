@@ -34,6 +34,7 @@ import TransferenciasPage from '../pages/transfers/TransferenciasPage';
 import PlanificacionPage from '../pages/planning/PlanificacionPage';
 import FacturacionPage from '../pages/invoicing/FacturacionPage';
 import CobranzaPage from '../pages/cobranza/CobranzaPage';
+import ComprasPage from '../pages/compras/ComprasPage';
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -67,6 +68,9 @@ export function AppRouter() {
 
           {/* Planificación */}
           <Route path="planificacion" element={<PlanificacionPage />} />
+
+          {/* Compras */}
+          <Route path="compras" element={<ComprasPage />} />
 
           {/* Almacén */}
           <Route path="picking" element={<PickingPage />} />

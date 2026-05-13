@@ -10,6 +10,10 @@ const prisma = new PrismaClient({ adapter } as any);
 
 async function main() {
   console.log('🧹 Limpiando base de datos...');
+  await prisma.purchaseOrderReceipt.deleteMany();
+  await prisma.purchaseOrderLine.deleteMany();
+  await prisma.purchaseOrder.deleteMany();
+  await prisma.supplierPrice.deleteMany();
   await prisma.commissionPeriod.deleteMany();
   await prisma.clientCreditConfig.deleteMany();
   await prisma.invoicePayment.deleteMany();
@@ -162,7 +166,7 @@ async function main() {
   // 5. ROLES Y USUARIOS
   // =====================================================================
   console.log('👥 Creando roles y usuarios...');
-  const modules = ['dashboard','inventory','orders','cutting','reception','labeling','warehouse','admin','catalogs','reservations','transit','cobranza','facturacion','supply-planning','availability','transfers'];
+  const modules = ['dashboard','inventory','orders','cutting','reception','labeling','warehouse','admin','catalogs','reservations','transit','cobranza','facturacion','supply-planning','availability','transfers','compras'];
   const actions = ['read','create','update','delete'];
 
   const rolesConfig: Array<{name:string,desc:string,nivel:number,mods:string[]}> = [
@@ -175,7 +179,8 @@ async function main() {
     { name: 'EMPACADOR', desc: 'Empacador — empaca pedidos', nivel: 4, mods: ['dashboard','orders'] },
     { name: 'DESPACHADOR', desc: 'Despachador — envíos', nivel: 4, mods: ['dashboard','orders'] },
     { name: 'COORDINADOR_ALMACEN', desc: 'Coordinador almacén', nivel: 2, mods: ['dashboard','inventory','orders','cutting','reception','labeling','warehouse','reservations','transit'] },
-    { name: 'DIRECTOR_COMPRAS', desc: 'Director de Planeación de Compras', nivel: 1, mods: ['dashboard','inventory','orders','supply-planning','transit','catalogs','availability'] },
+    { name: 'DIRECTOR_COMPRAS', desc: 'Director de Planeación de Compras', nivel: 1, mods: ['dashboard','inventory','orders','supply-planning','transit','catalogs','availability','compras'] },
+    { name: 'COMPRAS', desc: 'Personal operativo de Compras', nivel: 3, mods: ['dashboard','compras','catalogs','inventory','supply-planning','transit','availability'] },
   ];
 
   const roles: Record<string, any> = {};
@@ -199,7 +204,8 @@ async function main() {
   await prisma.user.create({ data: { nombre: 'Ana Hernández (Despacho)', username: 'ana.envio', email: 'ana@formatex.mx', password: passOper, roleId: roles['DESPACHADOR'].id } });
   const userCoord = await prisma.user.create({ data: { nombre: 'Roberto Coord. Almacén', username: 'roberto.coord', email: 'roberto@formatex.mx', password: passOper, roleId: roles['COORDINADOR_ALMACEN'].id } });
   await prisma.user.create({ data: { nombre: 'Fernando Dir. Compras', username: 'fernando.compras', email: 'fernando@formatex.mx', password: passOper, roleId: roles['DIRECTOR_COMPRAS'].id } });
-  console.log('  ✅ 10 roles, 10 usuarios');
+  await prisma.user.create({ data: { nombre: 'Carlos López (Compras)', username: 'carlos.compras', email: 'carlos@formatex.mx', password: passOper, roleId: roles['COMPRAS'].id } });
+  console.log('  ✅ 11 roles, 12 usuarios');
 
   // =====================================================================
   // 6. RECEPCIONES + HUs (batch optimized)
@@ -376,17 +382,92 @@ async function main() {
   ]});
   console.log('  ✅ 5 perfiles de crédito configurados');
 
+  // =====================================================================
+  // 14. PRECIOS POR PROVEEDOR (SupplierPrice) — Auto-fill
+  // =====================================================================
+  console.log('💰 Creando precios por proveedor...');
+  await prisma.supplierPrice.createMany({ data: [
+    { supplierId: prov1.id, skuId: skuEnigma.id, precioUnitario: 95.00, notas: 'Precio negociado 2026' },
+    { supplierId: prov1.id, skuId: skuAlgRojo.id, precioUnitario: 75.50 },
+    { supplierId: prov1.id, skuId: skuDenim.id, precioUnitario: 82.00 },
+    { supplierId: prov1.id, skuId: skuGab.id, precioUnitario: 92.00 },
+    { supplierId: prov2.id, skuId: skuAlgAzul.id, precioUnitario: 74.00 },
+    { supplierId: prov2.id, skuId: skuPolNeg.id, precioUnitario: 52.00 },
+    { supplierId: prov3.id, skuId: skuSeda.id, precioUnitario: 210.00 },
+    { supplierId: prov3.id, skuId: skuLino.id, precioUnitario: 115.00 },
+  ]});
+  console.log('  ✅ 8 precios proveedor+SKU');
+
+  // =====================================================================
+  // 15. ÓRDENES DE COMPRA DE EJEMPLO
+  // =====================================================================
+  console.log('📦 Creando órdenes de compra de ejemplo...');
+  const oc1 = await prisma.purchaseOrder.create({
+    data: {
+      codigo: 'OC-2026-0001',
+      supplierId: prov1.id,
+      estado: 'COMPLETADA',
+      prioridad: 2,
+      fechaEstimadaEntrega: new Date('2026-04-15'),
+      fechaRealEntrega: new Date('2026-04-18'),
+      subtotal: 47500,
+      iva: 7600,
+      total: 55100,
+      condicionesPago: 'Crédito 30 días',
+      enviadaARecepcion: true,
+      fechaEnvioRecepcion: new Date('2026-04-10'),
+      porcentajeRecibido: 100,
+      notas: 'Reabastecimiento trimestral Q2 2026',
+      creadoPor: userAdmin.id,
+      confirmadoPor: userAdmin.id,
+      fechaConfirmacion: new Date('2026-04-05'),
+    },
+  });
+  await prisma.purchaseOrderLine.createMany({ data: [
+    { purchaseOrderId: oc1.id, skuId: skuEnigma.id, cantidadRollos: 10, metrajePorRollo: 50, metrajeTotal: 500, precioUnitario: 95.00, importe: 47500, precioFuente: 'PRECIO_PROVEEDOR', metrajeRecibido: 500, rollosRecibidos: 10 },
+  ]});
+  await prisma.purchaseOrderReceipt.create({ data: { purchaseOrderId: oc1.id, metrajeRecibido: 500, rollosRecibidos: 10, recibidoPor: userCoord.id } });
+
+  const oc2 = await prisma.purchaseOrder.create({
+    data: {
+      codigo: 'OC-2026-0002',
+      supplierId: prov2.id,
+      estado: 'PARCIAL',
+      prioridad: 1,
+      fechaEstimadaEntrega: new Date('2026-05-20'),
+      subtotal: 31500,
+      iva: 5040,
+      total: 36540,
+      condicionesPago: 'Contado',
+      enviadaARecepcion: true,
+      fechaEnvioRecepcion: new Date('2026-05-08'),
+      porcentajeRecibido: 40,
+      notas: 'Reabastecimiento urgente — stock bajo',
+      creadoPor: userAdmin.id,
+      confirmadoPor: userAdmin.id,
+      fechaConfirmacion: new Date('2026-05-06'),
+    },
+  });
+  await prisma.purchaseOrderLine.createMany({ data: [
+    { purchaseOrderId: oc2.id, skuId: skuAlgAzul.id, cantidadRollos: 5, metrajePorRollo: 50, metrajeTotal: 250, precioUnitario: 74.00, importe: 18500, precioFuente: 'PRECIO_PROVEEDOR', metrajeRecibido: 100, rollosRecibidos: 2 },
+    { purchaseOrderId: oc2.id, skuId: skuPolNeg.id, cantidadRollos: 5, metrajePorRollo: 50, metrajeTotal: 250, precioUnitario: 52.00, importe: 13000, precioFuente: 'PRECIO_PROVEEDOR', metrajeRecibido: 0, rollosRecibidos: 0 },
+  ]});
+  await prisma.purchaseOrderReceipt.create({ data: { purchaseOrderId: oc2.id, metrajeRecibido: 100, rollosRecibidos: 2, notas: 'Entrega parcial — solo 2 rollos Algodón Azul Marino', recibidoPor: userCoord.id } });
+  console.log('  ✅ 2 OC de ejemplo (1 completada, 1 parcial)');
+
   console.log('\n🎉 ¡SEED COMPLETADO!');
   console.log('===================================');
   console.log(`📦 ${allHUs.length + 1} HUs (${allHUs.length} enteros + 1 retazo)`);
   console.log('📋 5 pedidos en 5 estados diferentes');
   console.log('🚛 2 embarques en tránsito');
   console.log('🔒 4 reservas (2 blandas + 2 firmes)');
-  console.log('👥 10 usuarios, 10 roles');
+  console.log('👥 12 usuarios, 11 roles');
   console.log(`📍 ${locationData.length} ubicaciones`);
   console.log('📦 8 puntos de reorden');
   console.log('🏷️  5 listas de precios (F1-F5)');
   console.log('💳 5 perfiles de crédito');
+  console.log('💰 8 precios proveedor+SKU');
+  console.log('📦 2 órdenes de compra');
   console.log('===================================');
 }
 
