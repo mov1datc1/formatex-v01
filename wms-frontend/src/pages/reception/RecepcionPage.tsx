@@ -3,7 +3,7 @@ import { useApi } from '../../hooks/useApi';
 import type { PaginatedResponse } from '../../hooks/useApi';
 import { api } from '../../config/api';
 import toast from 'react-hot-toast';
-import { Package, CheckCircle2, Clock, ShoppingCart, ChevronDown, ChevronUp, Inbox, Eye } from 'lucide-react';
+import { Package, CheckCircle2, Clock, ShoppingCart, ChevronDown, ChevronUp, Inbox, Eye, X, TrendingUp } from 'lucide-react';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 
 export default function RecepcionPage() {
@@ -26,23 +26,36 @@ export default function RecepcionPage() {
   // Confirm modal
   const [modal, setModal] = useState<{ open: boolean; title: string; message: string; action: () => void; confirmText: string }>({ open: false, title: '', message: '', action: () => {}, confirmText: '' });
 
+  // Partial receipt PRO modal
+  const [partialModal, setPartialModal] = useState<{ open: boolean; oc: any; rollosInputs: Record<string, number>; submitting: boolean }>({ open: false, oc: null, rollosInputs: {}, submitting: false });
+
   const refresh = () => { refetchReceipts(); refetchOC(); };
 
   // === OC Actions ===
-  const handlePartialReceipt = async (oc: any) => {
+  const handlePartialReceipt = (oc: any) => {
+    const inputs: Record<string, number> = {};
+    for (const l of (oc.lineas || [])) inputs[l.skuId] = 0;
+    setPartialModal({ open: true, oc, rollosInputs: inputs, submitting: false });
+  };
+
+  const submitPartialReceipt = async () => {
+    const { oc, rollosInputs } = partialModal;
     const items: any[] = [];
     for (const l of (oc.lineas || [])) {
-      const val = window.prompt(`${l.sku?.nombre} (${l.sku?.codigo})\nEsperado: ${Number(l.metrajeTotal)}m — Recibido: ${Number(l.metrajeRecibido) || 0}m\n\n¿Cuántos rollos recibidos?`, '0');
-      if (val === null) return;
-      const rollos = parseInt(val) || 0;
+      const rollos = rollosInputs[l.skuId] || 0;
       if (rollos > 0) items.push({ skuId: l.skuId, rollosRecibidos: rollos, metrajeRecibido: rollos * (Number(l.metrajePorRollo) || 50) });
     }
-    if (!items.length) return toast.error('No se ingresaron rollos');
+    if (!items.length) return toast.error('Ingresa al menos 1 rollo en alguna línea');
+    setPartialModal(p => ({ ...p, submitting: true }));
     try {
       await api.post(`/purchasing/orders/${oc.id}/partial-receipt`, { lineas: items });
-      toast.success('Recepción parcial registrada');
+      toast.success('Recepción parcial registrada exitosamente');
+      setPartialModal({ open: false, oc: null, rollosInputs: {}, submitting: false });
       refresh();
-    } catch (e: any) { toast.error(e?.response?.data?.message || 'Error'); }
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Error al registrar');
+      setPartialModal(p => ({ ...p, submitting: false }));
+    }
   };
 
   const handleCompleteOC = (oc: any) => setModal({
@@ -421,6 +434,121 @@ export default function RecepcionPage() {
       </div>
 
       <ConfirmModal open={modal.open} onClose={() => setModal(p => ({ ...p, open: false }))} onConfirm={modal.action} title={modal.title} message={modal.message} confirmText={modal.confirmText} />
+
+      {/* === PRO Partial Receipt Modal === */}
+      {partialModal.open && partialModal.oc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm animate-fade-in" onClick={() => !partialModal.submitting && setPartialModal({ open: false, oc: null, rollosInputs: {}, submitting: false })}>
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-gray-100 animate-scale-in max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="p-6 pb-4 border-b">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="p-3 rounded-xl bg-amber-50">
+                    <TrendingUp size={24} className="text-amber-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Registrar Ingreso Parcial</h3>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      <span className="font-mono text-primary-600">{partialModal.oc.codigo}</span>
+                      <span className="mx-1.5">•</span>
+                      {partialModal.oc.supplier?.nombre}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => !partialModal.submitting && setPartialModal({ open: false, oc: null, rollosInputs: {}, submitting: false })}
+                  className="p-1.5 hover:bg-gray-100 rounded-lg -mr-1 -mt-1"
+                >
+                  <X size={16} className="text-gray-400" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body — scrollable */}
+            <div className="p-6 space-y-3 overflow-y-auto flex-1">
+              <p className="text-xs text-gray-400 mb-1">Ingresa la cantidad de rollos recibidos por cada SKU:</p>
+              {(partialModal.oc.lineas || []).map((l: any) => {
+                const esperado = Number(l.metrajeTotal) || 0;
+                const recibido = Number(l.metrajeRecibido) || 0;
+                const pendiente = esperado - recibido;
+                const rollosInput = partialModal.rollosInputs[l.skuId] || 0;
+                const metrajeInput = rollosInput * (Number(l.metrajePorRollo) || 50);
+                return (
+                  <div key={l.id} className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800">{l.sku?.nombre}</p>
+                        <p className="text-xs text-gray-400 font-mono">{l.sku?.codigo}</p>
+                      </div>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${pendiente > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                        {pendiente > 0 ? `${pendiente}m pend.` : '✓ Completo'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 text-xs text-center mb-3">
+                      <div className="bg-white rounded-lg p-2 border">
+                        <p className="text-gray-400 mb-0.5">Esperado</p>
+                        <p className="font-bold text-gray-700">{l.cantidadRollos || '—'} rollos</p>
+                        <p className="text-gray-400">{esperado}m</p>
+                      </div>
+                      <div className="bg-white rounded-lg p-2 border">
+                        <p className="text-gray-400 mb-0.5">Recibido prev.</p>
+                        <p className="font-bold text-emerald-600">{l.rollosRecibidos || 0} rollos</p>
+                        <p className="text-emerald-500">{recibido}m</p>
+                      </div>
+                      <div className="bg-white rounded-lg p-2 border border-primary-200">
+                        <p className="text-primary-500 mb-0.5 font-medium">Este ingreso</p>
+                        <p className="font-bold text-primary-700">{rollosInput} rollos</p>
+                        <p className="text-primary-400">{metrajeInput}m</p>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-500 mb-1.5 block">Rollos recibidos ahora</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={rollosInput || ''}
+                        onChange={e => setPartialModal(p => ({
+                          ...p,
+                          rollosInputs: { ...p.rollosInputs, [l.skuId]: Math.max(0, parseInt(e.target.value) || 0) },
+                        }))}
+                        placeholder="0"
+                        className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm font-medium focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all"
+                        autoFocus={l === (partialModal.oc.lineas || [])[0]}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 pt-4 border-t bg-gray-50/50 rounded-b-2xl">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs text-gray-400">Total este ingreso:</span>
+                <span className="text-sm font-bold text-primary-700">
+                  {Object.values(partialModal.rollosInputs).reduce((a, b) => a + b, 0)} rollos
+                </span>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setPartialModal({ open: false, oc: null, rollosInputs: {}, submitting: false })}
+                  disabled={partialModal.submitting}
+                  className="flex-1 px-5 py-2.5 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={submitPartialReceipt}
+                  disabled={partialModal.submitting || Object.values(partialModal.rollosInputs).every(v => !v)}
+                  className="flex-1 px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl font-semibold text-sm shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 transition-all disabled:opacity-50"
+                >
+                  {partialModal.submitting ? 'Registrando...' : 'Registrar Ingreso'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
