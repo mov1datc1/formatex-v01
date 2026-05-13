@@ -37,7 +37,7 @@ export class PurchasingController {
   createOrder(@Body() body: any, @Req() req: any) {
     return this.purchasingService.createOrder({
       ...body,
-      creadoPor: req.user?.id || body.creadoPor,
+      creadoPor: req.user.sub,
     });
   }
 
@@ -50,13 +50,13 @@ export class PurchasingController {
   @Post('orders/:id/confirm')
   @ApiOperation({ summary: 'Confirmar orden de compra' })
   confirmOrder(@Param('id') id: string, @Req() req: any) {
-    return this.purchasingService.confirmOrder(id, req.user?.id);
+    return this.purchasingService.confirmOrder(id, req.user.sub);
   }
 
   @Post('orders/:id/send-reception')
   @ApiOperation({ summary: 'Enviar OC a cola de recepción' })
   sendToReception(@Param('id') id: string, @Req() req: any) {
-    return this.purchasingService.sendToReception(id, req.user?.id);
+    return this.purchasingService.sendToReception(id, req.user.sub);
   }
 
   @Post('orders/:id/partial-receipt')
@@ -64,7 +64,7 @@ export class PurchasingController {
   registerPartialReceipt(@Param('id') id: string, @Body() body: any, @Req() req: any) {
     return this.purchasingService.registerPartialReceipt(id, {
       ...body,
-      recibidoPor: req.user?.id || body.recibidoPor,
+      recibidoPor: req.user.sub,
     });
   }
 
