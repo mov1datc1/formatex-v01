@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Send, FileText, Trash2, Search } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
 import { api } from '../../config/api';
+import toast from 'react-hot-toast';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 const estadoBadge: Record<string, string> = {
   BORRADOR: 'bg-gray-100 text-gray-600',
@@ -24,22 +26,50 @@ export default function OCListTab({ onRefresh }: { onRefresh: () => void }) {
   const { data: result, isLoading, refetch } = useApi<any>(['purchasing-orders', search, estadoFilter], '/purchasing/orders', params);
   const orders = result?.data || [];
 
-  const handleConfirm = async (id: string) => {
-    if (!confirm('¿Confirmar esta OC?')) return;
-    await api.post(`/purchasing/orders/${id}/confirm`);
-    refetch(); onRefresh();
-  };
-  const handleSendReception = async (id: string) => {
-    if (!confirm('¿Enviar a recepción?')) return;
-    await api.post(`/purchasing/orders/${id}/send-reception`);
-    refetch(); onRefresh();
-  };
-  const handleCancel = async (id: string) => {
-    const motivo = prompt('Motivo de cancelación:');
-    if (!motivo) return;
-    await api.post(`/purchasing/orders/${id}/cancel`, { motivo });
-    refetch(); onRefresh();
-  };
+  // Modal state
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean; type: 'confirm' | 'danger' | 'prompt'; title: string; message: string; action: (v?: string) => void; confirmText: string; promptLabel?: string; promptPlaceholder?: string }>({
+    open: false, type: 'confirm', title: '', message: '', action: () => {}, confirmText: 'Confirmar',
+  });
+
+  const openConfirm = (cfg: Partial<typeof confirmModal> & { action: (v?: string) => void }) =>
+    setConfirmModal({ open: true, type: 'confirm', title: '', message: '', confirmText: 'Confirmar', ...cfg });
+  const closeConfirm = () => setConfirmModal(prev => ({ ...prev, open: false }));
+
+  const handleConfirm = (id: string) => openConfirm({
+    title: 'Confirmar Orden de Compra',
+    message: 'Al confirmar, la OC pasa de borrador a confirmada y podrá enviarse a la cola de recepción.',
+    confirmText: 'Confirmar OC',
+    action: async () => {
+      closeConfirm();
+      try { await api.post(`/purchasing/orders/${id}/confirm`); toast.success('OC confirmada exitosamente'); refetch(); onRefresh(); }
+      catch (e: any) { toast.error(e?.response?.data?.message || 'Error al confirmar'); }
+    },
+  });
+
+  const handleSendReception = (id: string) => openConfirm({
+    title: 'Enviar a Cola de Recepción',
+    message: 'Se creará un embarque entrante y el personal de Recepción podrá ver esta OC en su módulo. ¿Deseas continuar?',
+    confirmText: 'Enviar a Recepción',
+    action: async () => {
+      closeConfirm();
+      try { await api.post(`/purchasing/orders/${id}/send-reception`); toast.success('OC enviada a cola de recepción'); refetch(); onRefresh(); }
+      catch (e: any) { toast.error(e?.response?.data?.message || 'Error al enviar'); }
+    },
+  });
+
+  const handleCancel = (id: string) => openConfirm({
+    type: 'prompt',
+    title: 'Cancelar Orden de Compra',
+    message: 'Esta acción no se puede deshacer. Ingresa el motivo de cancelación.',
+    confirmText: 'Cancelar OC',
+    promptLabel: 'Motivo de cancelación',
+    promptPlaceholder: 'Ej: Proveedor no disponible',
+    action: async (motivo?: string) => {
+      closeConfirm();
+      try { await api.post(`/purchasing/orders/${id}/cancel`, { motivo }); toast.success('OC cancelada'); refetch(); onRefresh(); }
+      catch (e: any) { toast.error(e?.response?.data?.message || 'Error al cancelar'); }
+    },
+  });
 
   return (
     <div className="space-y-4">
@@ -106,6 +136,19 @@ export default function OCListTab({ onRefresh }: { onRefresh: () => void }) {
           </tbody>
         </table>
       </div>
+
+      {/* PRO Confirm Modal */}
+      <ConfirmModal
+        open={confirmModal.open}
+        onClose={closeConfirm}
+        onConfirm={confirmModal.action}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        confirmText={confirmModal.confirmText}
+        promptLabel={confirmModal.promptLabel}
+        promptPlaceholder={confirmModal.promptPlaceholder}
+      />
     </div>
   );
 }

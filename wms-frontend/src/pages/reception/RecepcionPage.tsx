@@ -3,7 +3,62 @@ import { useApi, useMutationApi } from '../../hooks/useApi';
 import type { PaginatedResponse } from '../../hooks/useApi';
 import { api } from '../../config/api';
 import toast from 'react-hot-toast';
-import { MapPin, Package, CheckCircle2, Star, Loader2, ChevronRight, Layers, ArrowRight } from 'lucide-react';
+import { MapPin, Package, CheckCircle2, Star, Loader2, ChevronRight, Layers, ArrowRight, ShoppingCart, Clock } from 'lucide-react';
+
+// === OC Pendientes de Recepción (sincronizado con módulo Compras) ===
+function PendingPurchaseOrders() {
+  const { data: queue } = useApi<any[]>(['reception-oc-queue'], '/purchasing/reception-queue');
+  if (!queue || queue.length === 0) return null;
+
+  return (
+    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5">
+      <div className="flex items-center gap-2 mb-3">
+        <ShoppingCart size={18} className="text-amber-600" />
+        <h3 className="font-semibold text-amber-800">OC Pendientes de Recepción</h3>
+        <span className="ml-auto px-2.5 py-0.5 bg-amber-200 text-amber-800 rounded-full text-xs font-bold">{queue.length}</span>
+      </div>
+      <div className="space-y-2">
+        {queue.map((oc: any) => {
+          const eta = oc.fechaEstimadaEntrega ? new Date(oc.fechaEstimadaEntrega) : null;
+          const daysToEta = eta ? Math.ceil((eta.getTime() - Date.now()) / 86400000) : null;
+          return (
+            <div key={oc.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-amber-100">
+              <div className="flex items-center gap-3">
+                <div className={`w-2 h-2 rounded-full ${oc.prioridad <= 2 ? 'bg-red-500' : 'bg-blue-500'}`} />
+                <div>
+                  <span className="font-mono text-primary-600 text-sm font-medium">{oc.codigo}</span>
+                  <span className="mx-2 text-gray-300">•</span>
+                  <span className="text-gray-700 text-sm">{oc.supplier?.nombre}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex flex-wrap gap-1">
+                  {(oc.lineas || []).slice(0, 3).map((l: any) => (
+                    <span key={l.id} className="px-2 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600">
+                      {l.sku?.codigo} · {Number(l.metrajeTotal)}m
+                    </span>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1 text-xs text-gray-400">
+                  <Clock size={12} />
+                  {eta ? (
+                    <span className={daysToEta !== null && daysToEta < 1 ? 'text-red-500 font-medium' : ''}>
+                      {daysToEta !== null && daysToEta > 0 ? `${daysToEta}d` : daysToEta === 0 ? 'Hoy' : 'Atrasado'}
+                    </span>
+                  ) : 'Sin ETA'}
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${oc.estado === 'PARCIAL' ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700'}`}>
+                  {oc.estado === 'PARCIAL' ? `Parcial ${oc.porcentajeRecibido}%` : 'Pendiente'}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-xs text-amber-600 mt-2">Las OC son generadas por el departamento de Compras. Registra la recepción cuando llegue la mercancía.</p>
+    </div>
+  );
+}
 
 interface LocationSuggestion {
   id: string;
@@ -124,6 +179,8 @@ export default function RecepcionPage() {
         </button>
       </div>
 
+      {/* ===== OC PENDIENTES DE RECEPCIÓN (desde Compras) ===== */}
+      <PendingPurchaseOrders />
       {/* ===== STEP 1: FORM ===== */}
       {showForm && step === 'form' && (
         <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-4">

@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { Clock, CheckCircle, Package } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
 import { api } from '../../config/api';
+import toast from 'react-hot-toast';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 const prioColors: Record<number, { dot: string; label: string; bg: string }> = {
   1: { dot: 'bg-red-500', label: 'Urgente', bg: 'bg-red-50' },
@@ -12,20 +15,44 @@ const prioColors: Record<number, { dot: string; label: string; bg: string }> = {
 export default function ReceptionQueueTab({ onRefresh }: { onRefresh: () => void }) {
   const { data: queue, isLoading, refetch } = useApi<any[]>(['purchasing-reception-queue'], '/purchasing/reception-queue');
 
-  const handlePartialReceipt = async (oc: any) => {
-    const lineas = (oc.lineas || []).map((l: any) => {
-      const rollos = parseInt(prompt(`${l.sku?.nombre} — ¿Cuántos rollos recibidos?`, '0') || '0');
-      return { skuId: l.skuId, rollosRecibidos: rollos, metrajeRecibido: rollos * (l.metrajePorRollo || 50) };
-    }).filter((l: any) => l.rollosRecibidos > 0);
-    if (lineas.length === 0) return;
-    await api.post(`/purchasing/orders/${oc.id}/partial-receipt`, { lineas });
-    refetch(); onRefresh();
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean; title: string; message: string; action: () => void; confirmText: string }>({
+    open: false, title: '', message: '', action: () => {}, confirmText: 'Confirmar',
+  });
+
+  const handleComplete = (oc: any) => {
+    setConfirmModal({
+      open: true,
+      title: 'Marcar OC como Completada',
+      message: `¿Confirmas que se ha recibido todo el pedido de ${oc.supplier?.nombre}? (${oc.codigo})`,
+      confirmText: 'Marcar como Completada',
+      action: async () => {
+        setConfirmModal(prev => ({ ...prev, open: false }));
+        try {
+          await api.post(`/purchasing/orders/${oc.id}/complete`);
+          toast.success(`OC ${oc.codigo} marcada como completada`);
+          refetch(); onRefresh();
+        } catch (e: any) { toast.error(e?.response?.data?.message || 'Error'); }
+      },
+    });
   };
 
-  const handleComplete = async (id: string) => {
-    if (!confirm('¿Marcar OC como completada?')) return;
-    await api.post(`/purchasing/orders/${id}/complete`);
-    refetch(); onRefresh();
+  const handlePartialReceipt = async (oc: any) => {
+    // For now we use a simplified receipt approach with toast
+    try {
+      const lineas = [];
+      for (const l of (oc.lineas || [])) {
+        const rollosStr = window.prompt(`${l.sku?.nombre} (${l.sku?.codigo}) — ¿Cuántos rollos recibidos?`, '0');
+        if (rollosStr === null) return; // cancelled
+        const rollos = parseInt(rollosStr) || 0;
+        if (rollos > 0) {
+          lineas.push({ skuId: l.skuId, rollosRecibidos: rollos, metrajeRecibido: rollos * (Number(l.metrajePorRollo) || 50) });
+        }
+      }
+      if (lineas.length === 0) { toast.error('No se registraron rollos'); return; }
+      await api.post(`/purchasing/orders/${oc.id}/partial-receipt`, { lineas });
+      toast.success('Recepción parcial registrada exitosamente');
+      refetch(); onRefresh();
+    } catch (e: any) { toast.error(e?.response?.data?.message || 'Error al registrar recepción'); }
   };
 
   if (isLoading) return <div className="text-center text-gray-400 py-12">Cargando cola de recepción...</div>;
@@ -75,7 +102,7 @@ export default function ReceptionQueueTab({ onRefresh }: { onRefresh: () => void
                 <div key={l.id} className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg text-xs">
                   <span className="text-gray-700 font-medium">{l.sku?.codigo}</span>
                   <span className="text-gray-300">|</span>
-                  <span className="text-gray-500">{l.metrajeRecibido || 0}/{l.metrajeTotal}m</span>
+                  <span className="text-gray-500">{Number(l.metrajeRecibido) || 0}/{Number(l.metrajeTotal)}m</span>
                 </div>
               ))}
             </div>
@@ -88,7 +115,7 @@ export default function ReceptionQueueTab({ onRefresh }: { onRefresh: () => void
                 <button onClick={() => handlePartialReceipt(oc)} className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs font-medium hover:bg-amber-100 transition-colors">
                   <Package size={14} /> Registrar Recepción
                 </button>
-                <button onClick={() => handleComplete(oc.id)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-100 transition-colors">
+                <button onClick={() => handleComplete(oc)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-100 transition-colors">
                   <CheckCircle size={14} /> Completar
                 </button>
               </div>
@@ -96,6 +123,15 @@ export default function ReceptionQueueTab({ onRefresh }: { onRefresh: () => void
           </div>
         );
       })}
+
+      <ConfirmModal
+        open={confirmModal.open}
+        onClose={() => setConfirmModal(prev => ({ ...prev, open: false }))}
+        onConfirm={confirmModal.action}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+      />
     </div>
   );
 }
