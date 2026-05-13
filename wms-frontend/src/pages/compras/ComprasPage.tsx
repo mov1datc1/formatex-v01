@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ShoppingCart, ListOrdered, Inbox, History, Plus } from 'lucide-react';
+import { useApi } from '../../hooks/useApi';
 import OCListTab from './OCListTab';
 import ReceptionQueueTab from './ReceptionQueueTab';
 import HistorialTab from './HistorialTab';
 import NuevaOCModal from './NuevaOCModal';
-import { useApi } from '../../hooks/useApi';
 
 const tabs = [
   { id: 'lista', label: 'Órdenes de Compra', icon: ListOrdered },
@@ -15,15 +15,10 @@ const tabs = [
 export default function ComprasPage() {
   const [activeTab, setActiveTab] = useState('lista');
   const [showNuevaOC, setShowNuevaOC] = useState(false);
-  const api = useApi();
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = () => setRefreshKey(k => k + 1);
 
-  // Stats
-  const [stats, setStats] = useState<any>(null);
-  useEffect(() => {
-    api.get('/purchasing/stats').then(r => setStats(r.data)).catch(() => {});
-  }, []);
+  const { data: stats } = useApi<any>(['purchasing-stats', refreshKey], '/purchasing/stats');
 
   return (
     <div className="space-y-6">
@@ -50,9 +45,9 @@ export default function ComprasPage() {
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'OC Activas', value: stats.borradores + stats.confirmadas + stats.enRecepcion + stats.parciales, color: 'from-blue-500/20 to-blue-600/10', text: 'text-blue-400' },
-            { label: 'En Recepción', value: stats.colaRecepcion, color: 'from-amber-500/20 to-amber-600/10', text: 'text-amber-400' },
-            { label: 'Completadas', value: stats.completadas, color: 'from-emerald-500/20 to-emerald-600/10', text: 'text-emerald-400' },
+            { label: 'OC Activas', value: (stats.borradores || 0) + (stats.confirmadas || 0) + (stats.enRecepcion || 0) + (stats.parciales || 0), color: 'from-blue-500/20 to-blue-600/10', text: 'text-blue-400' },
+            { label: 'En Recepción', value: stats.colaRecepcion || 0, color: 'from-amber-500/20 to-amber-600/10', text: 'text-amber-400' },
+            { label: 'Completadas', value: stats.completadas || 0, color: 'from-emerald-500/20 to-emerald-600/10', text: 'text-emerald-400' },
             { label: 'Monto Activo', value: `$${(stats.montoActivo || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, color: 'from-purple-500/20 to-purple-600/10', text: 'text-purple-400' },
           ].map(kpi => (
             <div key={kpi.label} className={`bg-gradient-to-br ${kpi.color} border border-white/5 rounded-xl p-4`}>
