@@ -12,6 +12,7 @@ export default function RecepcionPage() {
   const { data: ocQueue, refetch: refetchOC } = useApi<any[]>(['reception-oc-queue'], '/purchasing/reception-queue');
   const [expandedOC, setExpandedOC] = useState<string | null>(null);
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
+  const [selectedOC, setSelectedOC] = useState<any>(null);
   const [showNewForm, setShowNewForm] = useState(false);
 
   // New reception form state
@@ -158,7 +159,7 @@ export default function RecepcionPage() {
                 return (
                   <div key={oc.id} className="bg-white rounded-xl border hover:shadow-md transition-shadow">
                     {/* Row */}
-                    <div className="flex items-center px-4 py-3 cursor-pointer" onClick={() => setExpandedOC(isExpanded ? null : oc.id)}>
+                    <div className="flex items-center px-4 py-3 cursor-pointer" onClick={() => { setExpandedOC(isExpanded ? null : oc.id); setSelectedOC(oc); setSelectedReceipt(null); }}>
                       <div className={`w-2 h-2 rounded-full mr-3 ${oc.prioridad <= 2 ? 'bg-red-500' : 'bg-blue-500'}`} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -269,13 +270,108 @@ export default function RecepcionPage() {
 
         {/* === RIGHT: Detail Panel === */}
         <div className="bg-white rounded-xl border p-5">
-          {!selectedReceipt ? (
-            <div className="text-center text-gray-400 py-12">
-              <Package size={40} className="mx-auto mb-3 text-gray-300" />
-              <p className="text-sm font-medium text-gray-500">Selecciona una recepción</p>
-              <p className="text-xs mt-1">para ver los HUs y ubicaciones asignadas</p>
+          {selectedOC && !selectedReceipt ? (
+            /* ── OC Detail Panel ── */
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-lg text-gray-900">{selectedOC.codigo}</h3>
+                  <p className="text-sm text-gray-500">{selectedOC.supplier?.nombre}</p>
+                </div>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${selectedOC.estado === 'PARCIAL' ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700'}`}>
+                  {selectedOC.estado === 'PARCIAL' ? 'Parcial' : 'Pendiente'}
+                </span>
+              </div>
+
+              {/* Progress */}
+              <div>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-gray-400">Progreso de recepción</span>
+                  <span className="text-gray-600 font-semibold">{selectedOC.porcentajeRecibido || 0}%</span>
+                </div>
+                <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${(selectedOC.porcentajeRecibido || 0) >= 100 ? 'bg-emerald-500' : (selectedOC.porcentajeRecibido || 0) > 0 ? 'bg-amber-400' : 'bg-gray-200'}`}
+                    style={{ width: `${Math.min(selectedOC.porcentajeRecibido || 0, 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* OC Info */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-gray-50 rounded-lg p-2.5">
+                  <p className="text-gray-400 mb-0.5">Total</p>
+                  <p className="font-bold text-gray-900">${Number(selectedOC.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 0 })}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-2.5">
+                  <p className="text-gray-400 mb-0.5">SKUs</p>
+                  <p className="font-bold text-gray-900">{(selectedOC.lineas || []).length}</p>
+                </div>
+              </div>
+
+              {/* Items Detail */}
+              <div className="border-t pt-3">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Items de la OC</h4>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {(selectedOC.lineas || []).map((l: any) => {
+                    const esperado = Number(l.metrajeTotal) || 0;
+                    const recibido = Number(l.metrajeRecibido) || 0;
+                    const pendiente = esperado - recibido;
+                    const lineaPct = esperado > 0 ? Math.round((recibido / esperado) * 100) : 0;
+                    return (
+                      <div key={l.id} className="p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-start justify-between mb-1.5">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">{l.sku?.nombre}</p>
+                            <p className="text-xs text-gray-400 font-mono">{l.sku?.codigo}</p>
+                          </div>
+                          <span className={`text-xs font-bold ${pendiente > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                            {pendiente > 0 ? `${pendiente}m pend.` : '✓ Completo'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-xs text-center">
+                          <div>
+                            <p className="text-gray-400">Esperado</p>
+                            <p className="font-semibold text-gray-700">{l.cantidadRollos || '-'} rollos</p>
+                            <p className="text-gray-500">{esperado}m</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-400">Recibido</p>
+                            <p className="font-semibold text-emerald-600">{l.rollosRecibidos || 0} rollos</p>
+                            <p className="text-emerald-500">{recibido}m</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-400">Avance</p>
+                            <p className="font-bold text-gray-700">{lineaPct}%</p>
+                          </div>
+                        </div>
+                        <div className="mt-1.5 h-1 bg-gray-200 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${lineaPct >= 100 ? 'bg-emerald-500' : lineaPct > 0 ? 'bg-amber-400' : 'bg-gray-200'}`} style={{ width: `${Math.min(lineaPct, 100)}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="border-t pt-3 space-y-2">
+                <button
+                  onClick={() => handlePartialReceipt(selectedOC)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-50 text-amber-700 rounded-xl text-sm font-medium hover:bg-amber-100 transition-colors border border-amber-200"
+                >
+                  <Package size={16} /> Registrar Ingreso Parcial
+                </button>
+                <button
+                  onClick={() => handleCompleteOC(selectedOC)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-medium hover:bg-emerald-100 transition-colors border border-emerald-200"
+                >
+                  <CheckCircle2 size={16} /> Ingreso Total / Completar
+                </button>
+              </div>
             </div>
-          ) : (
+          ) : selectedReceipt ? (
+            /* ── Receipt Detail Panel ── */
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-lg text-gray-900">{selectedReceipt.codigo}</h3>
@@ -312,6 +408,13 @@ export default function RecepcionPage() {
                   Ir a Etiquetar estos rollos
                 </a>
               </div>
+            </div>
+          ) : (
+            /* ── Empty State ── */
+            <div className="text-center text-gray-400 py-12">
+              <Package size={40} className="mx-auto mb-3 text-gray-300" />
+              <p className="text-sm font-medium text-gray-500">Selecciona una OC o recepción</p>
+              <p className="text-xs mt-1">para ver los items, HUs y ubicaciones asignadas</p>
             </div>
           )}
         </div>
