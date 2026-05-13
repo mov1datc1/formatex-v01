@@ -55,7 +55,7 @@ export class PurchasingService {
               sku: { select: { id: true, codigo: true, nombre: true, color: true } },
             },
           },
-          _count: { select: { receipts: true } },
+          receipts: true,
         },
       }),
       this.prisma.purchaseOrder.count({ where }),
@@ -412,7 +412,7 @@ export class PurchasingService {
             sku: { select: { id: true, codigo: true, nombre: true, color: true } },
           },
         },
-        _count: { select: { receipts: true } },
+        receipts: true,
       },
     });
   }
