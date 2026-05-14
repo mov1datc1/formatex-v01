@@ -6,13 +6,16 @@ export class InventoryService {
   constructor(private readonly prisma: PrismaService) {}
 
   // ===== HANDLING UNITS =====
-  async findAllHUs(params: { search?: string; tipoRollo?: string; estadoHu?: string; skuId?: string; page?: number; limit?: number }) {
-    const { search, tipoRollo, estadoHu, skuId, page = 1, limit = 20 } = params;
+  async findAllHUs(params: { search?: string; tipoRollo?: string; estadoHu?: string; skuId?: string; etiquetaImpresa?: string; receiptId?: string; page?: number; limit?: number }) {
+    const { search, tipoRollo, estadoHu, skuId, etiquetaImpresa, receiptId, page = 1, limit = 20 } = params;
     const skip = (page - 1) * limit;
     const where: any = {};
     if (tipoRollo) where.tipoRollo = tipoRollo;
     if (estadoHu) where.estadoHu = estadoHu;
     if (skuId) where.skuId = skuId;
+    if (etiquetaImpresa === 'true') where.etiquetaImpresa = true;
+    if (etiquetaImpresa === 'false') where.etiquetaImpresa = false;
+    if (receiptId) where.receiptLine = { receiptId };
     if (search) {
       where.OR = [
         { codigo: { contains: search, mode: 'insensitive' } },
@@ -22,7 +25,12 @@ export class InventoryService {
     const [data, total] = await Promise.all([
       this.prisma.handlingUnit.findMany({
         where, skip, take: limit, orderBy: { fechaIngreso: 'asc' }, // FIFO
-        include: { sku: { select: { id: true, codigo: true, nombre: true, color: true, categoria: true } }, ubicacion: { select: { id: true, codigo: true } }, parentHu: { select: { id: true, codigo: true } } },
+        include: {
+          sku: { select: { id: true, codigo: true, nombre: true, color: true, categoria: true, anchoMetros: true, codigoBarras: true } },
+          ubicacion: { select: { id: true, codigo: true } },
+          parentHu: { select: { id: true, codigo: true } },
+          receiptLine: { select: { id: true, receiptId: true, receipt: { select: { id: true, codigo: true, ordenCompra: true } } } },
+        },
       }),
       this.prisma.handlingUnit.count({ where }),
     ]);

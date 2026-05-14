@@ -16,8 +16,8 @@ export class InventoryController {
 
   @Get('hus')
   @ApiOperation({ summary: 'Listar Handling Units (rollos)' })
-  findAllHUs(@Query('search') search?: string, @Query('tipoRollo') tipoRollo?: string, @Query('estadoHu') estadoHu?: string, @Query('skuId') skuId?: string, @Query('page') page?: number, @Query('limit') limit?: number) {
-    return this.inventoryService.findAllHUs({ search, tipoRollo, estadoHu, skuId, page, limit });
+  findAllHUs(@Query('search') search?: string, @Query('tipoRollo') tipoRollo?: string, @Query('estadoHu') estadoHu?: string, @Query('skuId') skuId?: string, @Query('etiquetaImpresa') etiquetaImpresa?: string, @Query('receiptId') receiptId?: string, @Query('page') page?: number, @Query('limit') limit?: number) {
+    return this.inventoryService.findAllHUs({ search, tipoRollo, estadoHu, skuId, etiquetaImpresa, receiptId, page, limit });
   }
 
   @Get('hus/:id')
