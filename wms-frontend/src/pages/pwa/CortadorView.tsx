@@ -31,6 +31,14 @@ export default function CortadorView() {
     } catch { toast.error('Error al cargar pedido'); }
   };
 
+  // Refresh order data without clearing cut result (used after cutting)
+  const refreshOrder = async (orderId: string) => {
+    try {
+      const d = await api.get(`/orders/${orderId}`);
+      setSelectedOrder(d.data);
+    } catch { /* silent */ }
+  };
+
   // Guided cut: pre-fill from assignment
   const startGuidedCut = (line: any, assignment: any) => {
     setScanResult({
@@ -106,8 +114,8 @@ export default function CortadorView() {
       setScanResult(null);
       setCutMetraje(0);
       setActiveLineId('');
-      // Refresh order
-      if (selectedOrder) loadOrder(selectedOrder.id);
+      // Refresh order without clearing lastCutResult
+      if (selectedOrder) refreshOrder(selectedOrder.id);
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Error al cortar');
     }

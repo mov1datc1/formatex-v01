@@ -36,7 +36,16 @@ export default function CortePage() {
     try {
       const { data } = await api.get(`/orders/${orderId}`);
       setSelectedCutOrder(data);
+      setLastCutResult(null);
     } catch { toast.error('Error al cargar pedido'); }
+  };
+
+  // Refresh order without clearing cut result
+  const refreshCutOrder = async (orderId: string) => {
+    try {
+      const { data } = await api.get(`/orders/${orderId}`);
+      setSelectedCutOrder(data);
+    } catch { /* silent */ }
   };
 
   // Pre-fill cut from order line assignment
@@ -82,9 +91,10 @@ export default function CortePage() {
       setMetrajeCortado(0);
       setHuSearch('');
       setOrderLineId('');
+      setShowForm(false); // Close form so retazo card is visible
       refetch();
-      // Refresh order if guided
-      if (selectedCutOrder) loadCutOrder(selectedCutOrder.id);
+      // Refresh order without clearing lastCutResult
+      if (selectedCutOrder) refreshCutOrder(selectedCutOrder.id);
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Error al cortar');
     }
@@ -228,6 +238,26 @@ export default function CortePage() {
               );
             })}
           </div>
+
+          {/* Enviar a Empaque button — when all lines are cut */}
+          {(() => {
+            const allCut = selectedCutOrder.lineas?.every((l: any) => l.assignments?.every((a: any) => a.cortado || !a.requiereCorte));
+            return allCut ? (
+              <button
+                onClick={async () => {
+                  try {
+                    await api.put(`/orders/${selectedCutOrder.id}/status`, { estado: 'EMPACADO' });
+                    toast.success('📦 Pedido enviado a Empaque');
+                    setSelectedCutOrder(null);
+                    setLastCutResult(null);
+                  } catch (e: any) { toast.error(e?.response?.data?.message || 'Error'); }
+                }}
+                className="w-full py-3 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl font-semibold text-sm hover:shadow-lg transition-all flex items-center justify-center gap-2 shadow-sm"
+              >
+                <Package size={18} /> Corte Completado → Enviar a Empaque
+              </button>
+            ) : null;
+          })()}
         </div>
       )}
 
