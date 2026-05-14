@@ -33,7 +33,7 @@ export class CuttingService {
     });
 
     // Validaciones
-    if (!['DISPONIBLE', 'RESERVADO', 'EN_CORTE'].includes(huOrigen.estadoHu)) {
+    if (!['DISPONIBLE', 'RESERVADO', 'EN_CORTE', 'EN_PICKING'].includes(huOrigen.estadoHu)) {
       throw new BadRequestException(`HU ${huOrigen.codigo} no está disponible para corte (estado: ${huOrigen.estadoHu})`);
     }
     if (data.metrajeCortado <= 0) throw new BadRequestException('Metraje a cortar debe ser mayor a 0');
