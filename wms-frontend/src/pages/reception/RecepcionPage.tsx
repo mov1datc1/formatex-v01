@@ -3,7 +3,7 @@ import { useApi } from '../../hooks/useApi';
 import type { PaginatedResponse } from '../../hooks/useApi';
 import { api } from '../../config/api';
 import toast from 'react-hot-toast';
-import { Package, CheckCircle2, Clock, ShoppingCart, ChevronDown, ChevronUp, Inbox, Eye, X, TrendingUp } from 'lucide-react';
+import { Package, CheckCircle2, Clock, ShoppingCart, ChevronDown, ChevronUp, Inbox, Eye, X, TrendingUp, MapPin } from 'lucide-react';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 
 export default function RecepcionPage() {
@@ -27,7 +27,8 @@ export default function RecepcionPage() {
   const [modal, setModal] = useState<{ open: boolean; title: string; message: string; action: () => void; confirmText: string }>({ open: false, title: '', message: '', action: () => {}, confirmText: '' });
 
   // Partial receipt PRO modal
-  const [partialModal, setPartialModal] = useState<{ open: boolean; oc: any; rollosInputs: Record<string, number>; submitting: boolean }>({ open: false, oc: null, rollosInputs: {}, submitting: false });
+  const [partialModal, setPartialModal] = useState<{ open: boolean; oc: any; rollosInputs: Record<string, number>; ubicacionInputs: Record<string, string>; submitting: boolean }>({ open: false, oc: null, rollosInputs: {}, ubicacionInputs: {}, submitting: false });
+  const [locationSuggestions, setLocationSuggestions] = useState<Record<string, any>>({}); // skuId -> suggestion data
 
   const refresh = () => { refetchReceipts(); refetchOC(); };
 
@@ -35,22 +36,36 @@ export default function RecepcionPage() {
   const handlePartialReceipt = (oc: any) => {
     const inputs: Record<string, number> = {};
     for (const l of (oc.lineas || [])) inputs[l.skuId] = 0;
-    setPartialModal({ open: true, oc, rollosInputs: inputs, submitting: false });
+    setPartialModal({ open: true, oc, rollosInputs: inputs, ubicacionInputs: {}, submitting: false });
+    setLocationSuggestions({});
+  };
+
+  const fetchLocationSuggestion = async (skuId: string, rollos: number) => {
+    if (rollos <= 0) { setLocationSuggestions(p => { const n = { ...p }; delete n[skuId]; return n; }); return; }
+    try {
+      const { data } = await api.get('/reception/suggest-locations', { params: { skuId, tipoRollo: 'ENTERO', metraje: 50, cantidadRollos: rollos } });
+      setLocationSuggestions(p => ({ ...p, [skuId]: data }));
+      // Auto-select the best suggestion
+      if (data.seleccionada?.id) {
+        setPartialModal(p => ({ ...p, ubicacionInputs: { ...p.ubicacionInputs, [skuId]: data.seleccionada.id } }));
+      }
+    } catch { /* silent */ }
   };
 
   const submitPartialReceipt = async () => {
-    const { oc, rollosInputs } = partialModal;
+    const { oc, rollosInputs, ubicacionInputs } = partialModal;
     const items: any[] = [];
     for (const l of (oc.lineas || [])) {
       const rollos = rollosInputs[l.skuId] || 0;
-      if (rollos > 0) items.push({ skuId: l.skuId, rollosRecibidos: rollos, metrajeRecibido: rollos * (Number(l.metrajePorRollo) || 50) });
+      if (rollos > 0) items.push({ skuId: l.skuId, rollosRecibidos: rollos, metrajeRecibido: rollos * (Number(l.metrajePorRollo) || 50), ubicacionId: ubicacionInputs[l.skuId] || undefined });
     }
     if (!items.length) return toast.error('Ingresa al menos 1 rollo en alguna línea');
     setPartialModal(p => ({ ...p, submitting: true }));
     try {
-      await api.post(`/purchasing/orders/${oc.id}/partial-receipt`, { lineas: items });
-      toast.success('Recepción parcial registrada exitosamente');
-      setPartialModal({ open: false, oc: null, rollosInputs: {}, submitting: false });
+      const { data } = await api.post(`/purchasing/orders/${oc.id}/partial-receipt`, { lineas: items });
+      toast.success(`Recepción registrada — ${data.husCreados || 0} HUs creados → ${data.receiptCode || ''}`);
+      setPartialModal({ open: false, oc: null, rollosInputs: {}, ubicacionInputs: {}, submitting: false });
+      setLocationSuggestions({});
       refresh();
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Error al registrar');
@@ -437,7 +452,7 @@ export default function RecepcionPage() {
 
       {/* === PRO Partial Receipt Modal === */}
       {partialModal.open && partialModal.oc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm animate-fade-in" onClick={() => !partialModal.submitting && setPartialModal({ open: false, oc: null, rollosInputs: {}, submitting: false })}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm animate-fade-in" onClick={() => !partialModal.submitting && setPartialModal({ open: false, oc: null, rollosInputs: {}, ubicacionInputs: {}, submitting: false })}>
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-gray-100 animate-scale-in max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className="p-6 pb-4 border-b">
@@ -456,7 +471,7 @@ export default function RecepcionPage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => !partialModal.submitting && setPartialModal({ open: false, oc: null, rollosInputs: {}, submitting: false })}
+                  onClick={() => !partialModal.submitting && setPartialModal({ open: false, oc: null, rollosInputs: {}, ubicacionInputs: {}, submitting: false })}
                   className="p-1.5 hover:bg-gray-100 rounded-lg -mr-1 -mt-1"
                 >
                   <X size={16} className="text-gray-400" />
@@ -507,15 +522,53 @@ export default function RecepcionPage() {
                         type="number"
                         min={0}
                         value={rollosInput || ''}
-                        onChange={e => setPartialModal(p => ({
-                          ...p,
-                          rollosInputs: { ...p.rollosInputs, [l.skuId]: Math.max(0, parseInt(e.target.value) || 0) },
-                        }))}
+                        onChange={e => {
+                          const val = Math.max(0, parseInt(e.target.value) || 0);
+                          setPartialModal(p => ({
+                            ...p,
+                            rollosInputs: { ...p.rollosInputs, [l.skuId]: val },
+                          }));
+                          fetchLocationSuggestion(l.skuId, val);
+                        }}
                         placeholder="0"
                         className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm font-medium focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all"
                         autoFocus={l === (partialModal.oc.lineas || [])[0]}
                       />
                     </div>
+                    {/* Location Suggestion */}
+                    {rollosInput > 0 && locationSuggestions[l.skuId] && (
+                      <div className="mt-3 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <MapPin size={14} className="text-blue-500" />
+                          <span className="text-xs font-semibold text-blue-700">Ubicación sugerida</span>
+                        </div>
+                        {locationSuggestions[l.skuId].sugerencias?.length > 0 ? (
+                          <select
+                            value={partialModal.ubicacionInputs[l.skuId] || ''}
+                            onChange={e => setPartialModal(p => ({ ...p, ubicacionInputs: { ...p.ubicacionInputs, [l.skuId]: e.target.value } }))}
+                            className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-200"
+                          >
+                            {locationSuggestions[l.skuId].sugerencias.map((s: any) => (
+                              <option key={s.id} value={s.id}>
+                                📍 {s.codigo} — {s.zona?.nombre} ({s.disponibles} libres){s.hasSameSku ? ' ⭐ mismo SKU' : ''}
+                              </option>
+                            ))}
+                            <option value="">🔄 Auto (dejar al sistema)</option>
+                          </select>
+                        ) : (
+                          <p className="text-xs text-blue-600">Sin espacio en zona principal — se asignará a Recibo/Staging</p>
+                        )}
+                        {locationSuggestions[l.skuId].zoneSummary?.length > 0 && (
+                          <div className="mt-2 flex gap-2">
+                            {locationSuggestions[l.skuId].zoneSummary.map((z: any) => (
+                              <span key={z.codigo} className="text-[10px] bg-white px-2 py-0.5 rounded border text-gray-500">
+                                {z.codigo}: {z.libre} libres / {z.total} ({z.ocupacionPct}%)
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -523,15 +576,19 @@ export default function RecepcionPage() {
 
             {/* Footer */}
             <div className="p-6 pt-4 border-t bg-gray-50/50 rounded-b-2xl">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-gray-400">Total este ingreso:</span>
                 <span className="text-sm font-bold text-primary-700">
                   {Object.values(partialModal.rollosInputs).reduce((a, b) => a + b, 0)} rollos
                 </span>
               </div>
+              <div className="flex items-center gap-1.5 mb-3">
+                <MapPin size={12} className="text-emerald-500" />
+                <span className="text-[10px] text-emerald-600">Ubicaciones se asignan automáticamente según disponibilidad y tipo de mercancía. Los HUs quedarán listos para etiquetar.</span>
+              </div>
               <div className="flex gap-3">
                 <button
-                  onClick={() => setPartialModal({ open: false, oc: null, rollosInputs: {}, submitting: false })}
+                  onClick={() => setPartialModal({ open: false, oc: null, rollosInputs: {}, ubicacionInputs: {}, submitting: false })}
                   disabled={partialModal.submitting}
                   className="flex-1 px-5 py-2.5 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 text-sm font-medium transition-colors disabled:opacity-50"
                 >

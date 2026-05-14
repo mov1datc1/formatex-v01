@@ -298,36 +298,94 @@ export class PurchasingService {
 
   // ===== REGISTRAR RECEPCIÓN PARCIAL =====
   async registerPartialReceipt(id: string, data: {
-    lineas: Array<{ skuId: string; metrajeRecibido: number; rollosRecibidos: number }>;
+    lineas: Array<{ skuId: string; metrajeRecibido: number; rollosRecibidos: number; ubicacionId?: string }>;
     notas?: string;
     recibidoPor: string;
   }) {
     const order = await this.prisma.purchaseOrder.findUniqueOrThrow({
       where: { id },
-      include: { lineas: true },
+      include: { lineas: { include: { sku: true } }, supplier: true },
     });
 
     if (!['EN_RECEPCION', 'PARCIAL'].includes(order.estado)) {
       throw new BadRequestException('Solo OC en recepción pueden registrar recepciones parciales');
     }
 
+    // Pre-cargar ubicaciones disponibles en zonas de rollos enteros
+    const enterosZones = await this.prisma.zone.findMany({
+      where: { tipo: 'ROLLOS_ENTEROS', activo: true },
+      select: { id: true },
+    });
+    const enterosZoneIds = enterosZones.map(z => z.id);
+
+    let availableLocations = await this.prisma.location.findMany({
+      where: {
+        zoneId: { in: enterosZoneIds },
+        estado: { in: ['LIBRE', 'PARCIAL'] },
+        activo: true,
+      },
+      orderBy: [{ estado: 'asc' }, { codigo: 'asc' }],
+      include: { _count: { select: { handlingUnits: true } } },
+    });
+
+    // Fallback: zona RECIBO como staging
+    if (availableLocations.length === 0) {
+      const reciboZone = await this.prisma.zone.findFirst({ where: { tipo: 'RECIBO', activo: true } });
+      if (reciboZone) {
+        const reciboLocs = await this.prisma.location.findMany({
+          where: { zoneId: reciboZone.id, estado: { in: ['LIBRE', 'PARCIAL'] }, activo: true },
+          include: { _count: { select: { handlingUnits: true } } },
+        });
+        availableLocations = reciboLocs;
+      }
+    }
+
     return this.prisma.$transaction(async (tx: any) => {
-      // Registrar receipt
+      const totalRollos = data.lineas.reduce((s, l) => s + l.rollosRecibidos, 0);
+      const totalMetraje = data.lineas.reduce((s, l) => s + l.metrajeRecibido, 0);
+
+      // 1. Registrar PurchaseOrderReceipt (histórico OC)
       await tx.purchaseOrderReceipt.create({
         data: {
           purchaseOrderId: id,
-          metrajeRecibido: data.lineas.reduce((s, l) => s + l.metrajeRecibido, 0),
-          rollosRecibidos: data.lineas.reduce((s, l) => s + l.rollosRecibidos, 0),
+          metrajeRecibido: totalMetraje,
+          rollosRecibidos: totalRollos,
           notas: data.notas,
           recibidoPor: data.recibidoPor,
         },
       });
 
-      // Actualizar líneas
+      // 2. Crear PurchaseReceipt (recepción física con HUs)
+      const receiptCount = await tx.purchaseReceipt.count();
+      const receiptCode = `REC-${new Date().getFullYear()}-${String(receiptCount + 1).padStart(5, '0')}`;
+
+      const receipt = await tx.purchaseReceipt.create({
+        data: {
+          codigo: receiptCode,
+          supplierId: order.supplierId,
+          ordenCompra: order.codigo,
+          transportista: order.transportista,
+          recibidoPor: data.recibidoPor,
+          totalRollos,
+          totalPallets: 1,
+          estado: 'COMPLETADA',
+          notas: data.notas,
+        },
+      });
+
+      let locationIndex = 0;
+      const locationsToUpdate = new Map<string, number>();
+      const createdHUs: string[] = [];
+
+      // 3. Crear líneas de recepción + HUs individuales
       for (const lineaRecibida of data.lineas) {
+        if (lineaRecibida.rollosRecibidos <= 0) continue;
         const lineaOC = order.lineas.find(l => l.skuId === lineaRecibida.skuId);
         if (!lineaOC) continue;
 
+        const metrajePorRollo = lineaOC.metrajePorRollo || 50;
+
+        // Actualizar línea de OC
         await tx.purchaseOrderLine.update({
           where: { id: lineaOC.id },
           data: {
@@ -335,16 +393,96 @@ export class PurchasingService {
             rollosRecibidos: { increment: lineaRecibida.rollosRecibidos },
           },
         });
+
+        // Crear línea de recepción física
+        const receiptLine = await tx.purchaseReceiptLine.create({
+          data: {
+            receiptId: receipt.id,
+            skuId: lineaRecibida.skuId,
+            cantidadRollos: lineaRecibida.rollosRecibidos,
+            metrajePorRollo,
+            metrajeTotalRecibido: lineaRecibida.metrajeRecibido,
+          },
+        });
+
+        // Crear N HUs individuales
+        for (let i = 0; i < lineaRecibida.rollosRecibidos; i++) {
+          // Asignación de ubicación: manual (si viene) o automática
+          let assignedLocationId = lineaRecibida.ubicacionId || null;
+
+          if (!assignedLocationId) {
+            // Ubicación inteligente automática
+            while (locationIndex < availableLocations.length) {
+              const candidate = availableLocations[locationIndex];
+              const currentCount = locationsToUpdate.get(candidate.id) ?? candidate._count.handlingUnits;
+              if (currentCount < (candidate.capacidad || 10)) {
+                assignedLocationId = candidate.id;
+                locationsToUpdate.set(candidate.id, currentCount + 1);
+                break;
+              }
+              locationIndex++;
+            }
+          } else {
+            // Manual: trackear el count
+            const currentCount = locationsToUpdate.get(assignedLocationId) ?? 0;
+            locationsToUpdate.set(assignedLocationId, currentCount + 1);
+          }
+
+          const huCount = await tx.handlingUnit.count();
+          const huCode = `HU-${new Date().getFullYear()}-${String(huCount + 1).padStart(5, '0')}`;
+
+          const hu = await tx.handlingUnit.create({
+            data: {
+              codigo: huCode,
+              skuId: lineaRecibida.skuId,
+              metrajeOriginal: metrajePorRollo,
+              metrajeActual: metrajePorRollo,
+              anchoMetros: lineaOC.sku?.anchoMetros || 1.5,
+              tipoRollo: 'ENTERO',
+              estadoHu: 'DISPONIBLE',
+              ubicacionId: assignedLocationId,
+              receiptLineId: receiptLine.id,
+              generacion: 0,
+              etiquetaImpresa: false,
+            },
+          });
+
+          createdHUs.push(hu.id);
+
+          // Registrar movimiento de ENTRADA
+          const locCode = assignedLocationId
+            ? (availableLocations.find(l => l.id === assignedLocationId) as any)?.codigo || 'ASIGNADA'
+            : 'PENDIENTE';
+
+          await tx.inventoryMovement.create({
+            data: {
+              huId: hu.id,
+              tipo: 'ENTRADA',
+              metrajeDespues: metrajePorRollo,
+              ubicacionDestino: locCode,
+              referencia: `${order.codigo} → ${receiptCode}`,
+              notas: `Rollo ${i + 1}/${lineaRecibida.rollosRecibidos} — ${lineaOC.sku?.nombre || 'SKU'}`,
+              userId: data.recibidoPor,
+            },
+          });
+        }
       }
 
-      // Recalcular porcentaje
+      // 4. Actualizar estado de ubicaciones afectadas
+      for (const [locId, huCount] of locationsToUpdate.entries()) {
+        const loc = availableLocations.find(l => l.id === locId);
+        const capacity = loc?.capacidad || 10;
+        const newEstado = huCount >= capacity ? 'OCUPADA' : huCount > 0 ? 'PARCIAL' : 'LIBRE';
+        await tx.location.update({ where: { id: locId }, data: { estado: newEstado } });
+      }
+
+      // 5. Recalcular porcentaje OC
       const updatedLines = await tx.purchaseOrderLine.findMany({
         where: { purchaseOrderId: id },
       });
       const totalSolicitado = updatedLines.reduce((s: number, l: any) => s + l.metrajeTotal, 0);
-      const totalRecibido = updatedLines.reduce((s: number, l: any) => s + l.metrajeRecibido, 0);
-      const porcentaje = totalSolicitado > 0 ? Math.round((totalRecibido / totalSolicitado) * 100) : 0;
-
+      const totalRecibidoOC = updatedLines.reduce((s: number, l: any) => s + l.metrajeRecibido, 0);
+      const porcentaje = totalSolicitado > 0 ? Math.round((totalRecibidoOC / totalSolicitado) * 100) : 0;
       const isComplete = porcentaje >= 100;
 
       await tx.purchaseOrder.update({
@@ -356,8 +494,8 @@ export class PurchasingService {
         },
       });
 
-      return this.findOrderById(id);
-    }, { timeout: 30000 });
+      return { order: await this.findOrderById(id), receiptCode, husCreados: createdHUs.length };
+    }, { timeout: 60000 });
   }
 
   // ===== COMPLETAR OC (forzar) =====
