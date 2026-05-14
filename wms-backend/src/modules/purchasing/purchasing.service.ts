@@ -408,7 +408,19 @@ export class PurchasingService {
         // Crear N HUs individuales
         for (let i = 0; i < lineaRecibida.rollosRecibidos; i++) {
           // Asignación de ubicación: manual (si viene) o automática
-          let assignedLocationId = lineaRecibida.ubicacionId || null;
+          let assignedLocationId: string | null = null;
+
+          if (lineaRecibida.ubicacionId) {
+            // Manual: check if the chosen location still has capacity
+            const manualLoc = availableLocations.find(l => l.id === lineaRecibida.ubicacionId) 
+              || { id: lineaRecibida.ubicacionId, capacidad: 10, _count: { handlingUnits: 0 } };
+            const currentCount = locationsToUpdate.get(manualLoc.id) ?? manualLoc._count.handlingUnits;
+            if (currentCount < (manualLoc.capacidad || 10)) {
+              assignedLocationId = manualLoc.id;
+              locationsToUpdate.set(manualLoc.id, currentCount + 1);
+            }
+            // If manual location is full, fall through to auto-assign below
+          }
 
           if (!assignedLocationId) {
             // Ubicación inteligente automática
@@ -422,10 +434,6 @@ export class PurchasingService {
               }
               locationIndex++;
             }
-          } else {
-            // Manual: trackear el count
-            const currentCount = locationsToUpdate.get(assignedLocationId) ?? 0;
-            locationsToUpdate.set(assignedLocationId, currentCount + 1);
           }
 
           const huCount = await tx.handlingUnit.count();

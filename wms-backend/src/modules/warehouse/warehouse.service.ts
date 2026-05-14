@@ -110,7 +110,7 @@ export class WarehouseService {
         orderBy: { codigo: 'asc' },
         include: {
           zone: { select: { nombre: true, tipo: true, codigo: true } },
-          _count: { select: { handlingUnits: true } },
+          _count: { select: { handlingUnits: { where: { estadoHu: { not: 'AGOTADO' } } } } },
           handlingUnits: {
             where: { estadoHu: { not: 'AGOTADO' } },
             select: { id: true, codigo: true, metrajeActual: true, tipoRollo: true },
@@ -200,7 +200,7 @@ export class WarehouseService {
             sku: { select: { id: true, codigo: true, nombre: true, color: true, composicion: true } },
           },
         },
-        _count: { select: { handlingUnits: true } },
+        _count: { select: { handlingUnits: { where: { estadoHu: { not: 'AGOTADO' } } } } },
       },
     });
   }
