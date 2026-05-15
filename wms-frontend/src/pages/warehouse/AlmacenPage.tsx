@@ -9,6 +9,7 @@ import {
   Plus, X, Layers, PackageCheck, Box,
   ChevronLeft, ChevronRight, Scroll, Scissors, Search,
   Lock, CircleDot, ArrowRight, Boxes,
+  Pencil, Save, Check,
 } from 'lucide-react';
 
 type Tab = 'overview' | 'warehouses' | 'zones' | 'locations' | 'merma';
@@ -54,8 +55,17 @@ export default function AlmacenPage() {
   const zoneMut = useMutationApi('/warehouse/zones');
 
   const [showBulkForm, setShowBulkForm] = useState(false);
-  const [bulkForm, setBulkForm] = useState<any>({ zoneId: '', prefijoPasillo: 'P', pasilloInicio: 1, pasilloFin: 3, nivelesInicio: 1, nivelesFin: 3, posicionesInicio: 1, posicionesFin: 5, tipo: 'RACK', capacidad: 2 });
+  const [bulkForm, setBulkForm] = useState<any>({ zoneId: '', prefijoPasillo: 'P', pasilloInicio: 1, pasilloFin: 3, nivelesInicio: 1, nivelesFin: 3, posicionesInicio: 1, posicionesFin: 5, tipo: 'RACK', capacidad: 6 });
   const bulkMut = useMutationApi('/warehouse/locations/bulk');
+
+  // Edit states
+  const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
+  const [editZoneData, setEditZoneData] = useState<any>({});
+  const [editingMermaId, setEditingMermaId] = useState<string | null>(null);
+  const [editMermaData, setEditMermaData] = useState<any>({});
+  const [showMermaForm, setShowMermaForm] = useState(false);
+  const [mermaForm, setMermaForm] = useState<any>({ nombre: '', minMetros: 0, maxMetros: 5, zonaCodigo: '', orden: 1 });
+  const mermaMut = useMutationApi('/warehouse/merma-ranges');
 
   const handleCreateWh = async () => {
     try { await whMut.mutateAsync(whForm); toast.success('✅ Almacén creado'); setShowWhForm(false); } catch (e: any) { toast.error(e?.response?.data?.message || 'Error'); }
@@ -65,6 +75,18 @@ export default function AlmacenPage() {
   };
   const handleBulkCreate = async () => {
     try { const r: any = await bulkMut.mutateAsync(bulkForm); toast.success(`✅ ${r.created} ubicaciones creadas`); setShowBulkForm(false); } catch (e: any) { toast.error(e?.response?.data?.message || 'Error'); }
+  };
+  const handleUpdateZone = async (id: string) => {
+    try { await api.put(`/warehouse/zones/${id}`, editZoneData); toast.success('Zona actualizada'); setEditingZoneId(null); } catch (e: any) { toast.error(e?.response?.data?.message || 'Error'); }
+  };
+  const handleUpdateMerma = async (id: string) => {
+    try { await api.put(`/warehouse/merma-ranges/${id}`, editMermaData); toast.success('Rango actualizado'); setEditingMermaId(null); } catch (e: any) { toast.error(e?.response?.data?.message || 'Error'); }
+  };
+  const handleCreateMerma = async () => {
+    try { await mermaMut.mutateAsync(mermaForm); toast.success('✅ Rango creado'); setShowMermaForm(false); } catch (e: any) { toast.error(e?.response?.data?.message || 'Error'); }
+  };
+  const handleUpdateCapacity = async (locId: string, newCapacity: number) => {
+    try { await api.put(`/warehouse/locations/${locId}`, { capacidad: newCapacity }); toast.success('Capacidad actualizada'); loadLocationDetail(locId); } catch (e: any) { toast.error(e?.response?.data?.message || 'Error'); }
   };
 
   const TABS = [
@@ -228,18 +250,45 @@ export default function AlmacenPage() {
                   <th className="px-4 py-3 text-left">Tipo</th>
                   <th className="px-4 py-3 text-left">Almacén</th>
                   <th className="px-4 py-3 text-center">Ubicaciones</th>
+                  <th className="px-4 py-3 text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {zones?.map((z: any) => (
-                  <tr key={z.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{z.nombre}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-indigo-600">{z.codigo}</td>
-                    <td className="px-4 py-3"><span className="px-2 py-0.5 rounded-full text-xs bg-indigo-50 text-indigo-700 font-medium">{z.tipo}</span></td>
-                    <td className="px-4 py-3 text-gray-500">{z.warehouse?.nombre || '—'}</td>
-                    <td className="px-4 py-3 text-center font-semibold">{z._count?.locations || 0}</td>
-                  </tr>
-                ))}
+                {zones?.map((z: any) => {
+                  const isEditing = editingZoneId === z.id;
+                  return (
+                    <tr key={z.id} className={`hover:bg-gray-50 ${isEditing ? 'bg-indigo-50' : ''}`}>
+                      <td className="px-4 py-3">
+                        {isEditing ? <input value={editZoneData.nombre} onChange={e => setEditZoneData({ ...editZoneData, nombre: e.target.value })} className="px-2 py-1 border rounded text-sm w-full" /> : <span className="font-medium">{z.nombre}</span>}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-indigo-600">{z.codigo}</td>
+                      <td className="px-4 py-3">
+                        {isEditing ? (
+                          <select value={editZoneData.tipo} onChange={e => setEditZoneData({ ...editZoneData, tipo: e.target.value })} className="px-2 py-1 border rounded text-xs">
+                            <option value="ROLLOS_ENTEROS">Rollos Enteros</option>
+                            <option value="MERMA">Merma</option>
+                            <option value="RECIBO">Recibo</option>
+                            <option value="CORTE">Corte</option>
+                            <option value="EMPAQUE">Empaque</option>
+                            <option value="EMBARQUE">Embarque</option>
+                          </select>
+                        ) : <span className="px-2 py-0.5 rounded-full text-xs bg-indigo-50 text-indigo-700 font-medium">{z.tipo}</span>}
+                      </td>
+                      <td className="px-4 py-3 text-gray-500">{z.warehouse?.nombre || '—'}</td>
+                      <td className="px-4 py-3 text-center font-semibold">{z._count?.locations || 0}</td>
+                      <td className="px-4 py-3 text-center">
+                        {isEditing ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <button onClick={() => handleUpdateZone(z.id)} className="p-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600"><Check size={14} /></button>
+                            <button onClick={() => setEditingZoneId(null)} className="p-1.5 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300"><X size={14} /></button>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setEditingZoneId(z.id); setEditZoneData({ nombre: z.nombre, tipo: z.tipo }); }} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Pencil size={14} /></button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -390,7 +439,7 @@ export default function AlmacenPage() {
                   <p className="text-sm text-gray-500">Cargando...</p>
                 </div>
               ) : locDetail ? (
-                <LocationDetailPanel loc={locDetail} estadoColors={ESTADO_COLORS} onClose={() => { setSelectedLocId(null); setLocDetail(null); }} />
+                <LocationDetailPanel loc={locDetail} estadoColors={ESTADO_COLORS} onClose={() => { setSelectedLocId(null); setLocDetail(null); }} onUpdateCapacity={handleUpdateCapacity} />
               ) : null}
             </div>
           </div>
@@ -399,30 +448,77 @@ export default function AlmacenPage() {
 
       {/* === MERMA RANGES === */}
       {tab === 'merma' && (
-        <div className="bg-white rounded-xl border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-              <tr>
-                <th className="px-4 py-3 text-left">Nombre</th>
-                <th className="px-4 py-3 text-center">Min (m)</th>
-                <th className="px-4 py-3 text-center">Max (m)</th>
-                <th className="px-4 py-3 text-left">Zona Destino</th>
-                <th className="px-4 py-3 text-center">Orden</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {mermaRanges?.map((r: any) => (
-                <tr key={r.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium">{r.nombre}</td>
-                  <td className="px-4 py-3 text-center">{r.minMetros}m</td>
-                  <td className="px-4 py-3 text-center">{r.maxMetros}m</td>
-                  <td className="px-4 py-3 font-mono text-xs text-indigo-600">{r.zonaCodigo}</td>
-                  <td className="px-4 py-3 text-center">{r.orden}</td>
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <button onClick={() => setShowMermaForm(!showMermaForm)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+              <Plus size={16} /> Nuevo Rango
+            </button>
+          </div>
+          {showMermaForm && (
+            <div className="bg-white rounded-xl border p-6 space-y-4">
+              <h2 className="font-semibold flex items-center gap-2"><Ruler size={18} className="text-indigo-500" /> Nuevo Rango de Merma</h2>
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <FI label="Nombre *" value={mermaForm.nombre} onChange={(v: string) => setMermaForm({ ...mermaForm, nombre: v })} placeholder="Merma 1-5m" />
+                <FI label="Min (m) *" type="number" value={mermaForm.minMetros} onChange={(v: string) => setMermaForm({ ...mermaForm, minMetros: +v })} />
+                <FI label="Max (m) *" type="number" value={mermaForm.maxMetros} onChange={(v: string) => setMermaForm({ ...mermaForm, maxMetros: +v })} />
+                <FI label="Zona Destino *" value={mermaForm.zonaCodigo} onChange={(v: string) => setMermaForm({ ...mermaForm, zonaCodigo: v })} placeholder="MER-01" />
+                <FI label="Orden" type="number" value={mermaForm.orden} onChange={(v: string) => setMermaForm({ ...mermaForm, orden: +v })} />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setShowMermaForm(false)} className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg">Cancelar</button>
+                <button onClick={handleCreateMerma} className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium">Crear</button>
+              </div>
+            </div>
+          )}
+          <div className="bg-white rounded-xl border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+                <tr>
+                  <th className="px-4 py-3 text-left">Nombre</th>
+                  <th className="px-4 py-3 text-center">Min (m)</th>
+                  <th className="px-4 py-3 text-center">Max (m)</th>
+                  <th className="px-4 py-3 text-left">Zona Destino</th>
+                  <th className="px-4 py-3 text-center">Orden</th>
+                  <th className="px-4 py-3 text-center">Acciones</th>
                 </tr>
-              ))}
-              {(!mermaRanges || mermaRanges.length === 0) && <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">No hay rangos configurados</td></tr>}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {mermaRanges?.map((r: any) => {
+                  const isEditing = editingMermaId === r.id;
+                  return (
+                    <tr key={r.id} className={`hover:bg-gray-50 ${isEditing ? 'bg-indigo-50' : ''}`}>
+                      <td className="px-4 py-3">
+                        {isEditing ? <input value={editMermaData.nombre} onChange={e => setEditMermaData({ ...editMermaData, nombre: e.target.value })} className="px-2 py-1 border rounded text-sm w-full" /> : <span className="font-medium">{r.nombre}</span>}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {isEditing ? <input type="number" value={editMermaData.minMetros} onChange={e => setEditMermaData({ ...editMermaData, minMetros: +e.target.value })} className="px-2 py-1 border rounded text-sm w-20 text-center" /> : <span>{r.minMetros}m</span>}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {isEditing ? <input type="number" value={editMermaData.maxMetros} onChange={e => setEditMermaData({ ...editMermaData, maxMetros: +e.target.value })} className="px-2 py-1 border rounded text-sm w-20 text-center" /> : <span>{r.maxMetros}m</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        {isEditing ? <input value={editMermaData.zonaCodigo} onChange={e => setEditMermaData({ ...editMermaData, zonaCodigo: e.target.value })} className="px-2 py-1 border rounded text-sm font-mono w-24" /> : <span className="font-mono text-xs text-indigo-600">{r.zonaCodigo}</span>}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {isEditing ? <input type="number" value={editMermaData.orden} onChange={e => setEditMermaData({ ...editMermaData, orden: +e.target.value })} className="px-2 py-1 border rounded text-sm w-16 text-center" /> : <span>{r.orden}</span>}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {isEditing ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <button onClick={() => handleUpdateMerma(r.id)} className="p-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600"><Check size={14} /></button>
+                            <button onClick={() => setEditingMermaId(null)} className="p-1.5 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300"><X size={14} /></button>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setEditingMermaId(r.id); setEditMermaData({ nombre: r.nombre, minMetros: r.minMetros, maxMetros: r.maxMetros, zonaCodigo: r.zonaCodigo, orden: r.orden }); }} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Pencil size={14} /></button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {(!mermaRanges || mermaRanges.length === 0) && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No hay rangos configurados</td></tr>}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
@@ -432,9 +528,13 @@ export default function AlmacenPage() {
 /* ============================================================ */
 /* Location Detail Panel                                         */
 /* ============================================================ */
-function LocationDetailPanel({ loc, estadoColors, onClose }: { loc: any; estadoColors: any; onClose: () => void }) {
+function LocationDetailPanel({ loc, estadoColors, onClose, onUpdateCapacity }: { loc: any; estadoColors: any; onClose: () => void; onUpdateCapacity: (locId: string, cap: number) => void }) {
+  const [editingCap, setEditingCap] = useState(false);
+  const [capValue, setCapValue] = useState(loc.capacidad || 6);
   const st = estadoColors[loc.estado] || estadoColors.LIBRE;
   const totalMetraje = loc.handlingUnits?.reduce((sum: number, hu: any) => sum + (hu.metrajeActual || 0), 0) || 0;
+  const huCount = loc._count?.handlingUnits || loc.handlingUnits?.length || 0;
+  const capUsage = loc.capacidad > 0 ? (huCount / loc.capacidad) * 100 : 0;
 
   return (
     <div className="bg-white rounded-xl border shadow-lg sticky top-6 overflow-hidden">
@@ -466,16 +566,50 @@ function LocationDetailPanel({ loc, estadoColors, onClose }: { loc: any; estadoC
           <p className="font-medium text-indigo-600">{loc.zone?.tipo}</p>
         </div>
         <div>
-          <p className="text-gray-400 uppercase font-semibold">Capacidad</p>
-          <p className="font-medium text-gray-700">{loc.capacidad || '—'} HUs</p>
+          <p className="text-gray-400 uppercase font-semibold">Tipo Ubic.</p>
+          <p className="font-medium text-gray-700">{loc.tipo || 'RACK'}</p>
         </div>
+      </div>
+
+      {/* Capacity — Editable */}
+      <div className="px-5 py-3 border-b">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs text-gray-400 uppercase font-semibold">Capacidad (HUs / Rollos)</p>
+          {!editingCap ? (
+            <button onClick={() => { setEditingCap(true); setCapValue(loc.capacidad || 6); }} className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors">
+              <Pencil size={12} />
+            </button>
+          ) : (
+            <div className="flex items-center gap-1">
+              <button onClick={() => { onUpdateCapacity(loc.id, capValue); setEditingCap(false); }} className="p-1 bg-emerald-500 text-white rounded hover:bg-emerald-600"><Check size={12} /></button>
+              <button onClick={() => setEditingCap(false)} className="p-1 bg-gray-200 text-gray-600 rounded hover:bg-gray-300"><X size={12} /></button>
+            </div>
+          )}
+        </div>
+        {editingCap ? (
+          <div className="flex items-center gap-2">
+            <input type="number" value={capValue} onChange={e => setCapValue(+e.target.value)} min={1} max={500}
+              className="w-24 px-3 py-2 border-2 border-indigo-300 rounded-lg text-lg font-bold text-center focus:border-indigo-500 focus:outline-none" autoFocus />
+            <span className="text-sm text-gray-500">rollos máx.</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <p className="text-2xl font-black text-gray-900">{huCount} <span className="text-sm font-medium text-gray-400">/ {loc.capacidad || '?'}</span></p>
+          </div>
+        )}
+        {/* Usage bar */}
+        <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div className={`h-full rounded-full transition-all ${capUsage >= 100 ? 'bg-red-500' : capUsage >= 70 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+            style={{ width: `${Math.min(100, capUsage)}%` }} />
+        </div>
+        <p className="text-[10px] text-gray-400 mt-1">{capUsage >= 100 ? '⚠️ Ubicación llena' : capUsage >= 70 ? '⚡ Casi llena' : '✅ Espacio disponible'} — {Math.round(capUsage)}% ocupación</p>
       </div>
 
       {/* Summary */}
       <div className="px-5 py-3 border-b flex items-center justify-between">
         <div className="flex items-center gap-2">
           <PackageCheck size={16} className="text-indigo-500" />
-          <span className="text-sm font-semibold text-gray-700">{loc._count?.handlingUnits || 0} rollos</span>
+          <span className="text-sm font-semibold text-gray-700">{huCount} rollos</span>
         </div>
         <span className="text-sm font-bold text-indigo-600">{totalMetraje.toLocaleString()}m</span>
       </div>
