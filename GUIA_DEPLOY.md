@@ -86,7 +86,7 @@ Completa el formulario con estos valores **exactos**:
 |-------|-------|
 | **Name** | `wms-formatex-api` |
 | **Region** | `Oregon (US West)` |
-| **Branch** | `main` |
+| **Branch** | `dev` (auto-deploy en Render) |
 | **Root Directory** | `wms-backend` |
 | **Runtime** | `Node` |
 | **Build Command** | `npm install --include=dev && npx prisma generate && npm run build` |
@@ -345,19 +345,29 @@ VITE_API_URL=https://api.formatex.com.mx/api
 
 ## 🔄 Re-deploy (Actualizaciones Futuras)
 
-Cada vez que hagas push a `main`, ambos servicios se re-deployean automáticamente:
+El flujo de deploy usa dos ramas:
+- **`dev`** → Render (backend) auto-deploy
+- **`main`** → Vercel (frontend) auto-deploy
 
 ```bash
 cd /Users/jonathanpalacios/Downloads/wms-formatex-v2
 
 # Hacer cambios...
-git add .
+git add -A
 git commit -m "feat: nueva funcionalidad"
-git push origin main
+git push origin dev          # → Render re-deploy (~3-5 min)
 
-# Render: re-deploy automático (~3-5 min)
-# Vercel: re-deploy automático (~1-2 min)
+# Merge a main para Vercel
+git checkout main
+git merge dev
+git push origin main         # → Vercel re-deploy (~1-2 min)
+git checkout dev
 ```
+
+### ⚠️ Nota Crítica: Prisma v7
+
+**NO agregar `url = env("DATABASE_URL")` al bloque `datasource` en `schema.prisma`.**  
+Prisma v7 usa `@prisma/adapter-pg` para conexión programática. Agregar `url` causa **Error P1012** y rompe el build de Render.
 
 ### Deploy Manual
 

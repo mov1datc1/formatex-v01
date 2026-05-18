@@ -1,10 +1,10 @@
-# 🏭 WMS 360+ Formatex — Documentación Técnica v2.0
+# 🏭 WMS 360+ Formatex — Documentación Técnica v3.0
 
 **Plataforma:** WMS 360+ — Sistema de Gestión de Almacén para Distribuidora de Tela al Mayoreo  
 **Empresa:** FORMA TEXTIL S. DE R.L. DE C.V. (Formatextil)  
 **Ubicación:** Río La Barca No. 1680, Atlas C.P. 44870, Guadalajara, Jalisco  
 **Desarrollado por:** Movida TCI  
-**Última actualización:** Abril 2026
+**Última actualización:** Mayo 2026
 
 ---
 
@@ -14,8 +14,8 @@
 2. [Arquitectura del Sistema](#2-arquitectura-del-sistema)
 3. [Variables de Entorno](#3-variables-de-entorno)
 4. [Estructura del Proyecto](#4-estructura-del-proyecto)
-5. [Base de Datos (26 Modelos)](#5-base-de-datos-26-modelos)
-6. [Módulos Funcionales (13)](#6-módulos-funcionales-13)
+5. [Base de Datos (35+ Modelos)](#5-base-de-datos-35-modelos)
+6. [Módulos Funcionales (16)](#6-módulos-funcionales-16)
 7. [PWA Mobile (Zebra TC22)](#7-pwa-mobile-zebra-tc22)
 8. [Integración CONTPAQi Cloud (Fase 2)](#8-integración-contpaqi-cloud-fase-2)
 9. [Sistema de Sugerencias Inteligentes](#9-sistema-de-sugerencias-inteligentes)
@@ -86,14 +86,18 @@
 │  │Transit │ │Reserve │ │Warehouse│ │ Users  │          │
 │  │(tráns.)│ │(reserva)│ │(config) │ │(admin) │          │
 │  └────────┘ └────────┘ └────────┘ └────────┘          │
+│  ┌────────┐ ┌────────┐ ┌────────┐                     │
+│  │Purchase│ │Invoice │ │ Supply │                     │
+│  │(compras)│ │(factur.)│ │(planif.)│                     │
+│  └────────┘ └────────┘ └────────┘                     │
 │                        │                               │
-│             Prisma ORM + PG Adapter                     │
+│         Prisma ORM + @prisma/adapter-pg (v7.7)          │
 └────────────────────────┼──────────────────────────────┘
                          │
                          ▼
 ┌───────────────────────────────────────────────────────┐
 │              PostgreSQL (Supabase)                      │
-│         26 tablas · Pooler mode · max 3 conn            │
+│         35+ tablas · Pooler mode · max 3 conn           │
 │      aws-1-us-west-2.pooler.supabase.com:5432          │
 └───────────────────────────────────────────────────────┘
 ```
@@ -168,9 +172,9 @@ VITE_API_URL=/api
 
 ```
 wms-formatex-v2/
-├── wms-backend/                    # NestJS API (11,459 líneas TS)
+├── wms-backend/                    # NestJS API (~12,000 líneas TS)
 │   ├── prisma/
-│   │   ├── schema.prisma           # 904 líneas — 26 modelos
+│   │   ├── schema.prisma           # 1,250 líneas — 35+ modelos
 │   │   └── seed.ts                 # 338 líneas — datos demo completos
 │   ├── src/
 │   │   ├── main.ts                 # Bootstrap + Swagger + CORS
@@ -184,12 +188,15 @@ wms-formatex-v2/
 │   │       ├── orders/             # Pedidos 9 estados, Lines, Assignments
 │   │       ├── cutting/            # Corte de rollos + genealogía
 │   │       ├── reception/          # Recepción de pallets → HUs
+│   │       ├── purchasing/         # OC, recepción parcial/completa, auto-HUs
 │   │       ├── warehouse/          # Almacenes, Zonas, Ubicaciones, Merma
 │   │       ├── reservations/       # Reservas blanda/firme
 │   │       ├── transit/            # Embarques entrantes + ETA
 │   │       ├── packing/            # Empaque + Packing Slips
 │   │       ├── shipping/           # Despacho + Envíos
 │   │       ├── transfers/          # Transferencias entre almacenes
+│   │       ├── invoicing/          # Facturación CFDI 4.0
+│   │       ├── supply-planning/    # Planificación de abastecimiento
 │   │       └── users/              # Admin: Users, Roles, Permissions, Settings
 │   └── package.json
 │
@@ -237,11 +244,17 @@ wms-formatex-v2/
     │   │   ├── transfers/TransferenciasPage.tsx
     │   │   ├── admin/AdminPage.tsx
     │   │   ├── config/ConfigPage.tsx
-    │   │   └── pwa/                # Zebra PWA
+    │   │   └── pwa/                # Zebra PWA (10 vistas)
     │   │       ├── ZebraLayout.tsx
-    │   │       ├── PickerView.tsx
-    │   │       ├── CortadorView.tsx
-    │   │       └── ScanInput.tsx
+    │   │       ├── PickerView.tsx       # Surtido guiado + scan validado
+    │   │       ├── CortadorView.tsx     # Corte guiado + etiquetado retazo
+    │   │       ├── ScanInput.tsx
+    │   │       ├── PwaRecepcionView.tsx  # Recepción en handheld
+    │   │       ├── PwaEtiquetasView.tsx  # Etiquetado mobile
+    │   │       ├── PwaRollosView.tsx     # Consulta rollos
+    │   │       ├── PwaRetazosView.tsx    # Consulta retazos
+    │   │       ├── PwaEmpaqueView.tsx    # Empaque mobile
+    │   │       └── PwaEnvioView.tsx      # Envío mobile
     │   └── routes/
     │       └── AppRouter.tsx       # 20+ rutas protegidas
     └── package.json
@@ -249,7 +262,7 @@ wms-formatex-v2/
 
 ---
 
-## 5. Base de Datos (26 Modelos)
+## 5. Base de Datos (35+ Modelos)
 
 ### Diagrama Entidad-Relación
 
@@ -409,7 +422,7 @@ EN_SURTIDO → EN_CORTE → EMPACADO → FACTURADO → DESPACHADO
 
 ---
 
-## 6. Módulos Funcionales (13)
+## 6. Módulos Funcionales (16)
 
 ### 6.1 Auth (`/api/auth`)
 
@@ -529,15 +542,19 @@ EN_SURTIDO → EN_CORTE → EMPACADO → FACTURADO → DESPACHADO
 | `POST` | `/warehouse/merma-ranges` | 🔒 Crear rango de merma |
 | `PUT` | `/warehouse/merma-ranges/:id` | 🔒 Actualizar rango de merma |
 
-**Layout del almacén (Seed):**
-- **RE-01** (Rollos Enteros): 5 pasillos × 3 racks × 5 niveles = 75 posiciones (cap: 6 HUs c/u)
-- **MER-01** (Retazos 1-5m): 2 × 3 × 3 = 18 posiciones (cap: 10)
-- **MER-02** (Retazos 6-10m): 18 posiciones (cap: 8)
-- **MER-03** (Retazos 11-40m): 18 posiciones (cap: 4)
-- **REC-01**: Muelle + Staging
+**Layout del almacén (Producción):**
+- **RE-01** (Rollos Enteros): 5 pasillos × 3 racks × 5 niveles = 75 posiciones (**cap: 50 HUs** — pallets)
+- **MER-01** (Retazos 1-5m): 2 × 3 × 3 = 18 posiciones (**cap: 30**)
+- **MER-02** (Retazos 6-10m): 18 posiciones (**cap: 30**)
+- **MER-03** (Retazos 11-40m): 18 posiciones (**cap: 30**)
+- **REC-01**: Muelle + Staging (**cap: 100**)
 - **CORTE-01**: 2 mesas de corte (cap: 10 c/u)
 - **EMPAQUE-01**: 1 mesa de empaque (cap: 20)
-- **EMB-01**: 1 muelle de embarque (cap: 30)
+- **EMB-01**: 1 muelle de embarque (**cap: 100**)
+
+**Capacidad editable:** Cada ubicación tiene capacidad configurable desde el panel de detalle (Almacén → Ubicaciones). Zonas y Rangos de Merma también son editables inline.
+
+**Distribución inteligente en recepción:** Al recibir HUs, el sistema respeta la capacidad de cada ubicación. Si la ubicación seleccionada manualmente se llena, overflow automático a la siguiente disponible.
 
 ### 6.8 Reservations (`/api/reservations`)
 
@@ -1067,22 +1084,25 @@ npx prisma generate
 
 ---
 
-## 16. Changelog v2.0
+## 16. Changelog v3.0
 
-### Nuevas Funcionalidades
+### Nuevas Funcionalidades (v3.0 — Mayo 2026)
 
-- ✅ **Sistema de Sugerencias Inteligentes** — Algoritmo combinatorio de surtido con plan de fulfillment
-- ✅ **Inventario en Tránsito** — Embarques entrantes con ETA, visibles en sugerencias
-- ✅ **Reservas Blanda/Firme** — Anti doble-venta con expiración automática
-- ✅ **Módulo de Transferencias** — Movimiento de HUs entre almacenes (físicos y virtuales)
-- ✅ **PWA Zebra TC22** — Vistas touch-optimized para Picker y Cortador
-- ✅ **Genealogía de Cortes** — Trazabilidad padre→hijo con generaciones
-- ✅ **Auto-ubicación de Retazos** — Asignación automática por rangos de merma configurados
-- ✅ **9 Estados de Pedido** — Flujo real de Formatex (COTIZADO → DESPACHADO)
-- ✅ **RBAC Granular** — Permisos por módulo × acción con 9 roles
-- ✅ **Bodegas Virtuales** — HUs reservados por cliente (Liverpool, Zara)
-- ✅ **Empaque y Envío** — Packing slips + despacho con guía y transportista
-- ✅ **Swagger API** — Documentación interactiva en `/api/docs`
+- ✅ **Módulo de Compras (Purchasing)** — OC, recepción parcial/completa, sincronización con Recepción
+- ✅ **Recepción Parcial/Completa con Popups PRO** — Glassmorphism, per-SKU cards, live metraje
+- ✅ **Asignación Inteligente de Ubicaciones** — Distribución capacity-aware en recepción con overflow
+- ✅ **Capacidad Editable por Ubicación** — Panel inline con barra de uso visual (verde/ámbar/rojo)
+- ✅ **Zonas y Rangos Merma Editables** — Edición inline en tabla + formulario de creación
+- ✅ **Picking Validado (Zebra TC22)** — Escaneo restringido a HUs del pedido, navegación guiada por ubicación
+- ✅ **Corte Guiado desde Pedido** — Cola EN_CORTE con progreso, metraje pre-cargado
+- ✅ **Etiquetado Post-Corte** — PrintDialog integrado en estación de corte (Web + PWA)
+- ✅ **Transición Corte → Empaque** — Botón "Enviar a Empaque" al completar corte
+- ✅ **Etiquetado por OC** — Filtro por Orden de Compra para etiquetar lotes recién recibidos
+- ✅ **Códigos QR/Barras mejorados** — Diseño profesional con JsBarcode + QRCode
+- ✅ **PWA Expandido** — 10 vistas mobile (Picker, Cortador, Recepción, Etiquetas, Rollos, Retazos, Empaque, Envío)
+- ✅ **Módulo de Facturación** — Integración CFDI 4.0
+- ✅ **Planificación de Abastecimiento** — Supply planning module
+- ✅ **Catálogos con Carga Masiva CSV** — Import/export para SKUs, Clientes, Proveedores, Vendedores
 
 ### Stack Actualizado
 
@@ -1095,12 +1115,36 @@ npx prisma generate
 
 | Métrica | Valor |
 |---------|-------|
-| Archivos TypeScript | 89 |
-| Líneas de código | ~11,459 |
-| Modelos Prisma | 26 |
-| Endpoints REST | ~75 |
+| Archivos TypeScript | ~120 |
+| Líneas de código total | ~20,600 |
+| Modelos Prisma | 35+ |
+| Endpoints REST | ~95 |
+| Módulos Backend | 16 |
+| Vistas PWA | 10 |
 | Roles del sistema | 9 |
 | Usuarios seed | 9 |
-| Ubicaciones seed | 135 |
-| HUs seed | 31 |
-| Pedidos seed | 5 (en 5 estados diferentes) |
+| Ubicaciones | 135 |
+| Capacidad total (HUs) | ~5,350 |
+
+---
+
+## 17. Notas Críticas de Prisma v7
+
+> ⚠️ **NO agregar `url` al bloque `datasource` en `schema.prisma`**
+
+Prisma v7.7 eliminó el soporte de `url` en el schema. La conexión se maneja via `@prisma/adapter-pg` en `prisma.service.ts`.
+
+```prisma
+// ✅ CORRECTO
+datasource db {
+  provider = "postgresql"
+}
+
+// ❌ ERROR P1012 — rompe el build
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+```
+
+Para scripts standalone, usar `psql` directamente con la connection string.
