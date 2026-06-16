@@ -1,0 +1,52 @@
+name: Android Build (Capacitor)
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+  workflow_dispatch: # Permite ejecutar el build manualmente
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm'
+        cache-dependency-path: 'wms-frontend/package-lock.json'
+
+    - name: Install Frontend Dependencies
+      working-directory: ./wms-frontend
+      run: npm ci
+
+    - name: Build Web App (Vite)
+      working-directory: ./wms-frontend
+      run: npm run build
+
+    - name: Setup Java JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Sync Capacitor Android Project
+      working-directory: ./wms-frontend
+      run: |
+        npx cap add android || true
+        npx cap sync android
+
+    - name: Build APK (Debug)
+      working-directory: ./wms-frontend/android
+      run: ./gradlew assembleDebug
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: formatex-wms-app
+        path: wms-frontend/android/app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 7

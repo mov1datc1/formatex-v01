@@ -1,6 +1,10 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import type { RootState } from '../store';
+import { logout } from '../store/slices/authSlice';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { Login } from '../pages/auth/Login';
 import Dashboard from '../pages/Dashboard';
@@ -45,6 +49,23 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export function AppRouter() {
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      const listener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+        if (!isActive) {
+          // Clear session on background for security (handhelds)
+          dispatch(logout());
+        }
+      });
+
+      return () => {
+        listener.then(l => l.remove());
+      };
+    }
+  }, [dispatch]);
+
   return (
     <BrowserRouter>
       <Routes>
