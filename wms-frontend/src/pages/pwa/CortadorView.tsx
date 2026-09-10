@@ -5,7 +5,7 @@ import { api } from '../../config/api';
 import toast from 'react-hot-toast';
 import ScanInput from './ScanInput';
 import { WmsIcon, StatusBadge } from '../../components/icons/WmsIcons';
-import { ArrowRight, CheckCircle2, AlertTriangle, MapPin, Printer, Tag, Scissors } from 'lucide-react';
+import { ArrowRight, CheckCircle2, AlertTriangle, MapPin, Printer, Tag, Scissors, X, Package } from 'lucide-react';
 import PrintDialog from '../../components/labels/PrintDialog';
 
 export default function CortadorView() {
@@ -14,10 +14,19 @@ export default function CortadorView() {
   const [cutMetraje, setCutMetraje] = useState<number>(0);
   const [activeLineId, setActiveLineId] = useState<string>('');
   const [cutting, setCutting] = useState(false);
+  const [selectedMesa, setSelectedMesa] = useState<string>(() => {
+    return localStorage.getItem('formatex_cortador_mesa') || 'MESA 1';
+  });
 
-  // Post-cut retazo state
+  const handleSelectMesa = (mesa: string) => {
+    setSelectedMesa(mesa);
+    localStorage.setItem('formatex_cortador_mesa', mesa);
+  };
+
+  // Post-cut printing state
   const [lastCutResult, setLastCutResult] = useState<any>(null);
-  const [showPrintRetazo, setShowPrintRetazo] = useState(false);
+  const [printBatch, setPrintBatch] = useState<any[]>([]);
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   const { data: ordersResp, refetch } = useApi<PaginatedResponse<any>>(['cortador-orders'], '/orders', { estado: 'EN_CORTE', limit: 20 });
   const orders = ordersResp?.data || [];
@@ -98,6 +107,7 @@ export default function CortadorView() {
         metrajeCortado: cutMetraje,
         orderLineId: activeLineId || undefined,
         notas: `Corte para pedido ${selectedOrder?.codigo || ''}`,
+        mesaCorte: selectedMesa !== 'TODAS' ? selectedMesa : undefined,
       });
 
       setLastCutResult(data);
@@ -135,16 +145,46 @@ export default function CortadorView() {
     }
   };
 
+  // Build child roll (customer piece) data for print
+  const hijoForPrint = lastCutResult ? [{
+    codigo: lastCutResult.codigo,
+    metrajeActual: lastCutResult.metrajeCortado,
+    sku: lastCutResult.huOrigen?.sku || lastCutResult.orderLine?.sku,
+    tipoRollo: 'CORTE_CLIENTE',
+    anchoMetros: lastCutResult.huOrigen?.sku?.anchoMetros || 1.5,
+    pedido: lastCutResult.orderLine?.order?.codigo || selectedOrder?.codigo || 'PEDIDO',
+    cliente: lastCutResult.orderLine?.order?.client?.nombre || selectedOrder?.client?.nombre || 'CLIENTE',
+    origen: lastCutResult.huOrigen?.codigo,
+    mesa: selectedMesa,
+    cortador: 'CORTADOR',
+  }] : [];
+
   // Build retazo data for print
   const retazoForPrint = lastCutResult?.huRetazo ? [{
     id: lastCutResult.huRetazo.id,
     codigo: lastCutResult.huRetazo.codigo,
     metrajeActual: lastCutResult.metrajeRestante,
     sku: lastCutResult.huOrigen?.sku,
-    ubicacion: lastCutResult.huRetazo.ubicacion,
+    ubicacion: lastCutResult.huRetazo.ubicacion?.codigo || lastCutResult.retazoUbicacion || 'ZONA-MERMA',
     tipoRollo: 'RETAZO',
     anchoMetros: lastCutResult.huOrigen?.sku?.anchoMetros || 1.5,
+    origen: lastCutResult.huOrigen?.codigo,
   }] : [];
+
+  const handlePrintBoth = () => {
+    setPrintBatch([...hijoForPrint, ...retazoForPrint]);
+    setShowPrintModal(true);
+  };
+
+  const handlePrintHijo = () => {
+    setPrintBatch(hijoForPrint);
+    setShowPrintModal(true);
+  };
+
+  const handlePrintRetazo = () => {
+    setPrintBatch(retazoForPrint);
+    setShowPrintModal(true);
+  };
 
   return (
     <div className="space-y-4">
@@ -156,6 +196,29 @@ export default function CortadorView() {
         <div>
           <h1 className="text-xl font-bold">Modo Cortador</h1>
           <p className="text-xs text-gray-400">{orders?.length || 0} pedidos en corte</p>
+        </div>
+      </div>
+
+      {/* Selector de Mesa de Corte para el Cortador */}
+      <div className="bg-gray-800/80 p-2 rounded-2xl border border-gray-700 space-y-1.5">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[10px] uppercase font-bold text-gray-400">Mi Mesa Asignada (Estación):</span>
+          <span className="text-[10px] font-bold text-purple-400">{selectedMesa}</span>
+        </div>
+        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          {['TODAS', 'MESA 1', 'MESA 2', 'MESA 3', 'MESA 4', 'MESA 5', 'MESA 6'].map(m => (
+            <button
+              key={m}
+              onClick={() => handleSelectMesa(m)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                selectedMesa === m
+                  ? 'bg-purple-600 text-white shadow-md scale-105'
+                  : 'bg-gray-700/60 text-gray-400 hover:text-white'
+              }`}
+            >
+              {m}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -312,44 +375,89 @@ export default function CortadorView() {
             </div>
           )}
 
-          {/* Post-Cut: Retazo Card with Print */}
-          {lastCutResult && lastCutResult.huRetazo && (
-            <div className="bg-orange-900/30 border border-orange-700 rounded-2xl p-4 space-y-3 animate-fade-in">
-              <div className="flex items-center gap-2">
-                <Tag size={18} className="text-orange-400" />
-                <span className="font-bold text-orange-300">Retazo Creado — Imprime Etiqueta</span>
+          {/* Post-Cut: Dual Output Card (Hijo para Cliente + Retazo para Almacén) */}
+          {lastCutResult && (
+            <div className="bg-gradient-to-b from-purple-950/60 via-gray-900 to-gray-900 border-2 border-purple-600/80 rounded-3xl p-5 space-y-4 shadow-2xl animate-fade-in">
+              <div className="flex items-center justify-between border-b border-purple-700/50 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                    ✓
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-base">Corte Realizado con Éxito</h3>
+                    <p className="text-[11px] text-purple-300 font-mono">{lastCutResult.codigo} · {selectedMesa}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setLastCutResult(null)}
+                  className="text-gray-400 hover:text-white p-1"
+                >
+                  <X size={18} />
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-gray-800 rounded-xl p-3 text-center">
-                  <p className="text-[10px] text-gray-500">Código</p>
-                  <p className="font-mono text-sm font-bold text-orange-400">{lastCutResult.huRetazo.codigo}</p>
-                </div>
-                <div className="bg-gray-800 rounded-xl p-3 text-center">
-                  <p className="text-[10px] text-gray-500">Metraje</p>
-                  <p className="text-xl font-black text-orange-300">{lastCutResult.metrajeRestante}m</p>
-                </div>
-                <div className="bg-gray-800 rounded-xl p-3 text-center">
-                  <p className="text-[10px] text-gray-500">Ubicación</p>
-                  <p className="font-mono text-xs font-bold text-blue-400 flex items-center justify-center gap-1">
-                    <MapPin size={10} /> {lastCutResult.retazoUbicacion || 'Pendiente'}
-                  </p>
-                </div>
-                <div className="bg-gray-800 rounded-xl p-3 text-center">
-                  <p className="text-[10px] text-gray-500">Origen</p>
-                  <p className="font-mono text-xs text-gray-400">{lastCutResult.huOrigen?.codigo}</p>
-                </div>
-              </div>
-
+              {/* Botón Maestro: 1-Click IMPRIMIR AMBAS ETIQUETAS */}
               <button
-                onClick={() => setShowPrintRetazo(true)}
-                className="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-2xl text-lg font-bold active:scale-[0.98] transition-transform flex items-center justify-center gap-2 shadow-lg"
+                onClick={handlePrintBoth}
+                className="w-full py-4 px-4 bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-2xl text-base font-black active:scale-[0.98] transition-transform flex items-center justify-center gap-2 shadow-xl shadow-purple-600/30 border border-purple-400/30"
               >
-                <Printer size={22} /> Imprimir Etiqueta del Retazo
+                <Printer size={22} className="animate-pulse" />
+                <span>⚡ IMPRIMIR AMBAS ETIQUETAS</span>
               </button>
 
-              <p className="text-[10px] text-gray-500 text-center">
-                Pega la etiqueta en el retazo y colócalo en el carrito → Ubicación: {lastCutResult.retazoUbicacion || 'asignar manualmente'}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* 1. Rollo Hijo (Cliente / Pedido) */}
+                <div className="bg-purple-950/40 border border-purple-500/40 rounded-2xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-bold text-purple-300 flex items-center gap-1">
+                      <Package size={12} /> Rollo Hijo (Cliente)
+                    </span>
+                    <span className="text-xs font-mono font-bold text-purple-400">
+                      {lastCutResult.orderLine?.order?.codigo || selectedOrder?.codigo || 'PEDIDO'}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-2xl font-black text-white">{lastCutResult.metrajeCortado}m</span>
+                    <span className="text-[11px] text-gray-400 truncate max-w-[150px]">
+                      {lastCutResult.orderLine?.order?.client?.nombre || selectedOrder?.client?.nombre}
+                    </span>
+                  </div>
+                  <button
+                    onClick={handlePrintHijo}
+                    className="w-full py-2 bg-purple-700 hover:bg-purple-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Tag size={14} /> Imprimir Etiqueta Cliente
+                  </button>
+                </div>
+
+                {/* 2. Retazo Nuevo (Inventario) */}
+                <div className="bg-orange-950/40 border border-orange-500/40 rounded-2xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-bold text-orange-300 flex items-center gap-1">
+                      <Scissors size={12} /> Retazo (Almacén)
+                    </span>
+                    <span className="text-xs font-mono font-bold text-orange-400">
+                      {lastCutResult.huRetazo?.codigo || 'Agotado'}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-2xl font-black text-orange-300">{lastCutResult.metrajeRestante}m</span>
+                    <span className="text-[11px] text-gray-400 flex items-center gap-1">
+                      <MapPin size={10} /> {lastCutResult.retazoUbicacion || 'ZONA-MERMA'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={handlePrintRetazo}
+                    disabled={!lastCutResult.huRetazo}
+                    className="w-full py-2 bg-orange-700 hover:bg-orange-600 disabled:opacity-30 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Tag size={14} /> Imprimir Etiqueta Retazo
+                  </button>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-gray-400 text-center italic">
+                🏷️ Pega la morada en el rollo cortado para el cliente y la naranja en el retazo que va al carrito.
               </p>
             </div>
           )}
@@ -362,8 +470,8 @@ export default function CortadorView() {
         </div>
       )}
 
-      {/* Print Dialog for Retazo */}
-      <PrintDialog open={showPrintRetazo} onClose={() => setShowPrintRetazo(false)} hus={retazoForPrint} />
+      {/* Print Dialog */}
+      <PrintDialog open={showPrintModal} onClose={() => setShowPrintModal(false)} hus={printBatch} />
     </div>
   );
 }

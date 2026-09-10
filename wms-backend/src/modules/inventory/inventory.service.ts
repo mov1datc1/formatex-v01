@@ -469,6 +469,275 @@ export class InventoryService {
       transitFitsCount: transitSuggestions.filter(s => s.fits).length,
     };
   }
+
+  // ===== GENERAR CÓDIGO SECUENCIAL =====
+  private async generateCode(prefix: string, model: 'handlingUnit' | 'alert', tx?: any): Promise<string> {
+    const db = tx || this.prisma;
+    const year = new Date().getFullYear();
+    const count = await (db as any)[model].count();
+    return `${prefix}-${year}-${String(count + 1).padStart(5, '0')}`;
+  }
+
+  // ===== ALTA EXPRESS DE INVENTARIO =====
+  async expressIngest(data: {
+    skuId: string;
+    ubicacionId?: string;
+    metrajes: number[];
+    tipoRollo?: 'ENTERO' | 'RETAZO';
+    loteProveedor?: string;
+    orderLineId?: string;
+    userId: string;
+    notas?: string;
+  }) {
+    const sku = await this.prisma.skuMaster.findUniqueOrThrow({ where: { id: data.skuId } });
+
+    let targetLocationId = data.ubicacionId;
+    let targetLocationCode = 'TRANSICION';
+    if (targetLocationId) {
+      const loc = await this.prisma.location.findUnique({ where: { id: targetLocationId } });
+      if (loc) targetLocationCode = loc.codigo;
+    } else {
+      const transLoc = await this.prisma.location.findFirst({ where: { codigo: { contains: 'TRANSICION', mode: 'insensitive' } } });
+      if (transLoc) {
+        targetLocationId = transLoc.id;
+        targetLocationCode = transLoc.codigo;
+      }
+    }
+
+    return this.prisma.$transaction(async (tx: any) => {
+      const createdHUs: any[] = [];
+      const year = new Date().getFullYear();
+      let currentCount = await tx.handlingUnit.count();
+
+      for (const m of data.metrajes) {
+        if (m <= 0) continue;
+        currentCount++;
+        const huCode = `HU-${year}-${String(currentCount).padStart(5, '0')}`;
+
+        const hu = await tx.handlingUnit.create({
+          data: {
+            codigo: huCode,
+            skuId: sku.id,
+            metrajeOriginal: m,
+            metrajeActual: m,
+            anchoMetros: sku.anchoMetros || 1.5,
+            tipoRollo: data.tipoRollo || (m <= 40 ? 'RETAZO' : 'ENTERO'),
+            estadoHu: 'DISPONIBLE',
+            ubicacionId: targetLocationId || null,
+            loteProveedor: data.loteProveedor || null,
+            etiquetaImpresa: false,
+          },
+          include: {
+            sku: { select: { id: true, codigo: true, nombre: true, color: true, categoria: true, anchoMetros: true, codigoBarras: true } },
+            ubicacion: { select: { id: true, codigo: true } },
+          },
+        });
+
+        await tx.inventoryMovement.create({
+          data: {
+            huId: hu.id,
+            tipo: 'ENTRADA',
+            metrajeAntes: 0,
+            metrajeDespues: m,
+            ubicacionDestino: targetLocationCode,
+            referencia: 'ALTA-EXPRESS',
+            notas: data.notas || 'Alta express de inventario inicial',
+            userId: data.userId,
+          },
+        });
+
+        if (data.orderLineId) {
+          const orderLine = await tx.orderLine.findUnique({
+            where: { id: data.orderLineId },
+            include: { order: true },
+          });
+          if (orderLine) {
+            const metrajeTomar = Math.min(m, Math.max(0, orderLine.metrajeRequerido - orderLine.metrajeSurtido));
+            await tx.orderLineAssignment.create({
+              data: {
+                orderLineId: orderLine.id,
+                huId: hu.id,
+                metrajeTomado: metrajeTomar,
+                requiereCorte: metrajeTomar < m,
+                cortado: false,
+              },
+            });
+            await tx.reservation.create({
+              data: {
+                orderId: orderLine.orderId,
+                orderLineId: orderLine.id,
+                huId: hu.id,
+                skuId: sku.id,
+                metrajeReservado: metrajeTomar,
+                tipo: 'FIRME',
+                estado: 'ACTIVA',
+                creadoPor: data.userId,
+              },
+            });
+            await tx.handlingUnit.update({
+              where: { id: hu.id },
+              data: { estadoHu: 'RESERVADO' },
+            });
+          }
+        }
+
+        createdHUs.push(hu);
+      }
+
+      return {
+        success: true,
+        count: createdHUs.length,
+        totalMetros: createdHUs.reduce((sum, h) => sum + h.metrajeActual, 0),
+        hus: createdHUs,
+      };
+    });
+  }
+
+  // ===== CONTEO CÍCLICO =====
+  async cyclicCount(data: {
+    skuId: string;
+    ubicacionId?: string;
+    rollosContados: Array<{ metraje: number; huId?: string }>;
+    notas?: string;
+    userId: string;
+  }) {
+    const sku = await this.prisma.skuMaster.findUniqueOrThrow({ where: { id: data.skuId } });
+
+    const whereHUs: any = { skuId: data.skuId, estadoHu: 'DISPONIBLE' };
+    if (data.ubicacionId) whereHUs.ubicacionId = data.ubicacionId;
+    const theoreticalHUs = await this.prisma.handlingUnit.findMany({
+      where: whereHUs,
+      include: { ubicacion: true },
+    });
+
+    const metrajeTeorico = theoreticalHUs.reduce((sum, h) => sum + h.metrajeActual, 0);
+    const metrajeReal = data.rollosContados.reduce((sum, r) => sum + r.metraje, 0);
+    const discrepancia = Math.round((metrajeReal - metrajeTeorico) * 100) / 100;
+
+    return this.prisma.$transaction(async (tx: any) => {
+      const year = new Date().getFullYear();
+      let currentCount = await tx.handlingUnit.count();
+      const nuevosHUs: any[] = [];
+
+      for (const r of data.rollosContados) {
+        if (r.huId) {
+          const existing = theoreticalHUs.find(h => h.id === r.huId);
+          if (existing && existing.metrajeActual !== r.metraje) {
+            await tx.handlingUnit.update({
+              where: { id: existing.id },
+              data: { metrajeActual: r.metraje },
+            });
+            await tx.inventoryMovement.create({
+              data: {
+                huId: existing.id,
+                tipo: 'CONTEO',
+                metrajeAntes: existing.metrajeActual,
+                metrajeDespues: r.metraje,
+                ubicacionOrigen: existing.ubicacion?.codigo || null,
+                ubicacionDestino: existing.ubicacion?.codigo || null,
+                referencia: 'CONTEO-CICLICO',
+                notas: `Ajuste por conteo cíclico (${existing.metrajeActual}m -> ${r.metraje}m)`,
+                userId: data.userId,
+              },
+            });
+          }
+        } else {
+          currentCount++;
+          const huCode = `HU-${year}-${String(currentCount).padStart(5, '0')}`;
+          const newHU = await tx.handlingUnit.create({
+            data: {
+              codigo: huCode,
+              skuId: sku.id,
+              metrajeOriginal: r.metraje,
+              metrajeActual: r.metraje,
+              anchoMetros: sku.anchoMetros || 1.5,
+              tipoRollo: r.metraje <= 40 ? 'RETAZO' : 'ENTERO',
+              estadoHu: 'DISPONIBLE',
+              ubicacionId: data.ubicacionId || null,
+              etiquetaImpresa: false,
+            },
+            include: {
+              sku: { select: { id: true, codigo: true, nombre: true, color: true, categoria: true, anchoMetros: true, codigoBarras: true } },
+              ubicacion: { select: { id: true, codigo: true } },
+            },
+          });
+
+          await tx.inventoryMovement.create({
+            data: {
+              huId: newHU.id,
+              tipo: 'CONTEO',
+              metrajeAntes: 0,
+              metrajeDespues: r.metraje,
+              referencia: 'CONTEO-CICLICO',
+              notas: 'Rollo físico ingresado durante conteo cíclico',
+              userId: data.userId,
+            },
+          });
+          nuevosHUs.push(newHU);
+        }
+      }
+
+      let alertaGenerada = false;
+      if (Math.abs(discrepancia) > 5) {
+        await tx.alert.create({
+          data: {
+            tipo: 'CONTEO_DISCREPANCIA',
+            severidad: Math.abs(discrepancia) > 20 ? 'ALTA' : 'MEDIA',
+            titulo: `Discrepancia en Conteo Cíclico: ${sku.codigo} - ${sku.nombre}`,
+            mensaje: `Teórico: ${metrajeTeorico}m · Físico: ${metrajeReal}m · Diferencia: ${discrepancia > 0 ? '+' : ''}${discrepancia}m. Notas: ${data.notas || 'Sin notas'}`,
+          },
+        });
+        alertaGenerada = true;
+      }
+
+      return {
+        sku: { id: sku.id, codigo: sku.codigo, nombre: sku.nombre, color: sku.color },
+        metrajeTeorico,
+        metrajeReal,
+        discrepancia,
+        rollosTeoricosCount: theoreticalHUs.length,
+        rollosRealesCount: data.rollosContados.length,
+        nuevosHUs,
+        alertaGenerada,
+      };
+    });
+  }
+
+  // ===== CONSULTAR BALANCE POR SKU =====
+  async getSkuBalance(skuId: string) {
+    const sku = await this.prisma.skuMaster.findUniqueOrThrow({ where: { id: skuId } });
+    const hus = await this.prisma.handlingUnit.findMany({
+      where: { skuId },
+      include: { ubicacion: true },
+    });
+
+    const disponibles = hus.filter(h => h.estadoHu === 'DISPONIBLE');
+    const reservados = hus.filter(h => ['RESERVADO', 'RESERVADO_BLANDO', 'EN_PICKING', 'EN_CORTE'].includes(h.estadoHu));
+
+    const transitLines = await this.prisma.incomingShipmentLine.findMany({
+      where: { skuId, shipment: { estado: 'EN_TRANSITO' } },
+      include: { shipment: true },
+    });
+
+    return {
+      sku,
+      totalHUs: hus.length,
+      disponiblesCount: disponibles.length,
+      metrosDisponibles: disponibles.reduce((s, h) => s + h.metrajeActual, 0),
+      reservadosCount: reservados.length,
+      metrosReservados: reservados.reduce((s, h) => s + h.metrajeActual, 0),
+      transitLinesCount: transitLines.length,
+      metrosTransito: transitLines.reduce((s, l) => s + (l.metrajeTotal - l.metrajeReservado), 0),
+      husPorUbicacion: disponibles.map(h => ({
+        id: h.id,
+        codigo: h.codigo,
+        metraje: h.metrajeActual,
+        tipoRollo: h.tipoRollo,
+        ubicacion: h.ubicacion?.codigo || 'TRANSICION',
+      })),
+    };
+  }
 }
+
 
 

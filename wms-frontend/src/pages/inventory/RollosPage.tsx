@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useApi } from '../../hooks/useApi';
 import type { PaginatedResponse, HU } from '../../hooks/useApi';
+import { Zap } from 'lucide-react';
+import ExpressIngestModal from '../../components/inventory/ExpressIngestModal';
 
 const STATUS_COLORS: Record<string, string> = {
   DISPONIBLE: 'bg-emerald-100 text-emerald-700',
@@ -13,14 +16,27 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function RollosPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const actionParam = searchParams.get('action');
+
   const [search, setSearch] = useState('');
   const [filterTipo, setFilterTipo] = useState('');
   const [filterEstado, setFilterEstado] = useState('');
   const [page, setPage] = useState(1);
   const [selectedHU, setSelectedHU] = useState<string | null>(null);
+  const [showExpressModal, setShowExpressModal] = useState(false);
+  const [modalDefaultTab, setModalDefaultTab] = useState<'express' | 'cyclic'>('express');
 
-  const { data: resp, isLoading } = useApi<PaginatedResponse<HU>>(
-    ['hus'], '/inventory/hus',
+  useEffect(() => {
+    if (tabParam === 'cyclic' || actionParam === 'conteo') {
+      setModalDefaultTab('cyclic');
+      setShowExpressModal(true);
+    }
+  }, [tabParam, actionParam]);
+
+  const { data: resp, isLoading, refetch } = useApi<PaginatedResponse<HU>>(
+    ['hus', page, filterTipo, filterEstado, search], '/inventory/hus',
     { search: search || undefined, tipoRollo: filterTipo || undefined, estadoHu: filterEstado || undefined, page, limit: 15 },
   );
 
@@ -33,6 +49,13 @@ export default function RollosPage() {
           <h1 className="text-2xl font-bold text-gray-900">Rollos (HUs)</h1>
           <p className="text-gray-500 text-sm">Gestión de Handling Units — {resp?.total || 0} registros</p>
         </div>
+        <button
+          onClick={() => setShowExpressModal(true)}
+          className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-indigo-100 transition-all active:scale-95"
+        >
+          <Zap size={16} />
+          + Alta Express / Conteo
+        </button>
       </div>
 
       {/* Filters */}
@@ -168,6 +191,16 @@ export default function RollosPage() {
           )}
         </div>
       </div>
+
+      <ExpressIngestModal
+        open={showExpressModal}
+        defaultTab={modalDefaultTab}
+        onClose={() => {
+          setShowExpressModal(false);
+          if (tabParam || actionParam) setSearchParams({});
+        }}
+        onSuccess={() => refetch()}
+      />
     </div>
   );
 }

@@ -67,6 +67,8 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
           .filter((item: any) => item.source === 'FISICO')
           .map((item: any) => ({ huId: item.id, metrajeTomar: item.metrajeTomar }));
         onChangeRef.current(index, 'selectedHUs', selectedHUs);
+      } else {
+        onChangeRef.current(index, 'selectedHUs', []);
       }
     } catch { setSuggestions(null); }
     setLoadingSugg(false);
@@ -83,6 +85,7 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
   const selectSku = (sku: any) => {
     onChange(index, 'skuId', sku.id);
     onChange(index, 'precioUnitario', Number(sku.precioReferencia) || 0);
+    onChange(index, 'selectedHUs', []);
     setSkuSearch(''); setShowSkuDropdown(false);
   };
 
@@ -95,7 +98,7 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
   const statusConfig: Record<string, { bg: string; text: string; label: string; icon: any }> = {
     COMPLETO: { bg: 'bg-emerald-50', text: 'text-emerald-700', label: '✅ Demanda cubierta al 100%', icon: Check },
     PARCIAL: { bg: 'bg-amber-50', text: 'text-amber-700', label: '⚠️ Cobertura parcial', icon: AlertTriangle },
-    SIN_STOCK: { bg: 'bg-red-50', text: 'text-red-700', label: '❌ Sin stock disponible', icon: X },
+    SIN_STOCK: { bg: 'bg-amber-50/80 border border-amber-200', text: 'text-amber-800', label: '🟠 Mercancía en Transición / Piso (Sin HUs en sistema)', icon: Package },
   };
 
   return (
@@ -239,7 +242,7 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
                       ? <>✅ Plan de surtido: <span className="font-bold">{plan.items.length} HUs</span> cubren {line.metrajeRequerido}m</>
                       : plan.status === 'PARCIAL'
                         ? <>⚠️ Cobertura parcial: <span className="font-bold">{plan.coberturaPct}%</span> ({plan.totalCubierto}m de {plan.metrajeRequerido}m)</>
-                        : '❌ Sin stock disponible'
+                        : <>🟠 Mercancía en Transición / Piso · <span className="font-semibold text-amber-700">Cotización Habilitada</span></>
                   ) : 'Ver plan inteligente de surtido'
                 }
               </span>
@@ -404,8 +407,30 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
                   ))}
 
                   {plan.items.length === 0 && (
-                    <div className="flex items-center gap-2 px-3 py-3 bg-red-50 rounded-lg text-red-700 text-xs">
-                      <AlertTriangle size={14} /> Sin inventario disponible para esta tela.
+                    <div className="p-3.5 bg-gradient-to-r from-amber-50 to-orange-50/60 border border-amber-200 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-amber-900 font-semibold text-xs">
+                          <Package size={15} className="text-amber-600" />
+                          <span>Cotización con SKU y Precio (Fase de Transición / Piso)</span>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200/70 text-amber-900">
+                          100% Cotizable
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-amber-800 leading-relaxed">
+                        Esta tela no tiene rollos (HUs) etiquetados en el sistema en este momento. <strong>Puedes cotizar y guardar normalmente</strong> con el precio y descuento acordados. Los rollos físicos serán etiquetados o vinculados en tiempo real por el Champion mediante <em>Alta Express</em> o al momento de surtir y cortar.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-amber-200/60 text-[10px] text-amber-700">
+                        <span className="flex items-center gap-1 font-medium bg-white/80 px-2 py-0.5 rounded border border-amber-200">
+                          ✓ Precio ${precioConDescuento.toFixed(2)}/m
+                        </span>
+                        <span className="flex items-center gap-1 font-medium bg-white/80 px-2 py-0.5 rounded border border-amber-200">
+                          ✓ Importe: ${importe.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                        </span>
+                        <span className="flex items-center gap-1 font-medium bg-white/80 px-2 py-0.5 rounded border border-amber-200">
+                          ✓ Alta Express disponible al surtir
+                        </span>
+                      </div>
                     </div>
                   )}
 

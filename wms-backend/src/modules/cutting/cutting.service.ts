@@ -26,6 +26,8 @@ export class CuttingService {
     orderLineId?: string;
     cortadoPor: string;
     notas?: string;
+    mesaCorte?: string;
+    carrito?: string;
   }) {
     const huOrigen = await this.prisma.handlingUnit.findUniqueOrThrow({
       where: { id: data.huOrigenId },
@@ -154,6 +156,12 @@ export class CuttingService {
         });
       }
 
+      const cutNotas = [
+        data.notas,
+        data.mesaCorte ? `Mesa: ${data.mesaCorte}` : null,
+        data.carrito ? `Carrito: ${data.carrito}` : null,
+      ].filter(Boolean).join(' · ');
+
       // Crear registro de corte
       const cut = await tx.cutOperation.create({
         data: {
@@ -166,7 +174,7 @@ export class CuttingService {
           huRetazoId,
           retazoUbicacion,
           cortadoPor: data.cortadoPor,
-          notas: data.notas,
+          notas: cutNotas || null,
         },
       });
 
@@ -184,8 +192,19 @@ export class CuttingService {
         where: { id: cut.id },
         include: {
           huOrigen: { include: { sku: true } },
-          huRetazo: { include: { ubicacion: true } },
-          orderLine: { include: { order: { select: { codigo: true } } } },
+          huRetazo: { include: { ubicacion: true, sku: true } },
+          orderLine: {
+            include: {
+              order: {
+                select: {
+                  id: true,
+                  codigo: true,
+                  client: { select: { id: true, nombre: true } },
+                },
+              },
+              sku: true,
+            },
+          },
         },
       });
     });

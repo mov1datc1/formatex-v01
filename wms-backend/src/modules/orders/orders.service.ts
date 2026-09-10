@@ -42,11 +42,27 @@ export class OrdersService {
       }),
       this.prisma.order.count({ where }),
     ]);
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+
+    // Enrich order lines with SKU details for list view (so lines without HUs show the fabric info)
+    const allSkuIds = [...new Set(data.flatMap(o => o.lineas.map(l => l.skuId)).filter(Boolean))];
+    const skus = allSkuIds.length > 0 ? await this.prisma.skuMaster.findMany({
+      where: { id: { in: allSkuIds } },
+      select: { id: true, codigo: true, nombre: true, color: true },
+    }) : [];
+    const skuMap = new Map(skus.map(s => [s.id, s]));
+    const enrichedData = data.map(o => ({
+      ...o,
+      lineas: o.lineas.map(l => ({
+        ...l,
+        sku: skuMap.get(l.skuId) || null,
+      })),
+    }));
+
+    return { data: enrichedData, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findById(id: string) {
-    return this.prisma.order.findUniqueOrThrow({
+    const order = await this.prisma.order.findUniqueOrThrow({
       where: { id },
       include: {
         client: true,
@@ -62,10 +78,24 @@ export class OrdersService {
         shipments: true,
       },
     });
+
+    // Enrich order lines with full SKU details (crucial when lines have no HUs yet)
+    const skuIds = [...new Set(order.lineas.map(l => l.skuId).filter(Boolean))];
+    const skus = skuIds.length > 0 ? await this.prisma.skuMaster.findMany({
+      where: { id: { in: skuIds } },
+      select: { id: true, codigo: true, nombre: true, color: true, composicion: true, anchoMetros: true, precioReferencia: true },
+    }) : [];
+    const skuMap = new Map(skus.map(s => [s.id, s]));
+    const enrichedLineas = order.lineas.map(l => ({
+      ...l,
+      sku: skuMap.get(l.skuId) || null,
+    }));
+
+    return { ...order, lineas: enrichedLineas };
   }
 
   // =========================================================================
-  // CREAR COTIZACIÓN — Auto-amarra HUs + crea reservas blandas
+  // CREAR COTIZACIÓN — Auto-amarra HUs si existen o permite cotizar en frío
   // =========================================================================
   async createOrder(data: {
     clientId: string;
@@ -80,6 +110,8 @@ export class OrdersService {
       skuId: string;
       metrajeRequerido: number;
       precioUnitario?: number;
+      listaPrecios?: string;
+      descuentoPct?: number;
       notas?: string;
       selectedHUs?: Array<{ huId: string; metrajeTomar: number }>;
     }>;
@@ -88,10 +120,13 @@ export class OrdersService {
     const reservaHoras = data.reservaHoras || 168; // 7 días default
     const modoEntrega = data.modoEntrega || 'COMPLETA';
 
-    // Calcular totales financieros
+    // Calcular totales financieros considerando descuentos aplicados
     let subtotal = 0;
     for (const l of data.lineas) {
-      subtotal += l.metrajeRequerido * (l.precioUnitario || 0);
+      const desc = (Number(l.descuentoPct) || 0) / 100;
+      const basePrice = Number(l.precioUnitario) || 0;
+      const precioEfectivo = basePrice * (1 - desc);
+      subtotal += l.metrajeRequerido * precioEfectivo;
     }
     const iva = subtotal * 0.16;
     const total = subtotal + iva;
@@ -120,14 +155,22 @@ export class OrdersService {
           iva,
           total,
           lineas: {
-            create: data.lineas.map((l) => ({
-              skuId: l.skuId,
-              metrajeRequerido: l.metrajeRequerido,
-              precioUnitario: l.precioUnitario,
-              importe: l.metrajeRequerido * (l.precioUnitario || 0),
-              requiereCorte: true,
-              notas: l.notas,
-            })),
+            create: data.lineas.map((l) => {
+              const desc = (Number(l.descuentoPct) || 0) / 100;
+              const basePrice = Number(l.precioUnitario) || 0;
+              const precioEfectivo = basePrice * (1 - desc);
+              return {
+                skuId: l.skuId,
+                metrajeRequerido: l.metrajeRequerido,
+                precioUnitario: precioEfectivo,
+                precioLista: basePrice,
+                listaPrecios: l.listaPrecios || null,
+                descuentoPct: Number(l.descuentoPct) || 0,
+                importe: l.metrajeRequerido * precioEfectivo,
+                requiereCorte: true,
+                notas: l.notas,
+              };
+            }),
           },
         },
         include: { client: true, lineas: true },

@@ -18,17 +18,22 @@ export default function PrintDialog({ open, onClose, hus }: PrintDialogProps) {
 
   const labelDataList = hus.map(hu => ({
     codigo: hu.codigo,
-    tela: hu.sku?.nombre || '',
-    sku: hu.sku?.codigo || '',
-    color: hu.sku?.color || '',
-    metraje: hu.metrajeActual,
+    tela: hu.sku?.nombre || hu.tela || '',
+    sku: hu.sku?.codigo || hu.skuCode || hu.sku || '',
+    color: hu.sku?.color || hu.color || '',
+    metraje: hu.metrajeActual ?? hu.metraje,
     ancho: hu.anchoMetros || hu.sku?.anchoMetros || 1.5,
-    ubicacion: hu.ubicacion?.codigo || 'SIN UBICAR',
-    tipo: hu.tipoRollo as 'ENTERO' | 'RETAZO',
-    barcode: hu.sku?.codigoBarras || hu.codigo,
-    fecha: new Date().toLocaleDateString(),
-    origen: hu.parentHu?.codigo,
+    ubicacion: hu.ubicacion?.codigo || (typeof hu.ubicacion === 'string' ? hu.ubicacion : 'SIN UBICAR'),
+    tipo: (hu.tipoRollo || hu.tipo || 'ENTERO') as 'ENTERO' | 'RETAZO' | 'CORTE_CLIENTE',
+    barcode: hu.sku?.codigoBarras || hu.barcode || hu.codigo,
+    fecha: hu.fecha || new Date().toLocaleDateString(),
+    origen: hu.parentHu?.codigo || hu.origen,
     generacion: hu.generacion,
+    pedido: hu.pedido,
+    cliente: hu.cliente,
+    mesa: hu.mesa,
+    carrito: hu.carrito,
+    cortador: hu.cortador,
   }));
 
   const handlePrint = () => {
@@ -110,13 +115,26 @@ export default function PrintDialog({ open, onClose, hus }: PrintDialogProps) {
           <div className="bg-gray-50 rounded-xl p-3">
             <p className="text-xs font-medium text-gray-500 mb-1">Vista previa:</p>
             <div className="space-y-1">
-              {labelDataList.slice(0, 3).map((d, i) => (
-                <div key={i} className="flex items-center justify-between text-xs">
-                  <span className="font-mono text-primary-600">{d.codigo}</span>
-                  <span className="text-gray-500">{d.tela} · {d.metraje}m · {d.tipo}</span>
+              {labelDataList.slice(0, 4).map((d, i) => (
+                <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-gray-100 last:border-b-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      d.tipo === 'CORTE_CLIENTE'
+                        ? 'bg-purple-100 text-purple-700'
+                        : d.tipo === 'RETAZO'
+                        ? 'bg-orange-100 text-orange-700'
+                        : 'bg-emerald-100 text-emerald-700'
+                    }`}>
+                      {d.tipo === 'CORTE_CLIENTE' ? '📦 PEDIDO' : d.tipo === 'RETAZO' ? '✂️ RETAZO' : 'ROLLO'}
+                    </span>
+                    <span className="font-mono font-semibold text-gray-800">{d.pedido || d.codigo}</span>
+                  </div>
+                  <span className="text-gray-600 font-medium">
+                    {d.tela ? `${d.tela.substring(0, 16)} · ` : ''}<strong className="text-gray-900">{d.metraje}m</strong>
+                  </span>
                 </div>
               ))}
-              {labelDataList.length > 3 && <p className="text-xs text-gray-400 italic">...y {labelDataList.length - 3} más</p>}
+              {labelDataList.length > 4 && <p className="text-xs text-gray-400 italic text-center pt-1">...y {labelDataList.length - 4} más</p>}
             </div>
           </div>
 

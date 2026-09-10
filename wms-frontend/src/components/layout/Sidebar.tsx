@@ -81,6 +81,7 @@ const menuSections: MenuSection[] = [
       { label: 'Etiquetas', path: '/etiquetas', icon: Tag, permission: 'inventory' },
       { label: 'Rollos (HUs)', path: '/inventario/rollos', icon: ScrollText, permission: 'inventory' },
       { label: 'Retazos', path: '/inventario/retazos', icon: Scissors, permission: 'inventory' },
+      { label: 'Conteo Cíclico', path: '/inventario/rollos?tab=cyclic', icon: ClipboardList, permission: 'inventory' },
     ],
   },
   {

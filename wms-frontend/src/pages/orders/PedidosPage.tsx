@@ -4,11 +4,12 @@ import type { PaginatedResponse, Order } from '../../hooks/useApi';
 import { api } from '../../config/api';
 import toast from 'react-hot-toast';
 import { WmsIcon, PipelineIcon, StatusBadge } from '../../components/icons/WmsIcons';
-import { X, Plus, Phone, AlertCircle, ShieldCheck, FileText, Download, Mail, Printer, Loader2, Info } from 'lucide-react';
+import { X, Plus, Phone, AlertCircle, ShieldCheck, FileText, Download, Mail, Printer, Loader2, Info, Zap } from 'lucide-react';
 import type { FC } from 'react';
 import type { LucideProps } from 'lucide-react';
 import OrderLineSmart from '../../components/orders/OrderLineSmart';
 import { usePermission } from '../../hooks/usePermission';
+import ExpressIngestModal from '../../components/inventory/ExpressIngestModal';
 
 // 9 estados reales del flujo Formatex
 const STATUS_MAP: Record<string, { label: string; color: string; icon: FC<LucideProps>; iconBg: string; iconColor: string; area: string }> = {
@@ -67,6 +68,7 @@ export default function PedidosPage() {
   const [reservaHoras, setReservaHoras] = useState(168);
   const [modoEntrega, setModoEntrega] = useState('COMPLETA');
   const [lineas, setLineas] = useState<any[]>([{ skuId: '', metrajeRequerido: 50, precioUnitario: 0, listaPrecios: '', descuentoPct: 0, selectedHUs: [] }]);
+  const [expressIngestTarget, setExpressIngestTarget] = useState<any>(null);
 
   const addLinea = () => setLineas([...lineas, { skuId: '', metrajeRequerido: 50, precioUnitario: 0, listaPrecios: '', descuentoPct: 0, selectedHUs: [] }]);
 
@@ -74,6 +76,7 @@ export default function PedidosPage() {
     if (!clientId) return toast.error('Selecciona un cliente');
     if (lineas.some(l => !l.skuId || !l.metrajeRequerido)) return toast.error('Completa todas las líneas');
     try {
+      const hasAnyHUs = lineas.some(l => l.selectedHUs && l.selectedHUs.length > 0);
       await createMut.mutateAsync({
         clientId,
         vendorId: vendorId || undefined,
@@ -89,7 +92,11 @@ export default function PedidosPage() {
           selectedHUs: l.selectedHUs?.length ? l.selectedHUs : undefined,
         })),
       });
-      toast.success(`Cotización creada — HUs reservados ${reservaHoras}h · Entrega: ${modoEntrega}`);
+      if (hasAnyHUs) {
+        toast.success(`Cotización creada — HUs reservados ${reservaHoras}h · Entrega: ${modoEntrega}`);
+      } else {
+        toast.success(`Cotización creada exitosamente — Mercancía en piso/transición lista para cotizar y vincular en surtido`);
+      }
       setShowForm(false);
       setLineas([{ skuId: '', metrajeRequerido: 50, precioUnitario: 0, listaPrecios: '', descuentoPct: 0, selectedHUs: [] }]);
     } catch (e: any) {
@@ -314,6 +321,11 @@ export default function PedidosPage() {
                       <span className="text-sm text-gray-700">{o.client?.nombre}</span>
                       <div className="flex items-center gap-3 text-xs text-gray-400">
                         {o.vendor && <span className="flex items-center gap-1"><Phone size={10} /> {o.vendor.nombre}</span>}
+                        {o.lineas?.some((l: any) => !l.assignments?.length) && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-50 text-amber-700 font-medium border border-amber-200">
+                            🟠 En piso
+                          </span>
+                        )}
                         <span>{o._count?.lineas || o.lineas?.length} líneas</span>
                       </div>
                     </div>
@@ -484,26 +496,48 @@ export default function PedidosPage() {
                 <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Líneas del Pedido</h4>
                 {detail.lineas?.map((line: any) => (
                   <div key={line.id} className="p-3 bg-gray-50 rounded-xl mb-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="font-medium">{line.metrajeRequerido}m solicitados</span>
-                      <span className={`flex items-center gap-1 ${line.metrajeSurtido >= line.metrajeRequerido ? 'text-emerald-600 font-semibold' : 'text-amber-600'}`}>
-                        {line.metrajeSurtido}m surtidos
-                        {line.metrajeSurtido === 0 && ['EN_CORTE','EMPACADO','FACTURADO','DESPACHADO'].includes(detail.estado) && (
-                          <span className="relative group">
-                            <Info size={14} className="text-amber-500 cursor-help" />
-                            <span className="absolute bottom-full right-0 mb-1.5 w-64 px-3 py-2 bg-gray-900 text-white text-[11px] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 leading-relaxed">
-                              ⚠️ <strong>0m surtidos</strong> porque el pedido avanzó sin pasar por el escaneo físico del Picker (PWA Zebra). En producción, el picker escanea cada HU y ahí se registran los metros surtidos.
-                              <span className="absolute bottom-0 right-4 translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900" />
-                            </span>
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <div className="truncate pr-2">
+                        <span className="font-semibold text-gray-900">
+                          {line.sku?.nombre || 'Tela'}
+                        </span>
+                        {(line.sku?.color || line.sku?.codigo) && (
+                          <span className="text-xs text-gray-500 ml-1.5">
+                            · {line.sku?.color || line.sku?.codigo}
                           </span>
                         )}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {line.listaPrecios && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-violet-100 text-violet-700">
+                            {line.listaPrecios}
+                          </span>
+                        )}
+                        {Number(line.descuentoPct) > 0 && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">
+                            -{Number(line.descuentoPct)}%
+                          </span>
+                        )}
+                        <span className="font-mono text-xs font-bold text-gray-700 ml-1">
+                          {line.metrajeRequerido}m
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>
+                        ${Number(line.precioUnitario || 0).toFixed(2)}/m
+                        {Number(line.descuentoPct) > 0 && line.precioLista && (
+                          <span className="line-through text-gray-400 ml-1 text-[11px]">${Number(line.precioLista).toFixed(2)}</span>
+                        )}
+                      </span>
+                      <span className="font-semibold text-gray-700">
+                        Importe: ${Number(line.importe || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}
                       </span>
                     </div>
-                    {line.precioUnitario && <p className="text-xs text-gray-400">${Number(line.precioUnitario).toFixed(2)}/m — Importe: ${Number(line.importe || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>}
                     <div className="w-full h-1.5 bg-gray-200 rounded-full mt-2 overflow-hidden">
                       <div className="h-full bg-gradient-to-r from-blue-500 to-primary-500 rounded-full transition-all" style={{ width: `${Math.min(100, (line.metrajeSurtido / line.metrajeRequerido) * 100)}%` }}></div>
                     </div>
-                    {line.assignments?.length > 0 && (
+                    {line.assignments?.length > 0 ? (
                       <div className="mt-2 space-y-1">
                         {line.assignments.map((a: any) => (
                           <div key={a.id} className="flex items-center justify-between text-xs text-gray-500">
@@ -511,6 +545,23 @@ export default function PedidosPage() {
                             <span className="flex items-center gap-1">{a.metrajeTomado}m {a.cortado ? <WmsIcon.Cut size={10} /> : <WmsIcon.HU size={10} />}</span>
                           </div>
                         ))}
+                      </div>
+                    ) : (
+                      <div className="mt-2 pt-2 border-t border-dashed border-gray-200 flex items-center justify-between">
+                        <div>
+                          <span className="text-[11px] text-amber-600 font-medium block">🟠 Mercancía en piso / transición</span>
+                          <span className="text-[10px] text-gray-400">Sin HU asignado aún</span>
+                        </div>
+                        <button
+                          onClick={() => setExpressIngestTarget({
+                            skuId: line.skuId,
+                            orderLineId: line.id,
+                            metrajeRequerido: line.metrajeRequerido,
+                          })}
+                          className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors active:scale-95 shadow-sm"
+                        >
+                          <Zap size={12} /> Alta Express
+                        </button>
                       </div>
                     )}
                   </div>
@@ -702,6 +753,18 @@ export default function PedidosPage() {
           </div>
         </div>
       )}
+
+      {/* Express Ingest Modal */}
+      <ExpressIngestModal
+        open={!!expressIngestTarget}
+        onClose={() => setExpressIngestTarget(null)}
+        initialSkuId={expressIngestTarget?.skuId}
+        initialOrderLineId={expressIngestTarget?.orderLineId}
+        initialMetrajeRequerido={expressIngestTarget?.metrajeRequerido}
+        onSuccess={() => {
+          refetchDetail();
+        }}
+      />
     </div>
   );
 }

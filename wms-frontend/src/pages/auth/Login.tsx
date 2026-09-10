@@ -35,6 +35,28 @@ export const Login = () => {
       const { token, user } = response.data;
       dispatch(loginSuccess({ ...user, token }));
       toast.success(`¡Bienvenido, ${user.nombre}!`);
+
+      // Redirección inteligente según el rol operativo del usuario
+      if (from === '/') {
+        const roleName = (user.role?.nombre || user.role || '').toUpperCase();
+        if (roleName === 'CORTADOR') {
+          navigate('/zebra/corte');
+          return;
+        }
+        if (roleName === 'PICKER') {
+          navigate('/zebra/picking');
+          return;
+        }
+        if (roleName === 'ATC' || roleName === 'VENTAS') {
+          navigate('/pedidos');
+          return;
+        }
+        if (roleName === 'COBRANZA') {
+          navigate('/cobranza');
+          return;
+        }
+      }
+
       navigate(from);
     } catch (error: any) {
       const msg = error.response?.data?.message || 'Error al iniciar sesión';

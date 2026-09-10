@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plan de Implementación WMS 360+ — Formatex</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-dark: #3730a3;
+      --primary-light: #eef2ff;
+      --secondary: #059669;
+      --secondary-light: #ecfdf5;
+      --warning: #d97706;
+      --warning-light: #fffbeb;
+      --danger: #dc2626;
+      --danger-light: #fef2f2;
+      --slate-900: #0f172a;
+      --slate-800: #1e293b;
+      --slate-700: #334155;
+      --slate-600: #475569;
+      --slate-500: #64748b;
+      --slate-200: #e2e8f0;
+      --slate-100: #f1f5f9;
+      --slate-50: #f8fafc;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      color: var(--slate-800);
+      background: #e2e8f0;
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+
+    .document-container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 60px 80px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Print styling */
+    @media print {
+      body { background: white; padding: 0; }
+      .document-container { box-shadow: none; padding: 0; max-width: 100%; }
+      .no-print { display: none; }
+      .page-break { page-break-before: always; }
+      h2 { page-break-after: avoid; }
+      table { page-break-inside: avoid; }
+    }
+
+    .header-badge {
+      display: inline-block;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--slate-900);
+      line-height: 1.25;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: var(--slate-500);
+      font-weight: 400;
+      margin-bottom: 24px;
+    }
+
+    .meta-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      padding: 14px 20px;
+      background: var(--slate-50);
+      border-radius: 8px;
+      border: 1px solid var(--slate-200);
+      font-size: 13px;
+      margin-bottom: 40px;
+    }
+
+    .meta-bar span { color: var(--slate-600); }
+    .meta-bar strong { color: var(--slate-900); font-weight: 600; }
+
+    h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--slate-900);
+      margin-top: 36px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--slate-100);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--slate-800);
+      margin-top: 20px;
+      margin-bottom: 10px;
+    }
+
+    p { margin-bottom: 14px; font-size: 14.5px; color: var(--slate-700); text-align: justify; }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 13.5px;
+    }
+
+    th {
+      background: var(--slate-50);
+      color: var(--slate-700);
+      text-align: left;
+      font-weight: 600;
+      padding: 10px 14px;
+      border-bottom: 2px solid var(--slate-200);
+      font-size: 12.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--slate-200);
+      color: var(--slate-700);
+      vertical-align: top;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    /* Callouts */
+    .callout {
+      padding: 16px 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+      font-size: 14px;
+      border-left: 4px solid;
+    }
+
+    .callout-primary {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary-dark);
+    }
+
+    .callout-warning {
+      background: var(--warning-light);
+      border-color: var(--warning);
+      color: #92400e;
+    }
+
+    .callout-danger {
+      background: var(--danger-light);
+      border-color: var(--danger);
+      color: #991b1b;
+    }
+
+    /* Diagram blocks */
+    .diagram-box {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 24px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12.5px;
+      line-height: 1.45;
+      overflow-x: auto;
+      margin: 20px 0;
+    }
+
+    /* Grid cards */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 20px 0;
+    }
+
+    .card {
+      border: 1px solid var(--slate-200);
+      border-radius: 8px;
+      padding: 18px;
+      background: #ffffff;
+    }
+
+    .card h4 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--slate-900);
+    }
+
+    .card p {
+      font-size: 13px;
+      margin-bottom: 0;
+      color: var(--slate-600);
+    }
+
+    ul, ol {
+      margin-left: 20px;
+      margin-bottom: 14px;
+      font-size: 14px;
+      color: var(--slate-700);
+    }
+
+    li { margin-bottom: 6px; }
+
+    .print-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 14px 22px;
+      border-radius: 50px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .print-btn:hover {
+      background: var(--primary-dark);
+      transform: translateY(-2px);
+    }
+  </style>
+</head>
+<body>
+
+  <button class="print-btn no-print" onclick="window.print()">
+    🖨️ Imprimir / Guardar en PDF
+  </button>
+
+  <div class="document-container">
+    
+    <div class="header-badge">Estrategia Operativa de Despliegue</div>
+    <h1>Plan Maestro de Implementación WMS 360+</h1>
+    <div class="subtitle">Estrategia de Arranque en Frío, Convivencia Operativa y Cero Paros</div>
+
+    <div class="meta-bar">
+      <div><span>Cliente:</span> <strong>Forma Textil S. de R.L. de C.V.</strong></div>
+      <div><span>Ubicación:</span> <strong>Guadalajara, Jalisco</strong></div>
+      <div><span>Consultoría:</span> <strong>Movida TCI</strong></div>
+      <div><span>Fecha:</span> <strong>Septiembre 2026</strong></div>
+    </div>
+
+    <h2>1. Resumen Ejecutivo y Diagnóstico Real</h2>
+    <p>
+      Implementar un WMS en una distribuidora de telas al mayoreo no se parece en nada a una fábrica de abarrotes o tornillos. 
+      <strong>La tela es un producto continuo y variable:</strong> cada rollo llega con metrajes dispares (47.5m, 51.2m, 63m), 
+      se corta todos los días para pedidos a la medida, genera retazos y carece de códigos de barras estándar de fabricante.
+    </p>
+    <p>
+      La receta clásica de consultores de ERP corporativos (como SAP Business One) que exige 
+      <em>"cerrar las puertas 3 días para hacer un inventario a ciegas y salir de golpe"</em> es 
+      <strong>inviable y destructiva para Formatex</strong>. Cerrar cortinas significa que los talleres y maquileros de Guadalajara 
+      le comprarán a la competencia ese mismo día.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Variable</th>
+          <th>Modelo Teórico SAP B1</th>
+          <th>Realidad Formatex (WMS 360+)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Tipo de Producto</strong></td>
+          <td>Cajas uniformes con código de barras de fábrica.</td>
+          <td>Rollos textiles con metrajes variables e imprecisos.</td>
+        </tr>
+        <tr>
+          <td><strong>Inicio de Operación</strong></td>
+          <td>"Big Bang": Paro general de 3 a 5 días para conteo ciego.</td>
+          <td><strong>Cero Paros:</strong> Convivencia híbrida en 4 semanas.</td>
+        </tr>
+        <tr>
+          <td><strong>Personal en Piso</strong></td>
+          <td>Personal acostumbrado a ERPs y lectura de datos.</td>
+          <td>Cargadores y cortadores empíricos sin hábito de PDA.</td>
+        </tr>
+        <tr>
+          <td><strong>Retazos y Cortes</strong></td>
+          <td>No maneja árbol genealógico de corte continuo.</td>
+          <td>Genealogía Padre → Hijo con clasificación automática.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="page-break"></div>
+
+    <h2>🔍 Hallazgos Clave de la Inspección Visual (Nave Atlas)</h2>
+    <p>
+      Tras el análisis fotográfico de las instalaciones de Formatex en Guadalajara, el plan se calibra con la infraestructura física real observada en piso:
+    </p>
+
+    <div class="grid-2">
+      <div class="card" style="border-left: 4px solid var(--primary);">
+        <h4>1. Zonificación Vertical (Racks de 6 Niveles)</h4>
+        <p>
+          • <strong>Niveles 1 y 2 (Piso):</strong> Picking activo a pie con Zebra TC22 (rollos abiertos, retazos y alta rotación).<br>
+          • <strong>Niveles 3 a 6 (Altura):</strong> Reserva/Buffer accesible solo con montacargas (pallets cerrados).
+        </p>
+      </div>
+      <div class="card" style="border-left: 4px solid var(--secondary);">
+        <h4>2. Máquinas Enrolladoras (Mesa 2, 3, 5)</h4>
+        <p>
+          • Cuentan con maquinaria industrial con contadores de metros mecánicos/digitales.<br>
+          • El WMS enviará las órdenes de corte directamente a la pantalla de la máquina asignada, eliminando el Excel que hoy usan ahí.
+        </p>
+      </div>
+      <div class="card" style="border-left: 4px solid var(--warning);">
+        <h4>3. Carros de Picking ("Burros" Metálicos)</h4>
+        <p>
+          • Carros rodantes de 2 y 3 niveles en pasillo.<br>
+          • Permite <strong>Batch Picking (Surtido por Carro)</strong>: surtir 3 a 4 pedidos en un solo recorrido de pasillo en lugar de hacer viajes individuales.
+        </p>
+      </div>
+      <div class="card" style="border-left: 4px solid var(--slate-700);">
+        <h4>4. Señalética Existente Respetada</h4>
+        <p>
+          • La nave ya tiene rótulos físicos: <code>PASILLO 1</code>, <code>2</code>, Racks <code>4, 5, 6</code>.<br>
+          • Nomenclatura WMS adoptará su mapa mental: <code>P01-R04-N01</code> para reducir la curva de aprendizaje a cero.
+        </p>
+      </div>
+    </div>
+
+    <h2>2. Arquitectura de Transición: "Zona Blanca" vs. "Zona Gris"</h2>
+    <p>
+      Para no detener las ventas ni un minuto, dividimos conceptual y operativamente el almacén en dos mundos que coexisten:
+    </p>
+
+    <div class="grid-2">
+      <div class="card" style="border-top: 4px solid var(--slate-500);">
+        <h4>Zona Gris (Almacén Tradicional)</h4>
+        <p>• Saldo migrado desde el Excel Master.<br>
+           • Ubicación en WMS: <code>ZONA-TRANSICION</code>.<br>
+           • Búsqueda física tradicional (memoria / radio).<br>
+           • <strong>Disminuye progresivamente</strong> con cada venta y corte.</p>
+      </div>
+      <div class="card" style="border-top: 4px solid var(--secondary);">
+        <h4>Zona Blanca (WMS Controlado)</h4>
+        <p>• Racks rotulados: <code>Pasillo-Rack-Nivel</code>.<br>
+           • Rollos con etiqueta térmica HU adherida.<br>
+           • <strong>100% de la mercancía nueva</strong> de proveedores.<br>
+           • Top 20 SKUs inventariados y retazos clasificados.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-primary">
+      <strong>La Regla de Oro del Cerrojo de Entrada:</strong><br>
+      A partir del día de inicio, todo camión de proveedor que descargue en Formatex entra 100% por el módulo de Recepción del WMS y se ubica en racks rotulados. 
+      <strong>Nada nuevo entra a la Zona Gris.</strong> Con esto, el inventario viejo muere por ventas naturales y el nuevo nace blindado.
+    </div>
+
+    <h2>3. El Dilema Comercial (ATC): Disponibilidad y Candado Anti-Doble Venta</h2>
+    
+    <h3>A. Saber si hay tela sin gritar al almacén</h3>
+    <p>
+      El saldo de existencias del Excel Master se carga al WMS como una <strong>Bolsa Teórica por SKU</strong> asignada a <code>ZONA-TRANSICION</code>.
+      El vendedor de ATC abre cotizaciones en el WMS y ve en 1 segundo:
+    </p>
+    <div class="callout callout-warning">
+      <strong>Fórmula en Pantalla de ATC:</strong><br>
+      Disponible = [Saldo Físico Piso] - [Reservas Blandas Activas] + [Mercancía en Tránsito]
+    </div>
+
+    <h3>B. El Candado Anti-Doble Venta (Reserva Blanda de 7 días)</h3>
+    <p>
+      En cuanto un vendedor genera una cotización en WMS, el sistema **congela los metros cotizados**. 
+      Si otro vendedor entra 5 minutos después, el WMS le avisa que esos metros están apartados. 
+      Si el cliente no paga en 7 días (168 horas), el sistema libera los metros automáticamente al stock general. 
+      <strong>Se acabaron los apartados eternos de palabra.</strong>
+    </p>
+
+    <h3>C. Tránsito y Entregas Parciales (Backorder de Tela)</h3>
+    <p>
+      Si un cliente pide 150m y solo hay 100m en almacén y 50m en un contenedor marítimo que llega en 25 días:
+    </p>
+    <ul>
+      <li>El vendedor selecciona <strong>Modo de Entrega: PARCIAL</strong>.</li>
+      <li>Se despachan y facturan los 100m físicos hoy.</li>
+      <li>Los 50m quedan con reserva firme ligada al embarque entrante (<code>IncomingShipment</code>).</li>
+      <li><strong>Alerta de Cross-Docking:</strong> Cuando el camión descargue el contenedor en 25 días, el sistema alertará en la pantalla del muelle: 
+          <em>"¡Rollo comprometido para Pedido PED-XXXX! Enviar directo a empaque, no guardar en racks."</em></li>
+    </ul>
+
+    <h3>D. Cotización Fluida sin HUs: Cero Bloqueo a Ventas en Fase de Transición 💼⚡</h3>
+    <p>
+      Una duda crítica de la directiva: <em>"¿Qué pasa si la ejecutiva de ventas debe cotizar una tela que sí está físicamente en piso pero sus rollos aún no han sido cargados con código HU en el sistema?"</em>
+    </p>
+    <div class="callout callout-warning">
+      <strong>Mecanismo Anti-Bloqueo Comercial:</strong><br>
+      • <strong>Cotización 100% Habilitada:</strong> La vendedora solo captura el SKU, los metros requeridos, la lista de precios (<code>F1</code> a <code>F5</code>) y su porcentaje de descuento. No se le exige que existan HUs creados en ese instante.<br>
+      • <strong>Semáforo Amigable de Transición:</strong> En lugar de alarmar con un mensaje rojo de <em>"❌ Sin stock"</em>, el sistema muestra <code>🟠 Mercancía en Transición / Piso · Cotización Habilitada</code>.<br>
+      • <strong>Vinculación al Vuelo:</strong> El pedido se guarda con su estado <code>COTIZADO</code> y sus importes financieros exactos (subtotal con descuento, IVA y total en MXN). En cuanto el Champion o el cortador ubican el rollo físico en almacén, pulsan <strong>⚡ Alta Express</strong> en la misma línea del pedido o pistolean el rollo en mesa de corte, amarrando el rollo al pedido en 3 segundos sin demoras administrativas.
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>4. El Arranque en Frío de Ubicaciones: Cero Falsas Promesas al Picker</h2>
+    
+    <div class="callout callout-danger">
+      <strong>Principio de Confianza:</strong> Jamás asignamos una ubicación de rack teórica a un rollo que no ha sido físicamente visto y etiquetado. Si el picker va al Rack A y no encuentra el rollo, el sistema pierde credibilidad.
+    </div>
+
+    <p>Lo que ve el operador en su handheld Zebra TC22:</p>
+    <ul>
+      <li><strong>Si el rollo ya fue mapeado:</strong> Muestra <code>🟢 RE-01-B-03 · HU-2026-00142 · 50m</code>. El picker camina directo con los ojos cerrados.</li>
+      <li><strong>Si el rollo está en transición:</strong> Muestra <code>🟠 ZONA TRANSICIÓN (Piso General) · SKU: GAB-001</code>. El picker sabe que debe buscarlo con su método tradicional, llevarlo a la mesa y vincularlo con <strong>Alta Express</strong>.</li>
+    </ul>
+
+    <h2>5. El Ciclo de Vida del Rollo: De Pallet Impreciso a Retazo Mínimo</h2>
+
+    <div class="diagram-box">
+LLEGADA (REC-01)          RACKS ENTEROS (RE-01)          MESA DE CORTE (CORTE-01)
+┌─────────────────┐       ┌──────────────────────┐       ┌────────────────────────┐
+│ Pallet con 25   │       │ Racks pesados con    │       │ Surtido de Pedido 80m: │
+│ rollos variables│──────►│ capacidad por hueco  │──────►│ • 1 Rollo 50m (entero) │
+│ (48m, 51m, 60m) │       │ (Etiqueta HU pegada) │       │ • 1 Corte de 30m       │
+└─────────────────┘       └──────────────────────┘       └───────────┬────────────┘
+                                                                     │
+                                         ┌───────────────────────────┴─────────────┐
+                                         ▼                                         ▼
+                             DESPACHO (Cliente)                        RETAZO HIJO (Gen: 1)
+                             30m listos para empaque                   20m sobrantes
+                                                                       Auto-ubicación: MER-02
+                                                                       (Racks de retazos 6-10m)
+    </div>
+
+    <h3>Surtido Multi-Ubicación (Multi-Stop Picking)</h3>
+    <p>
+      Si un cliente pide 80 metros, el algoritmo inteligente del WMS 360+ prioriza agotar retazos existentes antes de abrir rollos nuevos:
+    </p>
+    <ol>
+      <li><strong>Parada 1:</strong> <code>RE-01-A-03</code> ➔ Rollo entero de 50 metros.</li>
+      <li><strong>Parada 2:</strong> <code>MER-03-B-01</code> ➔ Retazo disponible de 30 metros.</li>
+      <li>El picker escanea ambos HUs y completa la demanda con merma cero.</li>
+    </ol>
+
+    <h3>Flujo del Cortador, Mesas y Cero Papelitos Post-it ✂️</h3>
+    <p>
+      Actualmente, los cortadores y pickers pegan papelitos post-it manuscritos en los carritos con ruedas para identificar a qué cliente va cada rollo cortado. Este hábito genera errores continuos y telas extraviadas. En el WMS 360+:
+    </p>
+    <ul>
+      <li><strong>Rol CORTADOR Dedicado:</strong> Al iniciar sesión (ej. <code>maria.corte</code>), el sistema lo redirige directo a su terminal de corte móvil (<code>/zebra/corte</code>) o de mesa (<code>/corte</code>). Su máquina (<code>MESA 1</code> a <code>MESA 6</code>) y carrito (<code>CARRITO 1</code> / <code>2</code>) quedan guardados en memoria.</li>
+      <li><strong>Corte con Doble Producto Vivo:</strong> Al cortar 41m de un rollo de 50m para un pedido, el sistema genera automáticamente el <strong>Rollo Hijo</strong> para el cliente y el <strong>Retazo Nuevo</strong> (9m) para el almacén.</li>
+      <li><strong>⚡ Impresión Rápida de Ambas Etiquetas (1 Clic):</strong> En un solo toque, la impresora térmica emite:
+        <br>1. <strong>Etiqueta Morada (Cliente / Pedido):</strong> Pegada al rollo cortado con datos del pedido, cliente, metros surtidos, mesa y código QR para validación instantánea en Empaque.
+        <br>2. <strong>Etiqueta Naranja (Retazo):</strong> Pegada al rollo sobrante con su nuevo HU y su ubicación sugerida en rack de mermas (<code>MER-01/02/03</code>).
+      </li>
+    </ul>
+
+    <h2>6. El "Champion de Inventario": El Perfil que Salva el Proyecto</h2>
+    <p>
+      Los cargadores y cortadores habituales están bajo presión constante para despachar rápido; no tienen el incentivo de sentarse a etiquetar con cuidado.
+    </p>
+    <div class="callout callout-primary">
+      <strong>Argumento para los Socios de Formatex:</strong><br>
+      "Designar a 1 persona como Champion de Inventario no es un costo extra; es quien va a frenar las fugas de metros y retazos perdidos que hoy se pudren en esquinas sin control. Su sueldo se paga solo el primer mes con el dinero recuperado en mermas."
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Horario</th>
+          <th>Actividad Clave del Champion</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>08:30 - 10:30</strong></td>
+          <td><strong>Recepción de Proveedores:</strong> Registrar remisiones, imprimir stickers HU y supervisar guardado en racks.</td>
+        </tr>
+        <tr>
+          <td><strong>10:30 - 13:00</strong></td>
+          <td><strong>Ingesta Pareto 80/20:</strong> Mapear en racks los 20 SKUs más vendidos usando la pantalla de Alta Express.</td>
+        </tr>
+        <tr>
+          <td><strong>14:00 - 16:00</strong></td>
+          <td><strong>Soporte al Vuelo:</strong> Etiquetar rollos no registrados que salgan de la Zona Gris para pedidos del día.</td>
+        </tr>
+        <tr>
+          <td><strong>16:00 - 17:30</strong></td>
+          <td><strong>Auditoría Cíclica y Retazos:</strong> Conteo cíclico diario (15 min) en <code>/inventario/rollos?tab=cyclic</code> con comparación Teórico vs Físico y alertas de discrepancia.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="page-break"></div>
+
+    <h2>7. Herramientas Clave en Software para el Champion</h2>
+    <div class="grid grid-2">
+      <div class="kpi-card">
+        <h4 style="color: #1e3a8a; margin-top: 0;">⚡ Alta Express de Inventario</h4>
+        <p style="font-size: 13px; color: #475569;">
+          Ingesta de rollos físicos en menos de 20 segundos mediante lista rápida de metrajes (ej: <code>50, 48.5, 52, 50</code>). Genera HUs, movimiento de entrada y manda impresión térmica inmediata. Vinculación directa con pedidos urgentes.
+        </p>
+      </div>
+      <div class="kpi-card">
+        <h4 style="color: #6b21a8; margin-top: 0;">📋 Módulo de Conteo Cíclico</h4>
+        <p style="font-size: 13px; color: #475569;">
+          Compara en tiempo real el inventario teórico vs el conteo físico en racks. Ajusta rollos, registra movimientos de auditoría y dispara alertas automáticas de <code>CONTEO_DISCREPANCIA</code> ante diferencias mayores a 5 metros sin detener la venta.
+        </p>
+      </div>
+    </div>
+
+    <h2>8. Cronograma de Adopción (6 Semanas — 0 Días de Paro)</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Fase</th>
+          <th>Semanas</th>
+          <th>Hitos y Acciones Clave</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Fase 0: Cimientos</strong></td>
+          <td>Semana 1</td>
+          <td>• Rotular racks y pasillos (<code>RE-01-A-01</code>).<br>• Cargar saldos de Excel a <code>ZONA-TRANSICION</code>.<br>• Instalar estación de etiquetado central.</td>
+        </tr>
+        <tr>
+          <td><strong>Fase 1: El Cerrojo</strong></td>
+          <td>Semana 2</td>
+          <td>• 100% recepciones nuevas de proveedores por WMS.<br>• Mapeo y etiquetado físico de los 20 SKUs estrella.<br>• Capacitación piloto con 1 operador en Zebra TC22.</td>
+        </tr>
+        <tr>
+          <td><strong>Fase 2: Convivencia</strong></td>
+          <td>Semanas 3 y 4</td>
+          <td>• Ventas cotiza 100% en WMS con reservas blandas.<br>• Ingesta al vuelo de telas de la Zona Gris al surtir pedidos.<br>• Rutina formal de clasificación de retazos en corte.</td>
+        </tr>
+        <tr>
+          <td><strong>Fase 3: Go-Live Pleno</strong></td>
+          <td>Semanas 5 y 6</td>
+          <td>• Zona Gris reducida a menos del 10%.<br>• Uso general de Zebra TC22 en todo el almacén.<br>• Apagado definitivo del Excel Master.<br>• Arranque de conteos cíclicos diarios (15 min/día).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>8. Guion Estratégico para la Reunión Directiva de Mañana</h2>
+
+    <div class="card" style="margin-top: 16px;">
+      <h4 style="color: var(--danger);">Objeción típica del Cliente:</h4>
+      <p style="font-style: italic; color: var(--slate-700); margin-bottom: 12px;">
+        "¿Por qué no cerramos el almacén este fin de semana, contamos todo de un solo golpe y arrancamos el lunes con todo en el sistema?"
+      </p>
+      <h4 style="color: var(--secondary);">Tu Respuesta Maestra:</h4>
+      <p>
+        "Porque en rollos de tela eso es una trampa mortal. En un fin de semana a las carreras van a anotar metros aproximados, van a dejar retazos sin medir y el lunes el sistema dirá que hay 50 metros donde en realidad hay 40, perdiendo la confianza de los vendedores. Además, no podemos arriesgar sus ventas ni el flujo de efectivo.<br><br>
+        Nuestro método es quirúrgico: ponemos un cerrojo en la puerta para que nada nuevo entre desordenado, blindamos los 20 productos que representan el 80% de sus ingresos, y usamos las mismas ventas del día a día para que el almacén se ordene solo. <strong>En 4 semanas tienen un almacén digital de clase mundial sin haber detenido la operación ni un solo minuto.</strong>"
+      </p>
+    </div>
+
+  </div>
+
+</body>
+</html>

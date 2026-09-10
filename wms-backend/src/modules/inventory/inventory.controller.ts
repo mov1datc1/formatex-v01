@@ -55,4 +55,22 @@ export class InventoryController {
   ) {
     return this.inventoryService.suggestHUs(skuId, +metraje, +limit);
   }
+
+  @Post('express-ingest')
+  @ApiOperation({ summary: 'Alta Express de Inventario (Rollos sin pasar por compras)' })
+  expressIngest(@Body() body: any, @Req() req: any) {
+    return this.inventoryService.expressIngest({ ...body, userId: req.user.sub });
+  }
+
+  @Post('cyclic-count')
+  @ApiOperation({ summary: 'Registrar Conteo Cíclico y detección de discrepancias' })
+  cyclicCount(@Body() body: any, @Req() req: any) {
+    return this.inventoryService.cyclicCount({ ...body, userId: req.user.sub });
+  }
+
+  @Get('sku-balance/:skuId')
+  @ApiOperation({ summary: 'Consultar balance detallado de un SKU (Físico, Reservado, Tránsito)' })
+  getSkuBalance(@Param('skuId') skuId: string) {
+    return this.inventoryService.getSkuBalance(skuId);
+  }
 }

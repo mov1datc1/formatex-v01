@@ -23,10 +23,13 @@ export default function CortePage() {
   const [metrajeCortado, setMetrajeCortado] = useState(0);
   const [orderLineId, setOrderLineId] = useState<string>('');
   const [notas, setNotas] = useState('');
+  const [selectedMesa, setSelectedMesa] = useState<string>('TODAS');
+  const [selectedCarrito, setSelectedCarrito] = useState<string>('TODOS');
 
-  // Post-cut retazo state
+  // Post-cut printing state
   const [lastCutResult, setLastCutResult] = useState<any>(null);
-  const [showPrintRetazo, setShowPrintRetazo] = useState(false);
+  const [printBatch, setPrintBatch] = useState<any[]>([]);
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   const { data: husResult } = useApi<PaginatedResponse<any>>(['hus-cut-search', huSearch], '/inventory/hus', { search: huSearch, estadoHu: 'DISPONIBLE', limit: 10 }, huSearch.length >= 2);
   const mutation = useMutationApi('/cutting');
@@ -77,6 +80,8 @@ export default function CortePage() {
         metrajeCortado,
         orderLineId: orderLineId || undefined,
         notas,
+        mesaCorte: selectedMesa !== 'TODAS' ? selectedMesa : undefined,
+        carrito: selectedCarrito !== 'TODOS' ? selectedCarrito : undefined,
       });
       const restante = selectedHU.metrajeActual - metrajeCortado;
       setLastCutResult(result);
@@ -102,16 +107,46 @@ export default function CortePage() {
 
   const ordersEnCorte = enCorte?.data || [];
 
+  // Build child roll (customer piece) data for print
+  const hijoForPrint = lastCutResult ? [{
+    codigo: lastCutResult.codigo,
+    metrajeActual: lastCutResult.metrajeCortado,
+    sku: lastCutResult.huOrigen?.sku || lastCutResult.orderLine?.sku,
+    tipoRollo: 'CORTE_CLIENTE',
+    anchoMetros: lastCutResult.huOrigen?.sku?.anchoMetros || 1.5,
+    pedido: lastCutResult.orderLine?.order?.codigo || selectedCutOrder?.codigo || 'PEDIDO',
+    cliente: lastCutResult.orderLine?.order?.client?.nombre || selectedCutOrder?.client?.nombre || 'CLIENTE',
+    origen: lastCutResult.huOrigen?.codigo,
+    mesa: selectedMesa !== 'TODAS' ? selectedMesa : undefined,
+    carrito: selectedCarrito !== 'TODOS' ? selectedCarrito : undefined,
+  }] : [];
+
   // Build retazo HU data for print dialog
   const retazoForPrint = lastCutResult?.huRetazo ? [{
     id: lastCutResult.huRetazo.id,
     codigo: lastCutResult.huRetazo.codigo,
     metrajeActual: lastCutResult.metrajeRestante,
     sku: lastCutResult.huOrigen?.sku,
-    ubicacion: lastCutResult.huRetazo.ubicacion,
+    ubicacion: lastCutResult.huRetazo.ubicacion?.codigo || lastCutResult.retazoUbicacion || 'ZONA-MERMA',
     tipoRollo: 'RETAZO',
     anchoMetros: lastCutResult.huOrigen?.sku?.anchoMetros || 1.5,
+    origen: lastCutResult.huOrigen?.codigo,
   }] : [];
+
+  const handlePrintBoth = () => {
+    setPrintBatch([...hijoForPrint, ...retazoForPrint]);
+    setShowPrintModal(true);
+  };
+
+  const handlePrintHijo = () => {
+    setPrintBatch(hijoForPrint);
+    setShowPrintModal(true);
+  };
+
+  const handlePrintRetazo = () => {
+    setPrintBatch(retazoForPrint);
+    setShowPrintModal(true);
+  };
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -141,6 +176,43 @@ export default function CortePage() {
         <div className="bg-white rounded-xl border p-4 text-center">
           <p className="text-2xl font-bold text-blue-600">{Math.round(stats?.metrajePromedioCortado || 0)}m</p>
           <p className="text-xs text-gray-500">Promedio Cortado</p>
+        </div>
+      </div>
+
+      {/* Selector de Mesas de Corte (1 a 6) y Carritos (1 y 2) */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Mesa de Corte:</span>
+          <div className="flex bg-gray-100 p-1 rounded-xl gap-1 flex-wrap">
+            {['TODAS', 'MESA 1', 'MESA 2', 'MESA 3', 'MESA 4', 'MESA 5', 'MESA 6'].map(m => (
+              <button
+                key={m}
+                onClick={() => setSelectedMesa(m)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  selectedMesa === m ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Carrito Anexo:</span>
+          <div className="flex bg-gray-100 p-1 rounded-xl gap-1">
+            {['TODOS', 'CARRITO 1', 'CARRITO 2'].map(c => (
+              <button
+                key={c}
+                onClick={() => setSelectedCarrito(c)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  selectedCarrito === c ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -338,54 +410,99 @@ export default function CortePage() {
         </div>
       )}
 
-      {/* Post-Cut Result — Retazo Card with Print */}
-      {lastCutResult && lastCutResult.huRetazo && (
-        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-6 animate-fade-in">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
-              <Tag size={20} className="text-orange-600" />
+      {/* Post-Cut Result — Dual Output Card (Hijo para Cliente + Retazo para Almacén) */}
+      {lastCutResult && (
+        <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-orange-50 border-2 border-purple-200 rounded-2xl p-6 shadow-md animate-fade-in space-y-4">
+          <div className="flex items-center justify-between border-b border-purple-100 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-600 text-white rounded-xl flex items-center justify-center font-bold">
+                <Scissors size={20} />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 text-lg">Corte {lastCutResult.codigo} Realizado con Éxito</h3>
+                <p className="text-xs text-gray-500">
+                  Estación: <strong className="text-purple-700">{selectedMesa}</strong>
+                  {selectedCarrito !== 'TODOS' ? ` · Carrito: ${selectedCarrito}` : ''}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-bold text-gray-900">Retazo Creado</h3>
-              <p className="text-xs text-gray-500">Imprime la etiqueta y colócala en el carrito de retazos</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-            <div className="bg-white rounded-xl p-3 text-center border">
-              <p className="text-[10px] text-gray-400 mb-0.5">Código HU</p>
-              <p className="font-mono text-sm font-bold text-orange-600">{lastCutResult.huRetazo.codigo}</p>
-            </div>
-            <div className="bg-white rounded-xl p-3 text-center border">
-              <p className="text-[10px] text-gray-400 mb-0.5">Metraje</p>
-              <p className="text-xl font-black text-orange-700">{lastCutResult.metrajeRestante}m</p>
-            </div>
-            <div className="bg-white rounded-xl p-3 text-center border">
-              <p className="text-[10px] text-gray-400 mb-0.5">Ubicación Destino</p>
-              <p className="font-mono text-sm font-bold text-blue-600 flex items-center justify-center gap-1">
-                <MapPin size={12} /> {lastCutResult.retazoUbicacion || 'Pendiente'}
-              </p>
-            </div>
-            <div className="bg-white rounded-xl p-3 text-center border">
-              <p className="text-[10px] text-gray-400 mb-0.5">Origen</p>
-              <p className="font-mono text-xs text-gray-600">{lastCutResult.huOrigen?.codigo}</p>
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowPrintRetazo(true)}
-              className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 transition-all"
-            >
-              <Printer size={18} /> Imprimir Etiqueta del Retazo
-            </button>
             <button
               onClick={() => setLastCutResult(null)}
-              className="px-5 py-3 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
+              className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-white/60"
             >
-              Cerrar
+              <X size={18} />
             </button>
           </div>
+
+          {/* Botón Maestro: 1-Click IMPRIMIR AMBAS ETIQUETAS */}
+          <button
+            onClick={handlePrintBoth}
+            className="w-full py-3.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-purple-200 active:scale-[0.99] transition-all"
+          >
+            <Printer size={20} className="animate-pulse" />
+            <span>⚡ IMPRIMIR AMBAS ETIQUETAS (HIJO CLIENTE + RETAZO ALMACÉN)</span>
+          </button>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 1. Rollo Hijo (Cliente / Pedido) */}
+            <div className="bg-white rounded-xl p-4 border border-purple-100 shadow-sm space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-purple-700 uppercase flex items-center gap-1">
+                  <Package size={14} /> Rollo Hijo (Cliente / Pedido)
+                </span>
+                <span className="font-mono text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">
+                  {lastCutResult.orderLine?.order?.codigo || selectedCutOrder?.codigo || 'PEDIDO'}
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between">
+                <span className="text-2xl font-black text-purple-900">{lastCutResult.metrajeCortado}m</span>
+                <span className="text-xs text-gray-600 font-medium truncate max-w-[200px]">
+                  {lastCutResult.orderLine?.order?.client?.nombre || selectedCutOrder?.client?.nombre || 'Cliente Directo'}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500">
+                Tela: {lastCutResult.huOrigen?.sku?.nombre} · {lastCutResult.huOrigen?.sku?.color}
+              </p>
+              <button
+                onClick={handlePrintHijo}
+                className="w-full py-2 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Tag size={13} /> Imprimir Etiqueta Rollo Cliente
+              </button>
+            </div>
+
+            {/* 2. Retazo Nuevo (Inventario) */}
+            <div className="bg-white rounded-xl p-4 border border-orange-100 shadow-sm space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-orange-700 uppercase flex items-center gap-1">
+                  <Scissors size={14} /> Retazo Nuevo (Inventario)
+                </span>
+                <span className="font-mono text-xs font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded">
+                  {lastCutResult.huRetazo?.codigo || 'Rollo Agotado'}
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between">
+                <span className="text-2xl font-black text-orange-700">{lastCutResult.metrajeRestante}m</span>
+                <span className="text-xs text-blue-600 font-mono font-semibold flex items-center gap-1">
+                  <MapPin size={12} /> {lastCutResult.retazoUbicacion || 'ZONA-MERMA'}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500">
+                Rollo Madre: {lastCutResult.huOrigen?.codigo}
+              </p>
+              <button
+                onClick={handlePrintRetazo}
+                disabled={!lastCutResult.huRetazo}
+                className="w-full py-2 bg-orange-100 hover:bg-orange-200 disabled:opacity-40 text-orange-800 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Tag size={13} /> Imprimir Etiqueta Retazo
+              </button>
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-500 text-center italic">
+            🏷️ Pega la etiqueta del cliente en el rollo que va a Empaque y la del retazo en el rollo que regresa al almacén.
+          </p>
         </div>
       )}
 
@@ -428,8 +545,8 @@ export default function CortePage() {
         )}
       </div>
 
-      {/* Print Dialog for Retazo */}
-      <PrintDialog open={showPrintRetazo} onClose={() => setShowPrintRetazo(false)} hus={retazoForPrint} />
+      {/* Print Dialog */}
+      <PrintDialog open={showPrintModal} onClose={() => setShowPrintModal(false)} hus={printBatch} />
     </div>
   );
 }
