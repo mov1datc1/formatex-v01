@@ -146,6 +146,8 @@ model SkuMaster {
   maxStock         Float?
   precioReferencia Decimal? @db.Decimal(10, 2) // Precio referencia por metro
   supplierId       String?
+  libroColeccion   String?  // Colección / Libro asignado (ej. "LIBRO AMALFI", "CASSIS")
+  tipoArticulo     String   @default("TELA") // "TELA" | "MUESTRARIO"
   activo           Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -157,9 +159,12 @@ model SkuMaster {
   reorderConfig    ReorderConfig?
   purchaseOrderLines PurchaseOrderLine[] @relation("SkuPurchaseOrderLines")
   supplierPrices   SupplierPrice[]      @relation("SkuSupplierPrices")
+  salesHistory     SkuSalesHistory[]
 
   @@index([categoria])
   @@index([color])
+  @@index([libroColeccion])
+  @@index([tipoArticulo])
 }
 
 model Supplier {
@@ -244,6 +249,8 @@ model HandlingUnit {
   // === CLASIFICACIÓN ===
   tipoRollo         RollType     @default(ENTERO)
   estadoHu          HuStatus     @default(DISPONIBLE)
+  gradoCalidad      String       @default("PRIMERA") // "PRIMERA" | "CALIDAD_A" | "CALIDAD_B" | "CALIDAD_C" | "CALIDAD_D" | "RESTRINGIDO"
+  calidadRestringida Boolean     @default(false)     // True = no disponible para venta regular (apartado/bloqueado)
 
   // === UBICACIÓN ===
   ubicacionId       String?
@@ -287,6 +294,7 @@ model HandlingUnit {
   @@index([estadoHu])
   @@index([fechaIngreso]) // Para FIFO
   @@index([parentHuId])
+  @@index([gradoCalidad])
 }
 
 enum RollType {
@@ -981,6 +989,12 @@ model SupplyPlanLine {
   diasCobertura     Float
   necesidadNeta     Float
 
+  // === MOTOR RESURTIDO FORMATEX ===
+  promedio4M        Float?   // 4M Prom Vta (m/mes)
+  proyeccion4M5     Float?   // Proy. Prom. Vta = 4M Prom * 4.5
+  decisionStatus    String?  @default("OK") // "OK" | "RESURTIR"
+  ajusteDireccion   Float?   // Ajuste Final Ricardo (decisión directiva)
+
   cantidadSugerida  Float    @default(0)
   cantidadAprobada  Float?
   supplierId        String?
@@ -1002,6 +1016,33 @@ model SupplyPlanLine {
   @@index([planId])
   @@index([skuId])
   @@index([prioridad])
+  @@index([decisionStatus])
+}
+
+// =============================================================================
+// HISTÓRICO DE FACTURACIÓN Y VENTAS (Ingesta CFDI XML / CONTPAQi)
+// =============================================================================
+
+model SkuSalesHistory {
+  id             String   @id @default(uuid())
+  skuId          String
+  mes            Int      // 1-12
+  anio           Int      // 2025, 2026
+  metrosVendidos Float
+  importeTotal   Decimal? @db.Decimal(12, 2)
+  numFacturas    Int      @default(1)
+  origen         String   @default("XML_CFDI") // "XML_CFDI" | "MANUAL" | "WMS"
+  almacenCodigo  String?  // "ALM 1", "ALM 9", "T&T"
+  notas          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  sku            SkuMaster @relation(fields: [skuId], references: [id], onDelete: Cascade)
+
+  @@unique([skuId, mes, anio, origen])
+  @@index([skuId])
+  @@index([anio, mes])
+  @@index([origen])
 }
 
 model ReorderConfig {

@@ -16,8 +16,28 @@ export class InventoryController {
 
   @Get('hus')
   @ApiOperation({ summary: 'Listar Handling Units (rollos)' })
-  findAllHUs(@Query('search') search?: string, @Query('tipoRollo') tipoRollo?: string, @Query('estadoHu') estadoHu?: string, @Query('skuId') skuId?: string, @Query('etiquetaImpresa') etiquetaImpresa?: string, @Query('receiptId') receiptId?: string, @Query('page') page?: number, @Query('limit') limit?: number) {
-    return this.inventoryService.findAllHUs({ search, tipoRollo, estadoHu, skuId, etiquetaImpresa, receiptId, page, limit });
+  findAllHUs(
+    @Query('search') search?: string,
+    @Query('tipoRollo') tipoRollo?: string,
+    @Query('estadoHu') estadoHu?: string,
+    @Query('gradoCalidad') gradoCalidad?: string,
+    @Query('skuId') skuId?: string,
+    @Query('etiquetaImpresa') etiquetaImpresa?: string,
+    @Query('receiptId') receiptId?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.inventoryService.findAllHUs({ search, tipoRollo, estadoHu, gradoCalidad, skuId, etiquetaImpresa, receiptId, page, limit });
+  }
+
+  @Put('hus/:id/calidad')
+  @ApiOperation({ summary: 'Actualizar grado de calidad de rollo (Primera, A, B, C, D, Restringido)' })
+  updateHuCalidad(
+    @Param('id') id: string,
+    @Body() body: { gradoCalidad: string; calidadRestringida?: boolean },
+    @Req() req: any,
+  ) {
+    return this.inventoryService.updateHuCalidad(id, body, req.user?.sub || 'SYSTEM');
   }
 
   @Get('hus/:id')

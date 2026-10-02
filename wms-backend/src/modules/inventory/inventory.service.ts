@@ -6,12 +6,13 @@ export class InventoryService {
   constructor(private readonly prisma: PrismaService) {}
 
   // ===== HANDLING UNITS =====
-  async findAllHUs(params: { search?: string; tipoRollo?: string; estadoHu?: string; skuId?: string; etiquetaImpresa?: string; receiptId?: string; page?: number; limit?: number }) {
-    const { search, tipoRollo, estadoHu, skuId, etiquetaImpresa, receiptId, page = 1, limit = 20 } = params;
+  async findAllHUs(params: { search?: string; tipoRollo?: string; estadoHu?: string; gradoCalidad?: string; skuId?: string; etiquetaImpresa?: string; receiptId?: string; page?: number; limit?: number }) {
+    const { search, tipoRollo, estadoHu, gradoCalidad, skuId, etiquetaImpresa, receiptId, page = 1, limit = 20 } = params;
     const skip = (page - 1) * limit;
     const where: any = {};
     if (tipoRollo) where.tipoRollo = tipoRollo;
     if (estadoHu) where.estadoHu = estadoHu;
+    if (gradoCalidad) where.gradoCalidad = gradoCalidad;
     if (skuId) where.skuId = skuId;
     if (etiquetaImpresa === 'true') where.etiquetaImpresa = true;
     if (etiquetaImpresa === 'false') where.etiquetaImpresa = false;
@@ -20,6 +21,8 @@ export class InventoryService {
       where.OR = [
         { codigo: { contains: search, mode: 'insensitive' } },
         { loteProveedor: { contains: search, mode: 'insensitive' } },
+        { sku: { nombre: { contains: search, mode: 'insensitive' } } },
+        { sku: { codigo: { contains: search, mode: 'insensitive' } } },
       ];
     }
     const [data, total] = await Promise.all([
@@ -170,6 +173,8 @@ export class InventoryService {
         skuId,
         estadoHu: 'DISPONIBLE',
         metrajeActual: { gt: 0 },
+        calidadRestringida: false,
+        gradoCalidad: { not: 'RESTRINGIDO' },
         // Exclude HUs in virtual warehouses (reserved for clients)
         OR: [
           { ubicacion: { warehouse: { tipo: 'FISICO' } } },
@@ -736,6 +741,22 @@ export class InventoryService {
         ubicacion: h.ubicacion?.codigo || 'TRANSICION',
       })),
     };
+  }
+
+  // Actualizar Grado de Calidad (Primera, Calidad A-D, Restringido)
+  async updateHuCalidad(huId: string, data: { gradoCalidad: string; calidadRestringida?: boolean }, userId: string) {
+    const isRestricted = data.calidadRestringida ?? (data.gradoCalidad === 'RESTRINGIDO');
+    return this.prisma.handlingUnit.update({
+      where: { id: huId },
+      data: {
+        gradoCalidad: data.gradoCalidad,
+        calidadRestringida: isRestricted,
+      },
+      include: {
+        sku: { select: { id: true, codigo: true, nombre: true } },
+        ubicacion: { select: { id: true, codigo: true } },
+      },
+    });
   }
 }
 

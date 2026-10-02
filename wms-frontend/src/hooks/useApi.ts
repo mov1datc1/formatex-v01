@@ -48,11 +48,15 @@ export interface HU {
   metrajeActual: number;
   tipoRollo: 'ENTERO' | 'RETAZO';
   estadoHu: string;
+  gradoCalidad?: string;
+  calidadRestringida?: boolean;
   generacion: number;
   fechaIngreso: string;
-  sku: { id: string; codigo: string; nombre: string; color?: string; categoria?: string };
-  ubicacion?: { id: string; codigo: string };
-  parentHu?: { id: string; codigo: string };
+  sku: { id: string; codigo: string; nombre: string; color?: string; categoria?: string; libroColeccion?: string };
+  ubicacion?: { id: string; codigo: string; zone?: { nombre?: string } };
+  parentHu?: { id: string; codigo: string; metrajeOriginal?: number };
+  childHus?: Array<{ id: string; codigo: string; metrajeActual: number; estadoHu: string }>;
+  movimientos?: Array<{ id: string; tipo: string; createdAt: string }>;
 }
 
 export interface SKU {
@@ -62,6 +66,8 @@ export interface SKU {
   descripcion?: string;
   categoria?: string;
   color?: string;
+  libroColeccion?: string;
+  tipoArticulo?: 'TELA' | 'MUESTRARIO';
   metrajeEstandar: number;
   activo: boolean;
   supplier?: { id: string; nombre: string };

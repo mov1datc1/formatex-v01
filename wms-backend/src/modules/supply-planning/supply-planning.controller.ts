@@ -71,4 +71,31 @@ export class SupplyPlanningController {
   ) {
     return this.service.upsertReorderConfig(skuId, body);
   }
+
+  // ===== INGESTA CFDI XML Y FORMATEX MASTER RESURTIDO =====
+  @Post('historical-sales/upload-xmls')
+  ingestCfdiXmls(@Body() body: { xmlFiles: Array<{ filename: string; content: string }> }) {
+    return this.service.ingestCfdiXmls(body.xmlFiles);
+  }
+
+  @Get('historical-sales/matrix')
+  getSalesHistoryMatrix(@Query('anio') anio?: number) {
+    return this.service.getSalesHistoryMatrix(anio ? Number(anio) : undefined);
+  }
+
+  @Post('historical-sales/manual')
+  upsertManualSalesHistory(
+    @Body() body: { skuId: string; mes: number; anio: number; metrosVendidos: number; almacenCodigo?: string },
+  ) {
+    return this.service.upsertManualSalesHistory(body.skuId, body.mes, body.anio, body.metrosVendidos, body.almacenCodigo);
+  }
+
+  @Put('plans/:id/lines/:lineId/ajuste')
+  updateLineAjuste(
+    @Param('id') planId: string,
+    @Param('lineId') lineId: string,
+    @Body('ajusteDireccion') ajusteDireccion: number,
+  ) {
+    return this.service.updateLineAjuste(planId, lineId, Number(ajusteDireccion));
+  }
 }

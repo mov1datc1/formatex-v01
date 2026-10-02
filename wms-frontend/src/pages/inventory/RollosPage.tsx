@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useApi } from '../../hooks/useApi';
 import type { PaginatedResponse, HU } from '../../hooks/useApi';
-import { Zap } from 'lucide-react';
+import { Zap, ShieldAlert } from 'lucide-react';
 import ExpressIngestModal from '../../components/inventory/ExpressIngestModal';
+import { api } from '../../config/api';
+import toast from 'react-hot-toast';
 
 const STATUS_COLORS: Record<string, string> = {
   DISPONIBLE: 'bg-emerald-100 text-emerald-700',
@@ -23,6 +25,7 @@ export default function RollosPage() {
   const [search, setSearch] = useState('');
   const [filterTipo, setFilterTipo] = useState('');
   const [filterEstado, setFilterEstado] = useState('');
+  const [filterCalidad, setFilterCalidad] = useState('');
   const [page, setPage] = useState(1);
   const [selectedHU, setSelectedHU] = useState<string | null>(null);
   const [showExpressModal, setShowExpressModal] = useState(false);
@@ -36,8 +39,8 @@ export default function RollosPage() {
   }, [tabParam, actionParam]);
 
   const { data: resp, isLoading, refetch } = useApi<PaginatedResponse<HU>>(
-    ['hus', page, filterTipo, filterEstado, search], '/inventory/hus',
-    { search: search || undefined, tipoRollo: filterTipo || undefined, estadoHu: filterEstado || undefined, page, limit: 15 },
+    ['hus', page, filterTipo, filterEstado, filterCalidad, search], '/inventory/hus',
+    { search: search || undefined, tipoRollo: filterTipo || undefined, estadoHu: filterEstado || undefined, gradoCalidad: filterCalidad || undefined, page, limit: 15 },
   );
 
   const { data: detail } = useApi<any>(['hu-detail', selectedHU], `/inventory/hus/${selectedHU}`, {}, !!selectedHU);
@@ -61,12 +64,22 @@ export default function RollosPage() {
       {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-100 p-4 flex flex-wrap gap-3">
         <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          placeholder="Buscar por código HU..." className="flex-1 min-w-[200px] px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          placeholder="Buscar por código HU, tela o lote..." className="flex-1 min-w-[200px] px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         <select value={filterTipo} onChange={(e) => { setFilterTipo(e.target.value); setPage(1); }}
           className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm">
           <option value="">Todos los tipos</option>
           <option value="ENTERO">Entero</option>
           <option value="RETAZO">Retazo</option>
+        </select>
+        <select value={filterCalidad} onChange={(e) => { setFilterCalidad(e.target.value); setPage(1); }}
+          className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+          <option value="">Todas las calidades</option>
+          <option value="PRIMERA">Primera Calidad</option>
+          <option value="CALIDAD_A">Calidad A</option>
+          <option value="CALIDAD_B">Calidad B (-20%)</option>
+          <option value="CALIDAD_C">Calidad C (-40%)</option>
+          <option value="CALIDAD_D">Calidad D (-60%)</option>
+          <option value="RESTRINGIDO">Restringido / Apartado</option>
         </select>
         <select value={filterEstado} onChange={(e) => { setFilterEstado(e.target.value); setPage(1); }}
           className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm">
@@ -96,25 +109,39 @@ export default function RollosPage() {
                 <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
                   <tr>
                     <th className="px-4 py-3 text-left">Código HU</th>
-                    <th className="px-4 py-3 text-left">SKU</th>
+                    <th className="px-4 py-3 text-left">SKU / Colección</th>
                     <th className="px-4 py-3 text-right">Metraje</th>
-                    <th className="px-4 py-3 text-center">Tipo</th>
+                    <th className="px-4 py-3 text-center">Calidad</th>
                     <th className="px-4 py-3 text-center">Estado</th>
                     <th className="px-4 py-3 text-left">Ubicación</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {resp.data.map((hu) => (
+                  {resp.data.map((hu: any) => (
                     <tr key={hu.id} className={`hover:bg-blue-50/50 cursor-pointer transition-colors ${selectedHU === hu.id ? 'bg-blue-50' : ''}`} onClick={() => setSelectedHU(hu.id)}>
-                      <td className="px-4 py-3 font-mono text-xs font-medium text-blue-600">{hu.codigo}</td>
+                      <td className="px-4 py-3 font-mono text-xs font-medium text-blue-600">
+                        {hu.codigo}
+                        <span className={`block text-[10px] ${hu.tipoRollo === 'ENTERO' ? 'text-blue-500' : 'text-orange-500'}`}>
+                          {hu.tipoRollo}
+                        </span>
+                      </td>
                       <td className="px-4 py-3">
                         <p className="font-medium text-gray-900 text-xs">{hu.sku?.nombre}</p>
-                        {hu.sku?.color && <p className="text-xs text-gray-400">{hu.sku.color}</p>}
+                        <p className="text-xs text-gray-400">
+                          {hu.sku?.codigo} {hu.sku?.color ? `· ${hu.sku.color}` : ''}
+                        </p>
                       </td>
                       <td className="px-4 py-3 text-right font-semibold">{hu.metrajeActual}m</td>
                       <td className="px-4 py-3 text-center">
-                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${hu.tipoRollo === 'ENTERO' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
-                          {hu.tipoRollo}
+                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                          hu.gradoCalidad === 'RESTRINGIDO' || hu.calidadRestringida ? 'bg-red-600 text-white' :
+                          hu.gradoCalidad === 'CALIDAD_A' ? 'bg-amber-100 text-amber-800' :
+                          hu.gradoCalidad === 'CALIDAD_B' ? 'bg-orange-100 text-orange-800' :
+                          hu.gradoCalidad === 'CALIDAD_C' ? 'bg-rose-100 text-rose-800' :
+                          hu.gradoCalidad === 'CALIDAD_D' ? 'bg-purple-100 text-purple-800' :
+                          'bg-emerald-50 text-emerald-700'
+                        }`}>
+                          {hu.gradoCalidad === 'RESTRINGIDO' ? 'RESTRINGIDO' : hu.gradoCalidad || 'PRIMERA'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -162,6 +189,42 @@ export default function RollosPage() {
                 <div><span className="text-gray-400 block text-xs">Tipo</span><span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${detail.tipoRollo === 'ENTERO' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>{detail.tipoRollo}</span></div>
                 <div><span className="text-gray-400 block text-xs">Generación</span><span className="font-medium">{detail.generacion}</span></div>
                 <div className="col-span-2"><span className="text-gray-400 block text-xs">Ubicación</span><span className="font-mono">{detail.ubicacion?.codigo || 'Sin ubicar'} {detail.ubicacion?.zone?.nombre ? `(${detail.ubicacion.zone.nombre})` : ''}</span></div>
+                
+                {/* Formatex Quality Grade Selector */}
+                <div className="col-span-2 bg-gray-50 p-2.5 rounded-xl border border-gray-100 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+                      <ShieldAlert size={14} className="text-indigo-600" /> Grado de Calidad (Formatex)
+                    </span>
+                    {detail.calidadRestringida && (
+                      <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">NO VENTA REGULAR</span>
+                    )}
+                  </div>
+                  <select
+                    value={detail.gradoCalidad || 'PRIMERA'}
+                    onChange={async (e) => {
+                      const newGrade = e.target.value;
+                      try {
+                        await api.put(`/inventory/hus/${detail.id}/calidad`, {
+                          gradoCalidad: newGrade,
+                          calidadRestringida: newGrade === 'RESTRINGIDO',
+                        });
+                        toast.success(`Calidad actualizada a ${newGrade}`);
+                        refetch();
+                      } catch {
+                        toast.error('Error al actualizar calidad');
+                      }
+                    }}
+                    className="w-full text-xs px-2.5 py-1.5 border border-gray-200 rounded-lg bg-white font-medium"
+                  >
+                    <option value="PRIMERA">Primera Calidad (Disponible general)</option>
+                    <option value="CALIDAD_A">Calidad A (Sin descuento a clientes especiales)</option>
+                    <option value="CALIDAD_B">Calidad B (20% de descuento)</option>
+                    <option value="CALIDAD_C">Calidad C (40% de descuento)</option>
+                    <option value="CALIDAD_D">Calidad D (60% de descuento)</option>
+                    <option value="RESTRINGIDO">RESTRINGIDO (Apartada / Bloqueada)</option>
+                  </select>
+                </div>
               </div>
               {/* Genealogy */}
               {(detail.parentHu || detail.childHus?.length > 0) && (
