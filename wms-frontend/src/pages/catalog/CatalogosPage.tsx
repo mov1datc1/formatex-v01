@@ -141,11 +141,44 @@ export default function CatalogosPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {renderInput('Código *', 'codigo')}
           {renderInput('Nombre *', 'nombre')}
-          {renderInput('Categoría', 'categoria', { placeholder: 'Algodón, Poliéster...' })}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de Artículo</label>
+            <select
+              value={formData.tipoArticulo || 'TELA'}
+              onChange={(e) => {
+                const val = e.target.value;
+                updateField('tipoArticulo', val);
+                if (val === 'MUESTRARIO') {
+                  updateField('unidadMedida', 'PZA');
+                } else if (val === 'TELA') {
+                  updateField('unidadMedida', 'MTR');
+                }
+              }}
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm"
+            >
+              <option value="TELA">🧵 Tela (MTR)</option>
+              <option value="MUESTRARIO">📚 Muestrario / Libro (PZA)</option>
+              <option value="CONSUMIBLE">📦 Consumible / Empaque</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Unidad de Medida</label>
+            <select
+              value={formData.unidadMedida || (formData.tipoArticulo === 'MUESTRARIO' ? 'PZA' : 'MTR')}
+              onChange={(e) => updateField('unidadMedida', e.target.value)}
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm"
+            >
+              <option value="MTR">MTR (Metros)</option>
+              <option value="PZA">PZA (Piezas)</option>
+              <option value="KG">KG (Kilogramos)</option>
+            </select>
+          </div>
+          {renderInput('Colección / Libro Asignado', 'libroColeccion', { placeholder: 'Ej. LIBRO AMALFI, FORMENTERA' })}
+          {renderInput('Categoría', 'categoria', { placeholder: 'Algodón, Lino, Terciopelo...' })}
           {renderInput('Color', 'color')}
-          {renderInput('Composición', 'composicion', { placeholder: '100% algodón' })}
+          {renderInput('Composición', 'composicion', { placeholder: '100% lino' })}
           {renderInput('Ancho (m)', 'anchoMetros', { type: 'number' })}
-          {renderInput('Metraje Estándar', 'metrajeEstandar', { type: 'number' })}
+          {renderInput('Metraje Estándar / Pzas x Paq', 'metrajeEstandar', { type: 'number' })}
           {renderInput('Código Barras', 'codigoBarras')}
         </div>
       );
@@ -294,7 +327,16 @@ export default function CatalogosPage() {
   );
 
   const columns: Record<Tab, { key: string; label: string }[]> = {
-    skus: [{ key: 'codigo', label: 'Código' }, { key: 'nombre', label: 'Nombre' }, { key: 'categoria', label: 'Categoría' }, { key: 'color', label: 'Color' }, { key: 'metrajeEstandar', label: 'Metraje Std.' }],
+    skus: [
+      { key: 'codigo', label: 'Código' },
+      { key: 'nombre', label: 'Nombre' },
+      { key: 'tipoArticulo', label: 'Tipo' },
+      { key: 'libroColeccion', label: 'Colección / Libro' },
+      { key: 'unidadMedida', label: 'U.M.' },
+      { key: 'categoria', label: 'Categoría' },
+      { key: 'color', label: 'Color' },
+      { key: 'metrajeEstandar', label: 'Std.' },
+    ],
     suppliers: [{ key: 'codigo', label: 'Código' }, { key: 'nombre', label: 'Nombre' }, { key: 'contacto', label: 'Contacto' }, { key: 'telefono', label: 'Teléfono' }, { key: 'email', label: 'Email' }],
     clients: [{ key: 'codigo', label: 'Código' }, { key: 'nombre', label: 'Razón Social' }, { key: 'rfc', label: 'RFC' }, { key: 'cp', label: 'C.P. Fiscal' }, { key: 'regimenFiscal', label: 'Régimen' }, { key: 'telefono', label: 'Teléfono' }],
     vendors: [{ key: 'codigo', label: 'Código' }, { key: 'nombre', label: 'Nombre' }, { key: 'telefono', label: 'Teléfono' }, { key: 'email', label: 'Email' }],
@@ -417,6 +459,26 @@ export default function CatalogosPage() {
                     <td key={c.key} className="px-4 py-3">
                       {c.key === 'regimenFiscal' && item[c.key] ? (
                         <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">{item[c.key]}</span>
+                      ) : c.key === 'tipoArticulo' ? (
+                        item.tipoArticulo === 'MUESTRARIO' ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full border border-purple-200">
+                            📚 MUESTRARIO
+                          </span>
+                        ) : item.tipoArticulo === 'CONSUMIBLE' ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">
+                            📦 CONSUMIBLE
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200">
+                            🧵 TELA
+                          </span>
+                        )
+                      ) : c.key === 'libroColeccion' && item[c.key] ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded">
+                          {item[c.key]}
+                        </span>
+                      ) : c.key === 'unidadMedida' ? (
+                        <span className="text-xs font-mono font-bold text-gray-600">{item.unidadMedida || (item.tipoArticulo === 'MUESTRARIO' ? 'PZA' : 'MTR')}</span>
                       ) : c.key === 'rfc' && tab === 'clients' ? (
                         <span className="font-mono text-xs">{item[c.key] || <span className="text-red-400 flex items-center gap-1"><AlertTriangle size={10} /> Falta</span>}</span>
                       ) : (
