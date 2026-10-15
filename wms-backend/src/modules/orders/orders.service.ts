@@ -29,7 +29,8 @@ export class OrdersService {
       this.prisma.order.findMany({
         where, skip, take: limit, orderBy: { createdAt: 'desc' },
         include: {
-          client: { select: { nombre: true, codigo: true, rfc: true } },
+          client: { select: { nombre: true, codigo: true, rfc: true, cartaFletera: true } },
+          deliveryAddress: true,
           vendor: { select: { nombre: true, codigo: true } },
           lineas: {
             include: {
@@ -65,7 +66,13 @@ export class OrdersService {
     const order = await this.prisma.order.findUniqueOrThrow({
       where: { id },
       include: {
-        client: true,
+        client: {
+          include: {
+            addresses: { where: { activo: true }, orderBy: { esPredeterminada: 'desc' } },
+            specialPrices: { where: { activo: true } },
+          },
+        },
+        deliveryAddress: true,
         vendor: true,
         lineas: {
           include: {
@@ -105,6 +112,12 @@ export class OrdersService {
     modoEntrega?: string;
     fechaRequerida?: string;
     notas?: string;
+    deliveryAddressId?: string;
+    deliveryContactName?: string;
+    deliveryContactPhone?: string;
+    deliverySchedule?: string;
+    fletera?: string;
+    envioAsegurado?: boolean;
     creadoPor: string;
     lineas: Array<{
       skuId: string;
@@ -117,8 +130,20 @@ export class OrdersService {
     }>;
   }) {
     const code = await this.generateCode('PED');
-    const reservaHoras = data.reservaHoras || 168; // 7 días default
+    // Apartado interno de almacén: 72 horas (3 días) por default (con 24h comunicadas comercialmente)
+    const reservaHoras = data.reservaHoras || 72;
     const modoEntrega = data.modoEntrega || 'COMPLETA';
+
+    // Auto-detect if any line uses a restricted price list (F3, F5, F7, F9) requiring approval
+    const restrictedLists = ['F3', 'F5', 'F7', 'F9'];
+    let requiresApproval = false;
+    let approvalReason = '';
+    for (const l of data.lineas) {
+      if (l.listaPrecios && restrictedLists.includes(l.listaPrecios)) {
+        requiresApproval = true;
+        approvalReason = `Requiere autorización: Asignación de ${l.listaPrecios} en cotización`;
+      }
+    }
 
     // Calcular totales financieros considerando descuentos aplicados
     let subtotal = 0;
@@ -131,7 +156,7 @@ export class OrdersService {
     const iva = subtotal * 0.16;
     const total = subtotal + iva;
 
-    // Expiration for soft reservations
+    // Expiration for soft reservations (Apartado)
     const expiresAt = new Date(Date.now() + reservaHoras * 60 * 60 * 1000);
 
     return this.prisma.$transaction(async (tx: any) => {
@@ -140,7 +165,13 @@ export class OrdersService {
         data: {
           codigo: code,
           clientId: data.clientId,
-          vendorId: data.vendorId,
+          deliveryAddressId: data.deliveryAddressId || null,
+          deliveryContactName: data.deliveryContactName || null,
+          deliveryContactPhone: data.deliveryContactPhone || null,
+          deliverySchedule: data.deliverySchedule || null,
+          fletera: data.fletera || null,
+          envioAsegurado: data.envioAsegurado ?? false,
+          vendorId: data.vendorId || null,
           atcUserId: data.creadoPor,
           prioridad: data.prioridad || 3,
           reservaHoras,
@@ -151,6 +182,8 @@ export class OrdersService {
           creadoPor: data.creadoPor,
           requiereCorte: true,
           estado: 'COTIZADO',
+          approvalStatus: requiresApproval ? 'PENDIENTE' : 'NO_REQUIERE',
+          approvalReason: requiresApproval ? approvalReason : null,
           subtotal,
           iva,
           total,
@@ -173,7 +206,7 @@ export class OrdersService {
             }),
           },
         },
-        include: { client: true, lineas: true },
+        include: { client: true, deliveryAddress: true, lineas: true },
       });
 
       // 2. For each line, auto-assign HUs and create reservations
@@ -631,5 +664,77 @@ export class OrdersService {
       this.prisma.order.count({ where: { estado: 'DESPACHADO' } }),
     ]);
     return { total, cotizados, porPagar, porSurtir, enProceso, empacados, facturados, despachados };
+  }
+
+  // =========================================================================
+  // GESTIÓN DE TAREAS DE ENTREGA (Notificaciones para ATC y Supervisora Alma)
+  // =========================================================================
+  async getPendingDeliveryConfirmations(userId?: string, isSupervisor?: boolean) {
+    const where: any = {
+      deliveryConfirmed: false,
+      estado: { in: ['POR_SURTIR', 'EN_SURTIDO', 'EN_CORTE'] },
+    };
+    // Si no es supervisora ni admin, solo ve los pedidos que ella misma levantó (atcUserId)
+    if (!isSupervisor && userId) {
+      where.atcUserId = userId;
+    }
+
+    return this.prisma.order.findMany({
+      where,
+      orderBy: { fechaPedido: 'desc' },
+      include: {
+        client: {
+          select: {
+            id: true,
+            nombre: true,
+            codigo: true,
+            telefono: true,
+            cartaFletera: true,
+            seguroEnvioDefault: true,
+            addresses: { where: { activo: true }, orderBy: { esPredeterminada: 'desc' } },
+          },
+        },
+        deliveryAddress: true,
+        _count: { select: { lineas: true } },
+      },
+    });
+  }
+
+  async confirmDelivery(orderId: string, data: {
+    deliveryAddressId?: string;
+    deliveryContactName?: string;
+    deliveryContactPhone?: string;
+    deliverySchedule?: string;
+    fletera?: string;
+    envioAsegurado?: boolean;
+    confirmedBy: string;
+  }) {
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        deliveryAddressId: data.deliveryAddressId || null,
+        deliveryContactName: data.deliveryContactName || null,
+        deliveryContactPhone: data.deliveryContactPhone || null,
+        deliverySchedule: data.deliverySchedule || null,
+        fletera: data.fletera || null,
+        envioAsegurado: data.envioAsegurado ?? false,
+        deliveryConfirmed: true,
+        deliveryConfirmedAt: new Date(),
+        deliveryConfirmedBy: data.confirmedBy,
+      },
+      include: { client: true, deliveryAddress: true },
+    });
+  }
+
+  async approveOrder(orderId: string, approvedBy: string, aprobado: boolean, reason?: string) {
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        approvalStatus: aprobado ? 'APROBADO' : 'RECHAZADO',
+        approvalReason: reason || (aprobado ? 'Aprobado por Gerencia' : 'Rechazado por Gerencia'),
+        approvedBy,
+        approvedAt: new Date(),
+      },
+    });
   }
 }

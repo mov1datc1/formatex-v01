@@ -112,6 +112,94 @@ export class CatalogController {
     return this.catalogService.bulkCreateClients(body.items);
   }
 
+  // ===== CLIENT ADDRESSES =====
+  @Get('clients/:id/addresses')
+  @ApiOperation({ summary: 'Listar direcciones de un cliente' })
+  getClientAddresses(@Param('id') id: string) {
+    return this.catalogService.getClientAddresses(id);
+  }
+
+  @Post('clients/:id/addresses')
+  @ApiOperation({ summary: 'Crear dirección para un cliente' })
+  createClientAddress(@Param('id') id: string, @Body() body: any) {
+    return this.catalogService.createClientAddress(id, body);
+  }
+
+  @Put('clients/addresses/:addressId')
+  @ApiOperation({ summary: 'Actualizar dirección de un cliente' })
+  updateClientAddress(@Param('addressId') addressId: string, @Body() body: any) {
+    return this.catalogService.updateClientAddress(addressId, body);
+  }
+
+  @Delete('clients/addresses/:addressId')
+  @ApiOperation({ summary: 'Eliminar (desactivar) dirección' })
+  deleteClientAddress(@Param('addressId') addressId: string) {
+    return this.catalogService.deleteClientAddress(addressId);
+  }
+
+  // ===== CLIENT SPECIAL PRICES =====
+  @Get('special-prices')
+  @ApiOperation({ summary: 'Listar precios especiales por cliente y SKU' })
+  findAllSpecialPrices(
+    @Query('clientId') clientId?: string,
+    @Query('skuId') skuId?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.catalogService.findAllSpecialPrices({ clientId, skuId, search, page, limit });
+  }
+
+  @Get('special-prices/lookup')
+  @ApiOperation({ summary: 'Buscar precio especial de un cliente para un SKU específico' })
+  findSpecialPrice(@Query('clientId') clientId: string, @Query('skuId') skuId: string) {
+    return this.catalogService.findSpecialPrice(clientId, skuId);
+  }
+
+  @Post('special-prices')
+  @ApiOperation({ summary: 'Registrar o actualizar precio especial' })
+  createSpecialPrice(@Body() body: any) {
+    return this.catalogService.createSpecialPrice(body);
+  }
+
+  @Put('special-prices/:id')
+  @ApiOperation({ summary: 'Modificar precio especial' })
+  updateSpecialPrice(@Param('id') id: string, @Body() body: any) {
+    return this.catalogService.updateSpecialPrice(id, body);
+  }
+
+  @Delete('special-prices/:id')
+  @ApiOperation({ summary: 'Eliminar precio especial' })
+  deleteSpecialPrice(@Param('id') id: string) {
+    return this.catalogService.deleteSpecialPrice(id);
+  }
+
+  @Post('special-prices/bulk')
+  @ApiOperation({ summary: 'Importar precios especiales masivamente desde CSV/Excel' })
+  bulkCreateSpecialPrices(@Body() body: { items: any[] }) {
+    if (!body.items?.length) throw new BadRequestException('No se recibieron items');
+    return this.catalogService.bulkCreateSpecialPrices(body.items);
+  }
+
+  // ===== PRICE LISTS =====
+  @Get('price-lists')
+  @ApiOperation({ summary: 'Listar configuraciones de listas de precios oficiales' })
+  findAllPriceLists() {
+    return this.catalogService.findAllPriceLists();
+  }
+
+  @Put('price-lists/:id')
+  @ApiOperation({ summary: 'Actualizar lista de precios' })
+  updatePriceList(@Param('id') id: string, @Body() body: any) {
+    return this.catalogService.updatePriceList(id, body);
+  }
+
+  @Post('price-lists/seed')
+  @ApiOperation({ summary: 'Sembrar las 10 listas de precios oficiales si no existen' })
+  seedPriceLists() {
+    return this.catalogService.seedPriceLists();
+  }
+
   // ===== VENDORS =====
   @Get('vendors')
   @ApiOperation({ summary: 'Listar vendedores' })

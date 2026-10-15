@@ -14,6 +14,17 @@ export class OrdersController {
   @ApiOperation({ summary: 'Estadísticas de pedidos' })
   getStats() { return this.ordersService.getOrderStats(); }
 
+  @Get('pending-delivery-confirmations')
+  @ApiOperation({ summary: 'Listar pedidos en surtido pendientes de confirmación de entrega (ATC y Supervisora)' })
+  getPendingDeliveryConfirmations(@Req() req: any) {
+    const isSupervisor = req.user.role === 'ADMIN' ||
+                         req.user.role === 'GERENCIA' ||
+                         req.user.role === 'SUPERVISOR' ||
+                         (req.user.nivel && req.user.nivel <= 2) ||
+                         req.user.username?.toLowerCase().includes('alma');
+    return this.ordersService.getPendingDeliveryConfirmations(req.user.sub, isSupervisor);
+  }
+
   @Get()
   @ApiOperation({ summary: 'Listar pedidos' })
   findAll(@Query('search') search?: string, @Query('estado') estado?: string, @Query('clientId') clientId?: string, @Query('page') page?: number, @Query('limit') limit?: number) {
@@ -23,6 +34,18 @@ export class OrdersController {
   @Get(':id')
   @ApiOperation({ summary: 'Detalle del pedido' })
   findById(@Param('id') id: string) { return this.ordersService.findById(id); }
+
+  @Put(':id/confirm-delivery')
+  @ApiOperation({ summary: 'Confirmar datos logísticos de entrega durante el surtido (ATC / Supervisora)' })
+  confirmDelivery(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+    return this.ordersService.confirmDelivery(id, { ...body, confirmedBy: req.user.sub });
+  }
+
+  @Put(':id/approve')
+  @ApiOperation({ summary: 'Aprobar o rechazar pedido que requería autorización especial' })
+  approveOrder(@Param('id') id: string, @Body() body: { aprobado: boolean; reason?: string }, @Req() req: any) {
+    return this.ordersService.approveOrder(id, req.user.sub, body.aprobado, body.reason);
+  }
 
   @Get(':id/picking-list')
   @ApiOperation({ summary: 'Lista de picking con ubicaciones (para Zebra)' })

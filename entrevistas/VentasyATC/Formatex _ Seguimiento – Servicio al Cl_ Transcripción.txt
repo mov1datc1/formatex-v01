@@ -1,0 +1,489 @@
+Formatex | Seguimiento – Servicio al Cliente(Alma)
+mié, 14 oct 2026
+
+0:00 - MOVIDA TCI
+Bueno, y tomaremos nota manual, en estilo viaje. Aquí dice que no tengo permitido, no tienes permiso.
+
+0:26 - Orador no identificado
+Vamos a ver.
+
+1:04 - Ricardo Zerpa
+Hola, buenos días. ¿Cómo estás? Hola, buenos días, Ricardo. Muy bien.
+
+1:11 - Andrea Ramirez
+¿Y tú? Dame un momentito y ahorita prendo la cámara.
+
+1:18 - Orador no identificado
+No te preocupes. Sí. OK.
+
+1:21 - Ricardo Zerpa
+A ver, ya estamos listos. Sí. Hola, hola.
+
+1:26 - Andrea Ramirez
+Como habíamos quedado, hola. Ella es Alma. Cliente en el área de servicio a clientes es la que va a tener la entrevista el día de hoy. Santiago y yo únicamente vamos a estar aquí como oyentes y en dado caso si necesitamos hacer algún comentario lo haremos. Claro que sí.
+
+1:54 - MOVIDA TCI
+Hola Miriam. Si básicamente Por aquí hoy nos acompaña Ricardo también en lo que pueda va a estar complementando nuestras llamadas. Básicamente el objetivo de la llamada es revalidar. Obviamente nosotros levantamos la información hace mucho tiempo pero necesitamos revalidarla con el área encargada como Alma en este caso que se que es la persona encargada de la atención del cliente y nos pueda sacar algunas dudas, contrastar lo que tenemos en el sistema, en el mockup, para antes de hacer el desarrollo total o las optimizaciones, se puede realizar de manera correcta.
+
+ Bueno Alma, una pregunta. ¿Has visto el mockup? La parte El prototipo que hemos llevado del nuevo WMS es donde se integra la parte de levantar pedidos. No sé si usted, Santiago o Andrea, se lo han mostrado.
+
+3:02 - Andrea Ramirez
+No, creo que ella no ha estado en las juntas que hemos tenido de esa parte.
+
+3:09 - MOVIDA TCI
+OK, vamos a ver si puedo compartir aquí para Ricardo.
+
+3:14 - Ricardo Zerpa
+Sí, sí, sugiero. Hola, Alma.
+
+3:16 - Andrea Ramirez
+Hola, buen día. Buenos días.
+
+3:18 - Ricardo Zerpa
+Yo sugiero que hagamos un recorrido por la plantilla que tenemos y del proceso, de la herramienta. La idea es validar contigo. Nos digas si está muy cercano lo que tiene el proceso actual. Siéntete en la libertad de interrumpirnos y de agregar cualquier cosa. O sea, me gustaría que, no sé, este campo esté aquí, un shake, un validador, un candado. Esto lo vea yo porque soy la líder, pero mi equipo no.
+
+ Siéntete en libertad de interrumpirnos allí. Jonathan va a compartir la pantalla y vamos a ir pasándole, aquí estamos para tomar notas y para buscar documentar el proceso para que se tenga el diseño y luego lo contrastemos cuando lo entreguemos y ustedes puedan hacer las pruebas. Igual estamos, decimos esto, igual estamos abiertos a si surge alguna modificación en el camino, estamos abiertos para ejecutarla, pero la metodología que utilizamos está buscando que podamos entender el flujo, cubrir con todos los requerimientos que se tienen y buscar ahora sí que el diseño esté adaptado a las necesidades del negocio.
+
+ Adelante, Jonathan.
+
+4:35 - Orador no identificado
+Claro que sí.
+
+4:36 - MOVIDA TCI
+Sí, vamos a compartir aquí. Permiten.
+
+4:42 - MOVIDA TCI
+¿Me avisan cuando ya pueda ver? Después de la pantalla. Confirmo. ¿Ustedes pueden ver? Sí. Sí, ok.
+
+4:56 - Ricardo Zerpa
+Ok Alma, fíjate.
+
+4:58 - MOVIDA TCI
+Este es el prototipo de la digitalización que se está llevando dentro de Formatex. Que es una plataforma que la estamos tratando de hacer un poco sencilla al uso, a los usuarios que serían ustedes y parte de su equipo. Ahorita estoy como administrador, como administrador siempre van a aparecer todas las funcionalidades de la plataforma, pero nosotros estamos creando unos roles con unos accesos personalizados, donde, dependiendo el área, vas a poder visualizar los módulos que correspondan.
+
+ Por ejemplo, si damos atención al cliente, probablemente veas esta parte aquí que dice ventas ATC, pedidos, disponibilidad de tránsito. Y en el caso tuyo, que quizás tienes la parte de, digamos, de coordinación, de supervisión, o la jefa del área, quizás ves también catálogo, si tu rol lo permite, es una de las preguntas iniciales que te voy a hacer es la parte de clientes, porque entendemos, entendemos aquí tengo descrito cuando fui a Formatex y estuvimos conversando en la parte de atender.
+
+ Ustedes en esa área constantemente están recibiendo desde, desde vía WhatsApp, la mayor, mayormente los pedidos de los agentes. Nosotros los llamamos agentes, no agentes están fuera de Formatex, que son los vendedores que ellos están contrastando con los clientes finales, levantando pedidos y ya con el equipo de ATC es que reciben esa petición vía WhatsApp y ahí inicia el proceso de ustedes de atención al cliente desde hacer la cotización y la comunicación que tienen.
+
+ Entonces, no sé si empezamos por ahí, me describes esa parte con tus palabras porque bueno yo lo tengo anotado aquí pero tú eres más experta y si lo puedes escribir incluso desde que en el caso de que un cliente es nuevo o un cliente que ya ha estado de alta y dónde está dado de alta actualmente en el proceso que manejan hoy por hoy.
+
+7:23 - Andrea Ramirez
+Los vendedores los que son los agentes de venta siempre son los que mandan en la alta del cliente. Mandan siempre su documentación. Las chicas del área de servicio al cliente son las que se encargan de agregarlos en el sistema. Agregar lo que son sus datos de razón social, domicilio, teléfono. El domicilio de entrega, porque muchas veces los clientes manejan lo que es el domicilio de entrega parte del fiscal.
+
+ Puede ser o la entrega en el fiscal o tienen y pueden manejar un alterno. Entonces en el sistema agregan todos los domicilios que van a manejar el cliente, que se van a entregar sus pedidos de entrega, ya sea por año o local. Y de ahí ya lo dan de alta, agregan la lista de precios porque manejamos varias listas de precios y depende la lista ¿Cómo definen la lista de precios? O sea, ese cliente, ¿cómo lo categorizan?
+
+ ¿Lo categorizan en el momento del alta? De que diga, este cliente es VIP, por ejemplo.
+
+8:37 - MOVIDA TCI
+Hay que hacerle esta lista. ¿Cómo lo asignan en la lista de precios? Lo asignan a gente. Es dependiente de la cantidad de clientes que hay en el momento de la alta.
+
+8:50 - Andrea Ramirez
+Entonces, ¿cómo lo asignan en la lista de precios? Si es un distribuidor, fabricante o casa decoradora. Y él ya nos notifica en el correo qué lista de precios va a manejar. O sea, si ya sea distribuidor, fabricante o casa decoradora. Ok.
+
+9:16 - MOVIDA TCI
+¿No hay otro perfil? ¿Sería, por ejemplo, cliente básico? No sé, y quiera comprártela por alguna razón. Tenemos nada más entonces estos tres perfiles, distribuidor, fabricante y casa decoradora.
+
+9:31 - Andrea Ramirez
+Son las tres listas que se manejan actualmente, ¿correcto? No. Perdón. Tenemos, bueno, son actualmente diez listas de precios diferentes, en donde, digo, si quieres te mando una foto de cómo las estamos manejando actualmente, casa decoradora, tienda, tienda especial, fabricante, fabricante especial, distribuidor y cliente premium. Aparte de esas tenemos una lista externa que es la que usamos para página web que es para aquellas personas que son de de una sola comunidad esas personas de una sola compra no se registran, se ven directamente con una, con la asesora de servicio a clientes pero del área de página web.
+
+ Perfecto.
+
+10:18 - MOVIDA TCI
+Si ahí sigue, me compartes esa lista por favor, un poquito me nota pero me la compartes cuando puedas. Sí. Y sí, justamente quería llegar hasta ahí que si había un precio como web para personas naturales que no se les da de alta ¿no? Y a ellos normalmente no se les factura o si se les factura, son una factura genérica ¿no? Imagino.
+
+10:47 - Andrea Ramirez
+No, muchas veces si se les factura como genérico y otras veces si solicitan factura, ya es dependiendo del cliente.
+
+10:55 - MOVIDA TCI
+Ustedes pasan eso a facturación, a César, o sea cuando se que es el tiempo de entrega, una, nosotros manejamos tiempos de entrega de lo que son los pedidos.
+
+11:16 - Andrea Ramirez
+Si son rollos, manejamos el tiempo de entrega de cuarenta y ocho horas, y es Una vez que su pedido se trabaja, lo pasamos al másel, al másel no lo regresa y es cuando lo facturamos y automáticamente del sistema le llega la factura al cliente. Que le llega casi con su pedido. Si nos quisiéramos meter un poquito más, Jonathan, en el tema de página web, creo que vendría mejor que hiciéramos una agenda con la gerente de marketing es la que lleva esa parte.
+
+
+
+11:58 - MOVIDA TCI
+Sí, entonces agéndalo también en la lista que tenemos de entrevistas. Sí, porque profundizamos un poco más con ella.
+
+12:06 - Andrea Ramirez
+Ajá, porque Alma actualmente lo que hace es todo el servicio a clientes de clientes que estén registrados. Todo cliente que no sea registrado se pasa al área de página web. Y van a ser solo una compra. Sí, son compras.
+
+12:24 - MOVIDA TCI
+ajá una vez cada mucho tiempo que no necesitan un precio especial si nosotros aquí este para ir contrastando lo que va a mencionar el que sigue en la pantalla todavía verdad si nosotros vamos a tener un área quizás este no es el nada lo que van aquí quizás no es la decoración final por decirlo así el diseño final pero vamos a tener un área de cliente es donde va la lista donde se se hace alta con los datos, aquí lo que nos está faltando son las direcciones, que cada cliente tenga dirección fiscal y dirección de entrega, este, bueno, todas las que se necesiten, ¿No?
+
+ Eh vamos a tener esa esa parte y unas acciones donde donde se edite, se elimine, se se agregue, ¿No? Este solamente para ir contrastando y y que Alma también vaya viendo cómo se cómo se pretende eh hacer hacer en la digitalización. Este por eso hay cosas preguntas de si ¿Quién se encarga de hacer ese algo? Si si ahí me confirman que es que lo hace ATC. O sea, si es nuevo el cliente, sea de este fabricante, o sea, cualquier perfil que tenga, lo hacen ustedes.
+
+ Entonces, si ya está registrado, bueno, ya no, no, este proceso se salta a directo a la a la cotización, ¿Verdad?
+
+13:49 - Andrea Ramirez
+Perdón, Jonathan, te quiero interrumpir un poquito. Aparte de las listas de precios que tenemos determinadas, manejamos precios especiales, que era lo que en su momento te estábamos comentando antes de comenzar. Estos precios especiales son autorizados por dirección general y se le dan a ciertos clientes en ciertas telas. Lo que queremos evitar actualmente es que esos precios especiales se ponen de forma manual.
+
+ Al ponerse de forma manual hemos tenido muchos errores de dedo que nos afectan pues económicamente. Lo que nos gustaría es ver si hay una forma en la que al cliente se le pueda asignar, no sé, alguna opción en donde diga tal tela le va a quedar en tal precio. ¿Sabes? Y que eso únicamente lo haga la gerente o encargada del área de servicio a clientes. Ya sé si quieres delegárselo.
+
+14:45 - MOVIDA TCI
+nosotros ahí tendríamos que ver dentro del proceso de cotización este para eso justamente para los precios especiales se le autorice tiene que pasar por alma en este caso para que haga la confirmación pero este yo creo que de alguna manera sí hay que colocar el descuento que se vaya a hacer manual porque no sabemos cuál va a ser o ya está pre determinado cuál va a ser. Como no está predeterminado, imagino que es en el momento que se hace, ¿no?
+
+ Que dicen, bueno, dirección autoriza un tanto por ciento o si no es en porcentaje, es en número, o sea, numérico, y que simplemente ese tipo de descuento, Alma lo tenga que confirmar para que pueda continuar, pues, por decirlo así, la cotización.
+
+15:35 - Andrea Ramirez
+Pero lo que no es el candado ajá lo que no queremos es que se ponga de forma manual o sea se me ocurre no sé tú cómo veas no sé cómo esté colocada la la tela a lo mejor que al momento de ingresar la tela haya una opción donde diga precios especiales y que le podamos agregar el cliente y el precio del cliente para que cuando el cliente seleccione esa tela se le da lo mejor ese precio o ese mismo desglose a lo mejor hace hacerlo en el del cliente donde diga precios especiales, la tela fulana color mangano este va a tener un costo de tanto y que cuando la cotización salga con esa tela automáticamente se le ponga dicho precio.
+
+ O sea, queremos.
+
+16:23 - MOVIDA TCI
+Pero ya los precios ya se van asignando. O sea, la duda que tengo, o sea, la precisión de la duda es, entonces el si lo tienen, ese precio de descuento sí está ya predeterminado.
+
+16:39 - Orador no identificado
+No.
+
+16:39 - Andrea Ramirez
+No, es que. Porque si me dicen, no lo pongo manual, es porque ya lo tienen. No, bueno, ahorita tenemos muchos precios especiales. O sea, realmente son bastantes. Eh, lo que. Lo que. Como cómo se determina el precio especial. Si una tela llega a entrar a algún piso de alguna cadena, mueblera, vamos a hacer un ejemplo con Plasencia. La tela pulanita de tal entró al piso de Plasencia, por ende necesitan que tengan un mejor precio porque van a ser un volumen muy grande, pero Plasencia no compra la tela, ellos tienen tapiceros, entonces ese precio especial se le tiene que dar a todos los que son sus clientes de Plasencia, si me doy a entender qué pasa ahí que si por un ejemplo.
+
+
+
+17:33 - MOVIDA TCI
+Si vamos a destrabar esto, vamos a ver, Ricardo que puso la mano leve y levantada.
+
+17:39 - Ricardo Zerpa
+Si, yo lo que creo es que, quiero aportar, vamos a suponer, lo que entiendes que tienen una tela y esa tela vamos a suponer, voy a tratar de redondear el número de aquí, vamos a suponer que a Formatex le cueste 100 pesos base ¿no? Entonces eso en el sistema, puede ser o un porcentaje o un monto donde esté topado allí y que tenga una aprobación. Podemos poner un candado que tenga dos aprobaciones, uno pudiérase por alma o por otra persona, y que tenga una aprobación.
+
+ En el caso de un candado que tenga dos aprobaciones, puede ser un porcentaje o un monto donde esté topado allí y que tenga una aprobación. En el caso de un candado que tenga dos aprobaciones, puede ser un porcentaje o un monto donde esté Ustedes lo deciden y entonces así se mantiene y con ello podemos evitar errores de que alguien tipee y entonces diga le puso 50 pesos y la empresa seguramente perdió porque no costaba o creó una falsa expectativa.
+
+
+
+18:43 - Andrea Ramirez
+Es que el tema es que a veces las chicas no recuerdan si esa tela tenía un descuento con el cliente. Actualmente tenemos una tabla de Excel que ellos tienen que revisar esa tabla de Excel para ver si la tela que están solicitando entró en un precio especial. Después de que revisan la tabla de Excel, regresan a la cotización y ya sea que sí lo ponen manualmente o si no, prosiguen la cotización. Si alguna chica de servicio a clientes no revisó la tabla en su momento, puede que se haya colocado el precio incorrecto y que hacer una nota de crédito.
+
+
+
+19:22 - Ricardo Zerpa
+Entiendo, para eso vamos a crear un máster de productos y de precios y ahí como ustedes decían a lo mejor tenemos una lista de precios para unos clientes entonces le aplican, no sé, este cliente que es un tapicero que va a Plasencia le aplica esta esta tabla de descuento porque el ejercicio, pertenece no a me queda tan claro ahorita cómo lo podemos hacer pero le vamos a buscar una solución y se lo vamos a presentar.
+
+ A mí me queda claro, nosotros tenemos varias experiencias de lo que son descuentos, descuentos manuales, entonces vamos a hacerla aquí. Digamos que ustedes tienen varios distinto, pero vamos a crear una, o sea el tema, el reto que veo es que ustedes tienen varios archivos ahorita y es difícil saber a este cliente cuál le aplica, pero como vamos a tener una sola base centralizada de precios y de productos, eso nos va a ayudar a tener un único y ojo, vamos a poder aplicárselo por temporada, por descuento, por clientes, por tipo.
+
+
+
+20:30 - Andrea Ramirez
+Si, ahí básicamente mi idea sería que el sistema, cuando apliques ese cliente, esa tela, busque a lo mejor en el archivo que estás mencionando y si sí está en ese archivo, te ponga el precio del archivo. Porque aquí, como los clientes lo ven directamente con dirección general, no es que apliquemos un descuento. O sea, el director general agarra la calculadora, saca sus números y le da un precio que pueda entrar a ese piso o a esa cadena.
+
+
+
+21:03 - Ricardo Zerpa
+Pero eso se registra en algún lado. No, no están en sistema.
+
+21:07 - Andrea Ramirez
+Ese precio no va a estar en el sistema y lo que quieren es integrarlo en el sistema para que las chicas ya no lo pongan manualmente, sino que ya esté integrado. Así es.
+
+21:20 - Ricardo Zerpa
+Pero lo que podemos hacer es que ahorita nos sirve de ese descuento, él lo meta en el sistema, dice yo estoy aprobando esto o no lo ven factible o le dice a alguien y alguien lo captura y lo aprueba.
+
+21:36 - Orador no identificado
+¿Cómo?
+
+21:36 - Andrea Ramirez
+¿verdad?
+
+21:37 - Ricardo Zerpa
+Lo que veo es que esa transacción, o sea, la fuente de la verdad tiene que ser sistema de la lista de precios. Si el gerente general dio un precio especial debe registrarse en el sistema porque esa es la forma o alguien debe registrarlo en el sistema. Para que aplique. Ah, claro. Si es factible eso, ¿sí? Sí.
+
+21:59 - Andrea Ramirez
+Director, bueno, lo que se hace actualmente es que dirección general o el gerente de ventas hace la, bueno, la confirmación del precio o el descuento que se le está dando al cliente, se le pasa a la gerente de atención al clientes y ella lo agrega a la lista de precios Excel que tenemos de precios especiales.
+
+22:21 - Ricardo Zerpa
+Me queda claro.
+
+22:23 - MOVIDA TCI
+Vamos a necesitar, Andrea, entonces la lista de precios para visualizarla junto con los perfiles que tienen. O sea, las listas de precios según el perfil y esa parte del Excel también donde tienen los precios especiales para ver cómo lo tienen. Y de allí ya le damos la forma, le damos la solución.
+
+22:49 - Andrea Ramirez
+Me parece.
+
+22:50 - MOVIDA TCI
+Perfecto. Continuando, Alma, ahora sí vamos al proceso donde ya digamos, ya tenemos las listas, ya tenemos precios, ya tenemos los perfiles registrados, las altas de clientes nuevos. Ahora, cuando una persona, un vendedor en este caso de ATC, recibe por Whatsapp, mira, cotízame esto y esto y esto. O sea, ¿Qué se dispara ahí? ¿Qué es lo que hace entonces? ¿Cómo lo describirías tú? ¿Cómo lo hace esa persona de ventas cuando alguien solicita una cotización?
+
+ Muchas veces puede ser.
+
+23:29 - Andrea Ramirez
+Bueno, en este caso ya puede ser el agente de ventas o el cliente el que solicita la cotización. Solicita, necesito tal tela, tantos metros. Las chicas verifican la existencia en el sistema. Si tenemos bastante metraje, y son Goldes, en ese momento se procesa la cotización y se la manda ya sea por PDF o directamente por el sistema y les llega por correo. Pero muchas veces el cliente la solicita por PDF porque es cuando solicitan ellos el pago a su empresa.
+
+ Una vez que, eso es cuando tenemos bastante Eso es cuando si tenemos. ¿Te puedes detener un momentito ahí?
+
+24:18 - MOVIDA TCI
+¿Perdón? Si te puedes detener un momento ahí que yo creo que hay cosas todavía hay que destrabar, hay unas cositas ahí. Disculpa hay que te interrumpo. Cuando solicita, cuando Atención al Cliente hace la verificación, lo hace actualmente en el máster que tienen del Lo hacen en el máster y en el sistema.
+
+24:45 - Andrea Ramirez
+Pero más en el compact, literal en el compact. Porque es literalmente lo que tenemos en la existencia. ¿Se puede interrogar un momentito? Si en compact no tenemos ningún inventario, revisan el máster para ver si no lo tuviéramos en la bodega de telares.
+
+25:06 - MOVIDA TCI
+Así es. También durante ese proceso, puede que si tienen, ejemplo, tienen una parte del pedido, vamos a poner un ejemplo sencillo, 50 metros en bodega, 50 metros que puede estar telares o puede venir en tránsito, ¿no?
+
+25:21 - Orador no identificado
+También.
+
+25:22 - MOVIDA TCI
+Ustedes hacen, ustedes le dicen al cliente, tal cual esa información, mira, que tengo de los 100 metros que me solicitas, te puedo entregar parcialmente 50, y luego en tal fecha te puedo entregar los otros 50. Ese tipo de procesos existen, ¿Así?
+
+25:39 - Andrea Ramirez
+Sí, cuando la tela está en telares, eso no tiene que afectar, o sea, literal, mandan la cotización, y ya nosotros nos encargamos de solicitarla para que la tengan aquí, para que la trabajen en cuanto el cliente pague la la tela. Pero si la tela viene en tránsito. No, si viene, si nosotros no contamos con la fecha de arribo en que llega pero ahí no se le puede mandar la cotización si son rollos, si son cortes sí se le puede mandar la cotización pero se le notifica al cliente que no contamos con la existencia y se le confirma la fecha de arribo de cuando va a llegar esa tela.
+
+
+
+26:23 - MOVIDA TCI
+Y si el cliente dice sí, por ejemplo, va a llegar para llegar en diciembre, no sé, el 10 de diciembre, el cliente te dice si la quiere vez le pasa la cotización y le solicitan el pago allí o espera que llegue y pagan después. ¿Cómo se realiza ese proceso allí? Ahí depende del cliente.
+
+26:42 - Andrea Ramirez
+Si el cliente no le afecta su factura, puede realizar el pago y si no le afecta su factura en cuestión de que el pago va a entrar en octubre y la factura se le va a hacer en diciembre, a él no le afecta, sin ningún problema, él puede realizar el pago. Si él dice no, sí necesito la factura, entonces solamente déjame en pacorde y el diciembre cuando llega la tela ya te realizo el pago por la cuestión de los pagos fiscales, de las facturas fiscales que él quiere que su pago se realice la factura en que se le va a entregar el mínimo mes, así es.
+
+ Ahí tengo una duda, ¿cómo puede hacer el pago si no sabe cuánto miden los Eso es en cortes. En cortes sí, pero en rollos no. O muchas veces los clientes dicen, me importa, te pago 50 metros, yo sé que después te voy a pagar el complemento si viene más grande el rollo o si viene menos de 50, me va a quedar saldo a favor, no tengo ningún problema. Solo es para que me apartes la tela y me consideres en esa fecha.
+
+ Pagar el decontado y para los que son de crédito no se hace la factura hasta que llegue la tela se les dejen de acuerdo se procesa sus pedidos y realmente de todos los aunque son de crédito se le notifica el cliente ya me llegó la tela aún está vigente tu orden de compra y el cliente confirma si no ya cancelamente le voy a cambiar la verdad ok no siempre no, siempre se la llevan muchos y son seguros, otros se les tiene que verificar aún así para que confirmen si realmente todavía la necesitan.
+
+
+
+28:38 - MOVIDA TCI
+Sí, justamente esa pregunta te la iba a hacer, qué pasa con los clientes que te dicen si la quiero y luego no y probablemente esa tela puede haber sido solicitada por alguien de contado que ya la comprometiste crédito para un mes, por ejemplo, porque es la fecha que llega, o dos meses, y en ese transcurso llegan otros clientes solicitando la misma tela, obviamente ustedes respetan, respetan lo de lo que ya se ha comprometido, o llaman y preguntan en ese momento al cliente que si todavía está interesado para si no vendérsela al otro, ¿no?
+
+
+
+29:20 - Andrea Ramirez
+Cuando sucede esto, y tengo varios de arribo de una tela y un cliente me dice, sí, déjame el backorder y después me cancela. En este caso, un cliente que no alcanzaba a metraje en una fecha de arribo, por ejemplo, en otra noviembre, fecha le de confirman arribo de diciembre. Cuando me cancelan de noviembre pues prácticamente ya se la ofrezco al que le hayamos confirmado en diciembre. Prácticamente no hay pérdidas.
+
+ Como van formados los clientes, tenemos un archivo en Excel y cuando filtramos, cuando van ordenados, prácticamente se va recorriendo ese como van formados. Y es cuando uno me cancela o prácticamente pues ya la tela cede para el siguiente. Tiene como una lista de espera. Así es. Entonces en este caso en el sistema a lo mejor podríamos agregar como una notificación en donde nos diga cuando la tela ya va a estar llegando que estén de acuerdo para que ellas puedan recordarle al cliente y confirmar si esa tela de acorder sigue vigente o no, como ves.
+
+ Ok. Si, ahí podemos usar los recordatorios, ¿no?
+
+30:40 - MOVIDA TCI
+Ajá. Para usar recordatorios en el sistema y que se creen, primero se creen los recordatorios y que esos recordatorios funcionen para que la persona de atención al cliente pueda hacer la validación. ¿Sí? Sí.
+
+31:00 - Andrea Ramirez
+que aquí básicamente el recordatorio se podría crear automáticamente en cuanto entra una tela a backorder, ponerlo no sé unos cinco días antes de que vaya a llegar la tela o cuántos días? Sí, cinco, por lo regular las chicas nos pasan una semana o quince días antes, es como lo tengo acostumbrada, de hecho ahorita en este sistema se les pone la fecha, no les la notificación, pero se le pone la fecha del contenedor que va a llegar, así es que viene.
+
+ Ahí nosotros identificamos, ah, si es un pedido en backorder, no, es una programación, nada más que necesitan que les agreguen porque los agentes de venta quieren que aparezca en el backorder. Pero ahorita en este sistema se le agrega nada más la fecha cuando va a llegar a él. El contenedor y el número de contenedor. Así es. Y es lo que me sale. Aparece la fecha de cuando se capturó el pedido y la fecha de cuando va a llegar la tela.
+
+ Ok. Ok.
+
+32:13 - MOVIDA TCI
+La fecha del pedido, sí. Entonces. Vamos a hacer un ejercicio aquí rápido para ver si estamos alineados, porque si son muchos ejercicios detalle pero vamos a vamos a verlo visual con el con lo que ya tenemos y ahí recapitulamos un poquito ¿No? Este fíjate Alma, compañía, bien. Ahorita tenemos este planteamiento, ¿No? Que fue el que nació con lo que apenas con información previa. Cuando se levanta la cotización, vamos a hacer el ejercicio de ahorita.
+
+ Cuando le damos aquí en pantalla, ¿verdad? Sí. Sí, ¿verdad? Ok.
+
+32:54 - Andrea Ramirez
+Cuando yo le den una cotización, aquí inicia ese proceso que acabamos de describir.
+
+33:00 - MOVIDA TCI
+Aquí está, lo primero que se selecciona es un cliente. Vamos a poner primero Confusiones Puebla. Es el que está solicitando. Aquí ya, ahorita estoy en modo administrador, pero si estuviera con el modo vendedor, ya me sale el nombre del vendedor. Porque es usuario de su pago, va a tener un usuario de un pago personalizado.
+
+33:33 - Andrea Ramirez
+OK. Jonathan? Él o nosotros? No él. Jonathan se descongeló.
+
+33:45 - Ricardo Zerpa
+Sí, ya te escuchamos, pero llegó el audio comprimido. ¿Volviste?
+
+33:59 - MOVIDA TCI
+Sí, vamos a esperar que se… ¿Otra vez? Ahora sí.
+
+34:14 - Ricardo Zerpa
+¿Escuchamos? ¿Habla para ver?
+
+34:23 - Orador no identificado
+¿Hello, hello?
+
+34:28 - Andrea Ramirez
+No, no se escucha muy bien. Bueno, para mientras ir comentando en lo pendientes que tenemos ahorita por mandarles de lo que hemos platicado, es una muestra de los datos que actualmente se utilizan para dar de alta a los clientes.
+
+35:25 - Ricardo Zerpa
+Sí, correcto.
+
+35:26 - Andrea Ramirez
+Así mismo, nosotros cuando damos de alta les mandamos una carta para que ellos escojan la fletera, ¿no? Así es. Y ahí dicen si va asegurado hacemos llegar para que sepan cómo es que nosotros actualmente nos manejamos y cuáles son los papeles que les hacemos llegar a los clientes para que ellos nos vayan llenando, ¿no? Porque es un Excel, creo. Sí, un Excel. OK. La constancia.
+
+35:55 - Ricardo Zerpa
+La constancia, OK.
+
+35:56 - Andrea Ramirez
+Entonces, todo lo que actualmente le solicitamos al cliente y cómo se lo solicitamos, sería bueno que ellos lo tengan para que vean cómo adaptarlo. A lo de nosotros, ¿no? Entre otras cosas, para mandar la lista de precios actuales junto con la lista de precios especiales y una muestra de catálogo de los clientes que podrían llegar a entrar para hacer una prueba.
+
+36:21 - Ricardo Zerpa
+OK. ¿Va?
+
+36:22 - Andrea Ramirez
+¿Hasta ahí vamos ahorita? Sí, vamos bien.
+
+36:25 - Ricardo Zerpa
+Yo estoy tomando nota igual acá de lo que estamos hablando. Yo voy a ayudar en el proceso porque creo que Jonathan se desconectó.
+
+36:34 - Orador no identificado
+OK.
+
+36:34 - Ricardo Zerpa
+les voy a, no sé si alcanzan a ver mi pantalla para hacerle un recorrido acá, lo que hemos pensado, lo que hemos, yo tengo un monitor aquí grande, si queda ahorita le hago un poquito más de zoom, pero que nosotros pensamos en construir, si se fijan, es del proceso desde la cotización hasta el despacho, que son estos bloquecitos que ven acá arriba, pero arrancando la cotización en el Entonces, acá vamos a tener un buscador donde van a venir todos los datos que se tienen en el sistema.
+
+ Entonces, acá vamos a tener un buscador donde van a venir todos los datos que se tienen en el sistema. Entonces, acá vamos a tener un buscador donde van a venir todos los datos que se tienen en el sistema. Los datos de la tela. Tenemos las listas que creo que aquí podemos ajustarlas. Si más no recuerdo, estas son las listas de las que estamos hablando de las listas de descuentos. Tendríamos que ver si hay un descuento especial, como lo están hablando, que aplique acá.
+
+ Y bueno, aquí podemos colocar un Para eso. ¿Te puedo interrumpir un poquito?
+
+38:30 - Andrea Ramirez
+Sí, adelante, por favor.
+
+38:33 - Ricardo Zerpa
+¿Qué significa reserva blanda?
+
+38:35 - Andrea Ramirez
+Entiendo que son las horas en la cual estamos reservando la cotización.
+
+38:42 - Ricardo Zerpa
+¿Como un apartado? Exacto, el apartado.
+
+38:45 - Andrea Ramirez
+Le podemos cambiar el nombre si gusta.
+
+38:49 - Ricardo Zerpa
+Le podemos poner el apartado acá en las horas. Si te fijas aquí esta etiqueta que colocamos abajo, ahorita no recuerdo lo que significa HU, pero es como las unidades, lo que hacemos acá es, vino un prospecto y dijo dame tanta tela roja de navidad, entonces, pero no ha pagado, entonces entendemos cuando hablábamos con el tocayo que se puede generar, o sea puede haber otro cliente que también quiere la misma tela, si esto no ha pagado le bueno yo te puedo esperar a que me pagues hasta el 15 si no me pagas el 15 yo dispongo de la tela entonces todo y entiendo que ese es uno de los conflictos o de las áreas oportunidades que tiene en este caso alma y su equipo porque no sabe vendió, si incluso vendió o cuando no la tela pasa, no sé, si estamos vendiendo por metro, está en corte y otro la...
+
+ Entonces con esto lo que estamos previniendo es que a nivel de inventario nosotros podamos tener una reserva o como dijiste tú, la palabra que no tome la nota, si me la puedes repetir, podemos cambiar la etiqueta.
+
+39:58 - Andrea Ramirez
+Apartado. Apartado, ok, déjame. Reserva, si quieres la podemos dejar en reserva 2, pero ¿cuántas horas actualmente la reservas? 24 horas. Ok. 24. Pero si son rollos, manejamos lo que son 24 horas para los clientes, pero nunca pagan 24 horas. Ellos se notifican y el cliente tiene 24 horas para hacerse el pago, pero nosotros interno le apartamos 3 días. Así es. Si es que nunca pagan realmente 24 horas, nunca pagar los clientes.
+
+ Porque por lo regular es que tengo que procesar el pago a pagos de su empresa, ellos pagan los viernes, entonces ellos tienen que estar presionando, yo prácticamente acá en Almacén lo aparto tres días. Ok, entonces. Solamente a ellos les digo 24 horas para ejercer, presionar, porque si no les digo tres días y me van a pagar a la semana y media. Entonces, 24 horas y 3 días. Ok, entonces en este caso el de 168 horas y 336 horas no sería necesario, no?
+
+ No. Ok. Vamos a quitarlo acá.
+
+41:19 - Ricardo Zerpa
+Igual eso viene de un catálogo y esto lo estamos configurando flexiblemente, pero lo quitamos. Ok, en otra duda que tengo.
+
+41:29 - Andrea Ramirez
+Estás colocando lista y menciona F2 guión estándar entre paréntesis 2.25. Ese 2.25 las chicas de servicio a clientes no pueden verlo.
+
+41:42 - Ricardo Zerpa
+Ok, voy a quitar esto acá, pero ¿tienes algún otro nombre de esta lista? O sea, ¿estás de acuerdo que salga así F1, F2?
+
+41:56 - Andrea Ramirez
+Y te voy a pasar, en lugar de que digas Standard, Premium y eso, te voy a pasar la descripción que nosotros tenemos, que es casa decoradora, tienda, tienda especial, da, da, da.
+
+42:10 - Ricardo Zerpa
+¿Te parece? Sí, me parece.
+
+42:12 - Andrea Ramirez
+Ya estoy tomando nota igual aquí para quitar. Las únicas que manejamos que son casa decoradora, tienda, las especiales ya es cuando autorizan. Es con autorización. Los habitantes especial, siempre lo que es tienda especial, fabricante especial. ¿Y cómo le podríamos poner un candado ahí para que no den un precio especial bajo?
+
+42:34 - Ricardo Zerpa
+Que pida autorización, puede pedir autorización, o sea, si quieres cambiar algo, tiene que entrar algo así como, no sé, cuando vamos al supermercado o al banco, que tiene que venir el gerente a poner su código ahí para aprobar y eso guardaría la trazabilidad de quien aprobó ese precio. Ah, me parece perfecto.
+
+43:04 - Andrea Ramirez
+Entonces, en este caso, por ejemplo, las listas del F5, F7, F6, F8 y F9 entrarían con autorización. Y la F4 también. Es fabricante especial. Pero, por ejemplo, tengo una duda. Si el cliente está dado de alta, como casa decoradora, y no falta el cliente de que, ah, vendí esto, pero no está, o sea, hubo una negociación, nada más, entre agenda y cliente. Pero, ¿sabes qué, Patti? Porque le dicen a la chica de servicio, Entonces, tómale F5, pero es casa decoradora, ahí cómo lo podemos manejar.
+
+ ¿Con una aprobación? Sí, ahí sí. Este también puede entrar. O sea, hay un tema que si tiene una lista de precios ya asignada, ya no puede asignarle otra lista. Una lista diferente a menos de que el gerente lo acepte. Entonces, aquí, por ejemplo, cuando tú pongas el cliente, automáticamente te tiene que venir ya colocada la lista de precios. Si ellas quisieran hacer una modificación en la lista de precios, necesitan una autorización con la gerente para que en esta cotización en particular se modifique a una lista de precios menor, por así decirlo.
+
+
+
+44:41 - Ricardo Zerpa
+Ya toqué nota aquí para No, no, continúa para no cortar el hilo.
+
+45:13 - MOVIDA TCI
+Ok, ya tomamos algunas notas acá.
+
+45:15 - Ricardo Zerpa
+Yo creo que entonces tendríamos que ocultar acá la parte del porcentaje, porque eso no lo debería ver el ejecutivo, ¿no? Se coloca el precio final. Y bueno, acá podemos, ya se puede crear la cotización. Y bueno, luego de eso va a pasar por un proceso allí. Jonathan, nosotros tenemos aquí ya lista, ¿te sabes alguna tela? Si está aquí cargada en la lista.
+
+45:41 - MOVIDA TCI
+No, me imagino que el equipo de desarrollo está haciendo pruebas, porque sí teníamos unas allí, pero... Una seda o algo así. Puede ser que la hayan bajado, porque ahí teníamos sedas y no sé qué. Pero justamente, Ricardo, justamente ahí hay una... Vete a las pestañas de catálogo. Pestañas de catálogo arriba. Arribita, dos arriba de donde estás. Y ahí donde dice, telas de secado o fresco. Nada, no sé si quieras cargar algo, si haces una prueba, o bajar la plantilla para compartírsela y que ellas nos digan la plantilla, la plantilla donde va a estar el máster de SKU descripción, de una vez comenzarla a trabajar.
+
+ Esa plantillita que dice el código, el nombre, la categoría, el color, ver si están todos los campos que ustedes se descargan desde Compact ahorita. O sea, ¿Cómo lo tienen en compa? Yo imagino que debe haber un botón en compa donde descargas este o cargar o descargar el inventario o la existencia. Nosotros necesitamos tener ese máster también para cargarse el sistema, ¿No? No sé si me explico ahí, ¿Sí?
+
+
+
+46:56 - Andrea Ramirez
+Actualmente lo que es, perdón, ¿Estás solicitando es básicamente el inventario de todos los productos?
+
+47:02 - MOVIDA TCI
+Sí, ahorita para iniciar, o puede ser que no la tengan todas, sería cargar por lo menos unos 10, 15 para justamente hacer pruebas un poquito más realistas, como la de hoy, o sea que podamos cargar algo allí en catálogo y cuando hagamos este ejercicio que estamos haciendo el pedido tengamos algunas telas que sí son reales de ustedes, no la seda que nosotros siempre colocamos. Ahorita no sé si Ricardo puedas crear una ahí, lo que le estás dando como para hacer el ejercicio, Lo que pasa es que, bueno, no sé si para el ejercicio...
+
+
+
+47:39 - Ricardo Zerpa
+Si es necesario, ahí lo puedes hacer. Si es necesario, puedes crear una seda y algo como para que te aparezca en el pedido y puedas crear un pedido Sí, lo que pasa es que quería más bien como repasar el proceso a colocar Bueno, repasemos, pero con algo ya. Sí.
+
+48:03 - MOVIDA TCI
+Ahí lo que comentabas también de que las cosas que están ocultas, por ejemplo, el porcentaje, si se oculta o no, recuerda que ahorita estamos en Roland Bean, en Roland Bean puede estar todo sin ocultar, o sea, aquí no se va a ocultar nada, en los roles donde sí vamos a ver qué es lo que sí vamos a mostrar y qué no, para los vendedores, ¿no? Área también va a haber cosas diferentes. Ok.
+
+48:32 - Andrea Ramirez
+Aquí me dio, ok.
+
+48:34 - Ricardo Zerpa
+Ponle un número ahí, no importa.
+
+48:37 - MOVIDA TCI
+Un error. Ok, bueno, entonces haz ejercicio así. Eso que están haciendo, algún ejercicio con eso. Porque ahí sí teníamos algún.
+
+48:48 - Ricardo Zerpa
+Sí, yo lo que quiero es que repasemos qué es lo más importante para mí llevar en este kit es vamos a arrancar tenemos un cliente que vamos a llamarlo es genérico si contacta por la página web que ahí decidimos si facturamos o no facturamos eso lo vemos luego y tenemos vamos a llamar al cliente formal donde ustedes le piden cierta información que ya hablamos de los datos de contacto, dónde va a recibir el pedido o dónde normalmente lo recibe y ya tienen su catálogo de clientes.
+
+ Quién es el ejecutivo Y ese cliente tiene asignado una lista de precios que, como estamos hablando, va a variar si hay alguna oferta ahí, algo que le interese, pero tiene que venir bajo una aprobación. Ese es como el punto uno. Luego tenemos la cotización que tenemos. Le vamos a cotizar y vamos a apartar en el sistema cierta mercancía o ciertas telas. Entonces esa, lo vamos a apartar dependiendo de los criterios que ya hablamos de dos días, un día, máximo tres días, vamos a quitar siete y catorce, y hablamos un poco acá del bodo de la entrega.
+
+ Luego, aquí donde le vamos a cotizar, vamos a ocultar, para que Jonathan se unió aquí, vamos a quitar la parte de los porcentajes, vamos a quitar el porcentaje de descuento acá, porque eso no lo deberían ver los ejecutivos, salvo que necesiten otra lista de y la aprobación. Andrea y Alma nos van a hacer el favor de llevar, de traernos el, de compartirnos estas etiquetas para agregarlo. Y bueno, luego se crea la cotización.
+
+ Yo quiero que cerremos esta primera parte, como acá, para nosotros. O sea, ¿qué sugiero? Nosotros nos vamos a, cuando nos compartan estos catálogos, vamos a tener otra próxima y la otra, cuando creemos el cliente, que también me parece que es súper clave, que lo hagamos para que tengamos ese estilo de negociación. Si ustedes tienen como una especie de lista de comprobación, no sé, me pasó la constancia fiscal, me pasó, no sé, ¿cuáles son los datos?
+
+ O sea, nos gustaría también saber los datos que ustedes colectan actualmente de los clientes para qué tener ese catálogo. Yo también, nosotros visualizamos, tenemos experiencia donde, no sé, de repente, ya tú sepas que este es un cliente, no sé, VIP y en la dirección general o la dirección ¿Qué pasa con aquellos? Tenemos clientes donde tienen dos o tres direcciones de entrega. Un mismo cliente factura donde mismo, pero se le entregan a tres diferentes, este, clientes.
+
+
+
+52:16 - Andrea Ramirez
+¿Qué pasa con esos clientes?
+
+52:18 - Orador no identificado
+¿Qué pasa con esos clientes? Domicilios.
+
+52:21 - Andrea Ramirez
+¿Cómo lo podemos integrar ahí?
+
+52:24 - Ricardo Zerpa
+Vamos a agregar que el cliente tenga varias direcciones y cuando haga el pedido le vamos a dar la oportunidad a la gente que diga dónde quiere que tú te lo entreguen. Vamos a poner un ejemplo que tiene Punto Sur, Zapote, y no sé, otros puntos. Registramos la lista y cuando dice dónde quiere que te lo entregue, ah, quiero que me lo entregues en mi bodega de Zapopan, entonces vamos a asignar eso y eso va a salir en el flujo cuando lo vayas a empacar para que sepa transporte, en este caso, dónde lo tiene que entregar exactamente.
+
+ Igual vamos a digitalizar para que el cliente reciba eso de forma automática y el cliente y de una nota señor cliente su pedido va a llegar a esta dirección o sea como cuando colocan la orden que entendería que ustedes la hacen actualmente manual o no sistematizada pero la idea es que el cliente la vea para que si por razón humana se colocó una dirección que no era se puede ajustar.
+
+53:41 - Andrea Ramirez
+Muy bien entonces eso podría aparecer en el destino de la cotización, ¿no? Correcto.
+
+53:46 - Ricardo Zerpa
+O sea, que le ponga cliente, dirección.
+
+53:49 - Andrea Ramirez
+Dame un momentito. ¿Qué otras cosas le ponen manualmente? Yo he visto que imprimen y le escriben cosas. Horarios. Ah. Horarios de entrega. Pero ese es cuando ya finalizamos lo que es el pedido. Cuando es una cotización, literal, se captura la tela, se le asigna, bueno, según ya sea rollo o corte, y se le manda al cliente. Una vez que el cliente paga, ya es cuando se le pregunta qué dirección, qué horarios maneja y quién lo recibe y el teléfono de quién lo va a recibir.
+
+ Esto para que el chofer tenga toda esa información porque muchas veces llegan, tocan y a veces, muchas veces pues tardan un poco o el mismo chofer se comunica con el cliente notificándole que ya van para que en tanto tiempo llega para que esté al pendiente vaya de de su pedido. Perfecto.
+
+54:48 - Ricardo Zerpa
+Eso lo tomamos, lo tomamos en cuenta, ya tomé nota también de eso que está acá, y hay nada más para cerrar. Bueno, creo que podemos hacer la flexibilidad que acá en la cotización podamos colocar esos datos de una vez, o sea, si quieres, de una vez después cuando avanza el proceso que ya pagó, le hacemos esa revalidación al final de quién lo va a recibir y la persona de contacto.
+
+55:17 - Andrea Ramirez
+Yo creo que estaría mejor después de pagar, cuando tú haces la cotización y bueno a lo que habíamos visto en este programa, haces la cotización y después se pasa al área de contabilidad como para que compruebe y una vez que comprobaba pagado se iba al almacén. En este caso podríamos regresarlo a servicio a clientes como para que... Ok no. Es que muchas veces cuando son cortes no lo realizan. O que lo hagan si desde la cotización.
+
+ Si puede ser pero...
+
+55:53 - Ricardo Zerpa
+Vamos a ponerlo flexible, vamos a ponerlo flexible que tú lo puedas modificar en la cotización o cuando ya que no lo vayan a entregar, que valide, que ya.
+
+56:06 - Andrea Ramirez
+Esa persona y que sí sea ese domicilio. Así es.
+
+56:09 - MOVIDA TCI
+Sí, sí, yo creo que cuando cuando la cotización es aprobada por el equipo de cobranza, este se convierte en un pedido. Sí. Y allí cuando se convierte un pedido, entonces puede ser que allí este el equipo de venta pueda darle esa última milla de de corroborar de cómo va, ¿No? Porque recuerden muchos ítems, veinte ítems, y ver cómo hace esa distribución a nivel de paquetería, o sea, ¿cuáles van para un lugar, cuáles van para otro?
+
+ Entonces, este, aunque ya se tengan cargado los domicilios de entrega, que pueden ser tres, cuatro, este, hay que buscar la manera que que ese proceso sea fácil, ¿no? De de saber hacia dónde va. Ahorita vamos a dejarlo en quizás quizás ver si en la cotización solicitarlo o no porque también es una con el cliente, si es una cotización, ya preguntarle eso, ¿no? Sí. O si es necesario hacerlo porque capaz impactan en el costo de envío, si va a haber un envío, ¿no?
+
+ Y digamos, bueno, este no es lo mismo que me digas que unos van aquí cerca, otros van a otro lugar, eso me impacta el costo de organización de paquetería. Entonces, si es necesario pedirlo de una vez, se hace de una vez, ¿no? O sea, me estás pidiendo este no sé, tal, este, tanta cantidad de telas, probar ustedes, ustedes validen si se piden en el momento, o sea, o sea, cuáles son, porque ya está precargado, ¿no?
+
+
+
+57:34 - Orador no identificado
+Lo, la, la dirección de envío.
+
+57:36 - MOVIDA TCI
+O después que se deseará pruebas, o sea, después que Cobrancia apruebe todo, eh, y, y está ya el pedido, este, en el proceso, digamos, almacén, que les traiga hasta una, una notificación, les llegue una notificación, donde tienen que terminar, finalizar esa parte de entrega, ¿Cómo va a ser? Porque recordando que Si se tardan y ya almacenan el parco y todo, no decir después, mira, no, es que eso iba para tres lugares diferentes.
+
+ ¿No?
+
+58:02 - Andrea Ramirez
+Me agrada más la idea de la notificación mientras se está haciendo el surtido de la tele. Para que podamos alcanzar a tener la información. Otra cosa que no hemos visto justo que mencionas,

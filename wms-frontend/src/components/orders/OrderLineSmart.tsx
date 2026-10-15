@@ -8,6 +8,7 @@ import {
 
 interface OrderLineSmartProps {
   index: number;
+  clientId?: string;
   line: { skuId: string; metrajeRequerido: number; precioUnitario: number; selectedHuId?: string; listaPrecios?: string; descuentoPct?: number };
   skus: any[];
   onChange: (index: number, field: string, value: any) => void;
@@ -15,18 +16,44 @@ interface OrderLineSmartProps {
   canRemove: boolean;
 }
 
-export default function OrderLineSmart({ index, line, skus, onChange, onRemove, canRemove }: OrderLineSmartProps) {
+export default function OrderLineSmart({ index, clientId, line, skus, onChange, onRemove, canRemove }: OrderLineSmartProps) {
   const [skuSearch, setSkuSearch] = useState('');
   const [showSkuDropdown, setShowSkuDropdown] = useState(false);
   const [suggestions, setSuggestions] = useState<any>(null);
   const [loadingSugg, setLoadingSugg] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [viewMode, setViewMode] = useState<'plan' | 'individual'>('plan');
+  const [specialPriceInfo, setSpecialPriceInfo] = useState<any>(null);
   const skuRef = useRef<HTMLDivElement>(null);
   const suggRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<any>(null);
 
   const selectedSku = skus.find((s: any) => s.id === line.skuId);
+
+  // Auto-lookup de precio especial acordado por Dirección para Cliente + SKU
+  useEffect(() => {
+    let isMounted = true;
+    if (clientId && line.skuId) {
+      api.get('/catalog/special-prices/lookup', { params: { clientId, skuId: line.skuId } })
+        .then(res => {
+          if (!isMounted) return;
+          if (res.data?.precioPactado) {
+            setSpecialPriceInfo(res.data);
+            onChange(index, 'precioUnitario', Number(res.data.precioPactado));
+            onChange(index, 'descuentoPct', 0);
+            onChange(index, 'listaPrecios', 'ESPECIAL');
+          } else {
+            setSpecialPriceInfo(null);
+          }
+        })
+        .catch(() => {
+          if (isMounted) setSpecialPriceInfo(null);
+        });
+    } else {
+      setSpecialPriceInfo(null);
+    }
+    return () => { isMounted = false; };
+  }, [clientId, line.skuId]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -84,7 +111,9 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
 
   const selectSku = (sku: any) => {
     onChange(index, 'skuId', sku.id);
-    onChange(index, 'precioUnitario', Number(sku.precioReferencia) || 0);
+    if (!specialPriceInfo) {
+      onChange(index, 'precioUnitario', Number(sku.precioReferencia) || 0);
+    }
     onChange(index, 'selectedHUs', []);
     setSkuSearch(''); setShowSkuDropdown(false);
   };
@@ -94,11 +123,11 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
   const importe = line.metrajeRequerido * precioConDescuento;
   const plan = suggestions?.fulfillmentPlan;
 
-  // Status colors for the plan
+  // Status visual para el plan de surtido (cero emojis genéricos)
   const statusConfig: Record<string, { bg: string; text: string; label: string; icon: any }> = {
-    COMPLETO: { bg: 'bg-emerald-50', text: 'text-emerald-700', label: '✅ Demanda cubierta al 100%', icon: Check },
-    PARCIAL: { bg: 'bg-amber-50', text: 'text-amber-700', label: '⚠️ Cobertura parcial', icon: AlertTriangle },
-    SIN_STOCK: { bg: 'bg-amber-50/80 border border-amber-200', text: 'text-amber-800', label: '🟠 Mercancía en Transición / Piso (Sin HUs en sistema)', icon: Package },
+    COMPLETO: { bg: 'bg-emerald-50', text: 'text-emerald-700', label: 'Demanda cubierta al 100%', icon: Check },
+    PARCIAL: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Cobertura parcial', icon: AlertTriangle },
+    SIN_STOCK: { bg: 'bg-amber-50/80 border border-amber-200', text: 'text-amber-800', label: 'Mercancía en Transición / Piso (Sin HUs en sistema)', icon: Package },
   };
 
   return (
@@ -164,25 +193,39 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
             className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400" />
         </div>
 
-        {/* Lista de Precios */}
+        {/* Lista de Precios Oficial (Comisiones ocultas para ATC) */}
         <div className="col-span-2">
-          <label className="block text-xs font-semibold text-violet-500 mb-1 uppercase tracking-wide">Lista</label>
+          <label className="block text-xs font-semibold text-violet-600 mb-1 uppercase tracking-wide">
+            Lista Asignada
+          </label>
           <select
-            value={line.listaPrecios || ''}
+            value={specialPriceInfo ? 'ESPECIAL' : (line.listaPrecios || '')}
+            disabled={!!specialPriceInfo}
             onChange={(e) => {
               const lista = e.target.value;
               onChange(index, 'listaPrecios', lista);
-              const discountMap: Record<string, number> = { F1: 2.5, F2: 2.25, F3: 2.0, F4: 1.75, F5: 1.75 };
+              const discountMap: Record<string, number> = {
+                F1: 0, F2: 0, F3: 2.0, F4: 3.0, F5: 5.0,
+                F6: 7.0, F7: 10.0, F8: 12.0, F9: 15.0, F10: 0
+              };
               onChange(index, 'descuentoPct', discountMap[lista] ?? 0);
             }}
-            className="w-full px-3 py-2 bg-white border border-violet-200 rounded-lg text-sm focus:ring-2 focus:ring-violet-400"
+            className={`w-full px-3 py-2 bg-white border rounded-lg text-sm focus:ring-2 focus:ring-violet-400 ${
+              specialPriceInfo ? 'border-violet-300 bg-violet-50/50 text-violet-800 font-medium' : 'border-violet-200'
+            }`}
           >
-            <option value="">Sin lista</option>
-            <option value="F1">F1 — Premium (2.50%)</option>
-            <option value="F2">F2 — Estándar (2.25%)</option>
-            <option value="F3">F3 — Desc. Medio (2.00%)</option>
-            <option value="F4">F4 — Desc. Alto (1.75%)</option>
-            <option value="F5">F5 — Máx. Desc. (1.75%)</option>
+            <option value="">Sin lista fija</option>
+            {specialPriceInfo && <option value="ESPECIAL">Convenio Especial Directivo</option>}
+            <option value="F1">F1 — Casa Decoradora</option>
+            <option value="F2">F2 — Tienda</option>
+            <option value="F3">F3 — Tienda Especial (Req. Autorización)</option>
+            <option value="F4">F4 — Fabricante</option>
+            <option value="F5">F5 — Fabricante Especial (Req. Autorización)</option>
+            <option value="F6">F6 — Distribuidor</option>
+            <option value="F7">F7 — Distribuidor Especial (Req. Autorización)</option>
+            <option value="F8">F8 — Cliente Premium</option>
+            <option value="F9">F9 — Precio Dirección (Req. Autorización)</option>
+            <option value="F10">F10 — Venta Web / Público Externo</option>
           </select>
         </div>
 
@@ -190,17 +233,24 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
         <div className="col-span-1">
           <label className="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Desc %</label>
           <input type="number" step={0.5} min={0} max={50}
+            disabled={!!specialPriceInfo}
             value={line.descuentoPct || 0}
             onChange={(e) => onChange(index, 'descuentoPct', +e.target.value)}
-            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400" />
+            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-100 disabled:opacity-60" />
         </div>
 
-        {/* Precio */}
-        <div className="col-span-1">
-          <label className="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">$/m</label>
+        {/* Precio Unitario */}
+        <div className="col-span-2">
+          <label className="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide flex items-center justify-between">
+            <span>$/m</span>
+            {specialPriceInfo && <span className="text-[10px] text-violet-600 font-semibold">Pactado</span>}
+          </label>
           <input type="number" step={0.01} value={line.precioUnitario}
+            disabled={!!specialPriceInfo}
             onChange={(e) => onChange(index, 'precioUnitario', +e.target.value)}
-            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400" />
+            className={`w-full px-3 py-2 bg-white border rounded-lg text-sm focus:ring-2 focus:ring-indigo-400 ${
+              specialPriceInfo ? 'border-violet-300 bg-violet-50 text-violet-900 font-bold' : 'border-gray-200'
+            }`} />
         </div>
 
         {/* Importe */}
@@ -222,6 +272,25 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
         </div>
       </div>
 
+      {/* Banner de Precio Especial Pactado si aplica */}
+      {specialPriceInfo && (
+        <div className="flex items-center justify-between px-3 py-2 bg-violet-50/90 border border-violet-200 rounded-lg text-xs text-violet-900">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">Precio Especial Autorizado por Dirección:</span>
+            <span className="font-bold text-violet-950 font-mono">${Number(specialPriceInfo.precioPactado).toFixed(2)}/m</span>
+            {specialPriceInfo.referenciaProyecto && (
+              <span className="text-violet-600">· {specialPriceInfo.referenciaProyecto}</span>
+            )}
+            {specialPriceInfo.autorizadoPor && (
+              <span className="text-violet-500 text-[11px]">({specialPriceInfo.autorizadoPor})</span>
+            )}
+          </div>
+          <span className="text-[10px] bg-violet-200/80 text-violet-800 px-2 py-0.5 rounded font-medium">
+            Tarifa Bloqueada
+          </span>
+        </div>
+      )}
+
       {/* Row 2: Smart Fulfillment Plan */}
       {line.skuId && line.metrajeRequerido > 0 && (
         <div ref={suggRef}>
@@ -239,10 +308,10 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
                 {loadingSugg ? 'Buscando plan óptimo...' :
                   plan ? (
                     plan.status === 'COMPLETO'
-                      ? <>✅ Plan de surtido: <span className="font-bold">{plan.items.length} HUs</span> cubren {line.metrajeRequerido}m</>
+                      ? <>Plan de surtido: <span className="font-bold">{plan.items.length} HUs</span> cubren {line.metrajeRequerido}m</>
                       : plan.status === 'PARCIAL'
-                        ? <>⚠️ Cobertura parcial: <span className="font-bold">{plan.coberturaPct}%</span> ({plan.totalCubierto}m de {plan.metrajeRequerido}m)</>
-                        : <>🟠 Mercancía en Transición / Piso · <span className="font-semibold text-amber-700">Cotización Habilitada</span></>
+                        ? <>Cobertura parcial: <span className="font-bold">{plan.coberturaPct}%</span> ({plan.totalCubierto}m de {plan.metrajeRequerido}m)</>
+                        : <>Mercancía en Transición / Piso · <span className="font-semibold text-amber-700">Cotización Habilitada</span></>
                   ) : 'Ver plan inteligente de surtido'
                 }
               </span>
@@ -343,14 +412,14 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
                           <div>
                             <span className="font-mono font-bold text-gray-800">{item.codigo}</span>
                             {item.source === 'TRANSITO' ? (
-                              <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700">🚛 TRÁNSITO</span>
+                              <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700">Tránsito</span>
                             ) : (
                               <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                                 item.tipoRollo === 'RETAZO' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
                               }`}>{item.tipoRollo}</span>
                             )}
                             {item.requiereCorte && (
-                              <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-700">✂️ Cortar</span>
+                              <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-700">Requiere Corte</span>
                             )}
                           </div>
                         </div>
@@ -378,12 +447,12 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
                       {/* Details row */}
                       <div className="flex items-center justify-between mt-1">
                         <div className="flex items-center gap-2">
-                          {item.rol === 'PRIMERO' && <span className="text-[10px] text-emerald-600">🎯 Primer corte</span>}
-                          {item.rol === 'COMPLEMENTO' && <span className="text-[10px] text-indigo-600">➕ Complemento</span>}
-                          {item.rol === 'COMPLETO' && <span className="text-[10px] text-emerald-600">📦 Rollo completo</span>}
-                          {item.rol === 'PARCIAL' && <span className="text-[10px] text-amber-600">✂️ Corte parcial</span>}
-                          {item.rol === 'CIERRE' && <span className="text-[10px] text-purple-600">🔒 Cierre (retazo)</span>}
-                          {item.rol === 'TRANSITO' && <span className="text-[10px] text-blue-600">🚛 En camino</span>}
+                          {item.rol === 'PRIMERO' && <span className="text-[10px] text-emerald-600 font-medium">Primer corte</span>}
+                          {item.rol === 'COMPLEMENTO' && <span className="text-[10px] text-indigo-600 font-medium">Complemento</span>}
+                          {item.rol === 'COMPLETO' && <span className="text-[10px] text-emerald-600 font-medium">Rollo completo</span>}
+                          {item.rol === 'PARCIAL' && <span className="text-[10px] text-amber-600 font-medium">Corte parcial</span>}
+                          {item.rol === 'CIERRE' && <span className="text-[10px] text-purple-600 font-medium">Cierre (retazo)</span>}
+                          {item.rol === 'TRANSITO' && <span className="text-[10px] text-blue-600 font-medium">En camino</span>}
                         </div>
                         <div className="flex items-center gap-2">
                           {item.source === 'TRANSITO' ? (
@@ -471,7 +540,7 @@ export default function OrderLineSmart({ index, line, skus, onChange, onRemove, 
                           <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                             hu.source === 'TRANSITO' ? 'bg-blue-100 text-blue-700'
                               : hu.tipoRollo === 'RETAZO' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-                          }`}>{hu.source === 'TRANSITO' ? '🚛 TRÁNSITO' : hu.tipoRollo}</span>
+                          }`}>{hu.source === 'TRANSITO' ? 'Tránsito' : hu.tipoRollo}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           {hu.source === 'TRANSITO' && hu.diasParaLlegar != null && (

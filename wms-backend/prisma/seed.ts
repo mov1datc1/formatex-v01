@@ -41,6 +41,8 @@ async function main() {
   await prisma.mermaRangeConfig.deleteMany();
   await prisma.zone.deleteMany();
   await prisma.warehouse.deleteMany();
+  await prisma.clientAddress.deleteMany();
+  await prisma.clientSpecialPrice.deleteMany();
   await prisma.skuMaster.deleteMany();
   await prisma.client.deleteMany();
   await prisma.supplier.deleteMany();
@@ -357,17 +359,96 @@ async function main() {
   console.log('  ✅ 8 puntos de reorden configurados');
 
   // =====================================================================
-  // 12. LISTAS DE PRECIOS (F1-F5) — Comisiones Vendedor
+  // 12. LISTAS DE PRECIOS FORMATEX (10 Listas Oficiales)
   // =====================================================================
   console.log('🏷️  Creando listas de precios...');
   await prisma.priceListConfig.createMany({ data: [
-    { codigo: 'F1', nombre: 'Lista 1 — Premium (precio máximo)', comisionPct: 2.50, descripcion: 'Precio de lista sin descuento. Máxima comisión para el vendedor.', orden: 1 },
-    { codigo: 'F2', nombre: 'Lista 2 — Estándar', comisionPct: 2.25, descripcion: 'Precio estándar con descuento menor.', orden: 2 },
-    { codigo: 'F3', nombre: 'Lista 3 — Descuento medio', comisionPct: 2.00, descripcion: 'Descuento intermedio para clientes regulares.', orden: 3 },
-    { codigo: 'F4', nombre: 'Lista 4 — Descuento alto', comisionPct: 1.75, descripcion: 'Descuento alto para clientes frecuentes.', orden: 4 },
-    { codigo: 'F5', nombre: 'Lista 5 — Máximo descuento', comisionPct: 1.75, descripcion: 'Máximo descuento autorizado. Mínima comisión.', orden: 5 },
+    { codigo: 'F1', nombre: 'Casa Decoradora', comisionPct: 2.50, descuentoPct: 0.00, requiereAprobacion: false, descripcion: 'Clientes de diseño y decoración residencial.', orden: 1 },
+    { codigo: 'F2', nombre: 'Tienda', comisionPct: 2.25, descuentoPct: 5.00, requiereAprobacion: false, descripcion: 'Tiendas de tela y mercerías al mayoreo.', orden: 2 },
+    { codigo: 'F3', nombre: 'Tienda Especial', comisionPct: 2.00, descuentoPct: 8.00, requiereAprobacion: true, descripcion: 'Tiendas con convenio de volumen. Requiere autorización gerencial.', orden: 3 },
+    { codigo: 'F4', nombre: 'Fabricante', comisionPct: 2.00, descuentoPct: 10.00, requiereAprobacion: false, descripcion: 'Fabricantes de muebles y confección.', orden: 4 },
+    { codigo: 'F5', nombre: 'Fabricante Especial', comisionPct: 1.75, descuentoPct: 15.00, requiereAprobacion: true, descripcion: 'Fabricantes con contrato especial o floor-plan. Requiere autorización gerencial.', orden: 5 },
+    { codigo: 'F6', nombre: 'Distribuidor', comisionPct: 1.75, descuentoPct: 18.00, requiereAprobacion: false, descripcion: 'Distribuidores regionales de tela.', orden: 6 },
+    { codigo: 'F7', nombre: 'Distribuidor Especial', comisionPct: 1.50, descuentoPct: 22.00, requiereAprobacion: true, descripcion: 'Grandes distribuidores mayoristas. Requiere autorización gerencial.', orden: 7 },
+    { codigo: 'F8', nombre: 'Cliente Premium', comisionPct: 1.50, descuentoPct: 25.00, requiereAprobacion: false, descripcion: 'Cuentas clave institucionales de alto volumen recurrente.', orden: 8 },
+    { codigo: 'F9', nombre: 'Precio Dirección / Mayorista', comisionPct: 1.00, descuentoPct: 30.00, requiereAprobacion: true, descripcion: 'Convenios directos aprobados por Dirección General.', orden: 9 },
+    { codigo: 'F10', nombre: 'Venta Web / Público Externo', comisionPct: 0.00, descuentoPct: 0.00, requiereAprobacion: false, descripcion: 'Compras esporádicas no registradas canalizadas vía marketing.', orden: 10 },
   ]});
-  console.log('  ✅ 5 listas de precios (F1=2.50%, F2=2.25%, F3=2.00%, F4=1.75%, F5=1.75%)');
+  console.log('  ✅ 10 listas de precios Formatex');
+
+  // =====================================================================
+  // 12B. DOMICILIOS DE ENTREGA MÚLTIPLES (ClientAddress)
+  // =====================================================================
+  console.log('📍 Creando domicilios de entrega de clientes...');
+  await prisma.clientAddress.createMany({ data: [
+    {
+      clientId: cli1.id,
+      alias: 'Matriz Fiscal',
+      tipo: 'FISCAL',
+      calleNumero: 'Calle Mariano Azuela 85',
+      colonia: 'Ciudad Satélite',
+      municipio: 'Naucalpan de Juárez',
+      estado: 'Estado de México',
+      cp: '53100',
+      contactoNombre: 'Jorge Barberena',
+      contactoTelefono: '55 86033380',
+      esPredeterminada: false,
+    },
+    {
+      clientId: cli1.id,
+      alias: 'Bodega Principal Zapopan',
+      tipo: 'ENTREGA',
+      calleNumero: 'Av. Vallarta 5500 Nave 4',
+      colonia: 'San Juan de Ocotán',
+      municipio: 'Zapopan',
+      estado: 'Jalisco',
+      cp: '45019',
+      contactoNombre: 'Ing. Carlos Mendoza (Encargado Almacén)',
+      contactoTelefono: '33 12456789',
+      horarioRecepcion: 'Lunes a Viernes 08:30 a 14:00',
+      referencias: 'Muelle 2, tocar timbre de recibo',
+      esPredeterminada: true,
+    },
+    {
+      clientId: cli2.id,
+      alias: 'Taller Tapicería Punto Sur',
+      tipo: 'ENTREGA',
+      calleNumero: 'Av. Punto Sur 300 Int. B',
+      colonia: 'Los Gavilanes',
+      municipio: 'Tlajomulco de Zúñiga',
+      estado: 'Jalisco',
+      cp: '45645',
+      contactoNombre: 'Maestro Tapicero Roberto Gómez',
+      contactoTelefono: '33 98765432',
+      horarioRecepcion: 'Lunes a Sábado 09:00 a 18:00',
+      esPredeterminada: true,
+    },
+  ]});
+
+  // =====================================================================
+  // 12C. PRECIOS ESPECIALES (ClientSpecialPrice)
+  // =====================================================================
+  console.log('💎 Registrando precios especiales pactados...');
+  await prisma.clientSpecialPrice.createMany({ data: [
+    {
+      clientId: cli1.id,
+      skuId: skuEnigma.id,
+      precioPactado: 89.50,
+      referenciaProyecto: 'Piso Plasencia Guadalajara',
+      autorizadoPor: 'Dirección General (Ricardo)',
+      notas: 'Precio acordado por volumen piso de exhibición',
+      activo: true,
+    },
+    {
+      clientId: cli2.id,
+      skuId: skuDenim.id,
+      precioPactado: 78.00,
+      referenciaProyecto: 'Convenio Temporada Otoño',
+      autorizadoPor: 'Dirección General (Ricardo)',
+      activo: true,
+    },
+  ]});
+  console.log('  ✅ Domicilios y Precios Especiales vinculados');
 
   // =====================================================================
   // 13. CRÉDITO DE CLIENTES

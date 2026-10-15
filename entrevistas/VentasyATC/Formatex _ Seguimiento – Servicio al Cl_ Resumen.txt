@@ -1,0 +1,56 @@
+Formatex | Seguimiento – Servicio al Cliente(Alma)
+mié, 14 oct 2026
+
+Resumen:
+
+Se contrastaron los procesos de Atención al Cliente con el prototipo del nuevo WMS.
+• Precios especiales y cambios requerirán autorización gerencial.
+• La reserva interna puede durar tres días; el pago vence en 24 horas.
+• La cotización depende del inventario en Compact, telares o tránsito.
+• Quedó pendiente definir cuándo validar la dirección final de entrega.
+
+
+Elementos de acción:
+
+* Andrea Ramirez: Comparte las listas de precios vigentes y los perfiles de cliente correspondientes.
+* Meeting participant: Agenda una entrevista con la gerente de marketing para profundizar en el proceso de página web.
+* Meeting participant: Presenta una solución para integrar y gestionar los precios especiales en el sistema.
+* Andrea Ramirez: Comparte el archivo de Excel con los precios especiales para revisar su estructura.
+* Andrea Ramirez: Enviar los datos de alta de clientes, la carta y documentación para elegir fletera y seguro, la constancia, las listas de precios y un catálogo de muestra.
+* Andrea Ramirez: Enviar las descripciones de las listas de precios para sustituir las etiquetas actuales.
+* Andrea Ramirez y Alma: Compartir las etiquetas que se deben agregar al sistema.
+
+
+Puntos clave de la discusión:
+
+Objetivo y recorrido del prototipo
+El equipo presentó el propósito de revalidar el proceso de atención al cliente con Alma y revisar el prototipo del nuevo WMS. Se explicó que la herramienta contempla accesos según el rol y se inició la revisión del flujo de clientes y pedidos.
+
+Alta de clientes, listas de precios y pedidos web
+Andrea describió cómo los agentes de venta envían documentación y el área de servicio al cliente registra los datos y domicilios del cliente. Se aclaró que existen diez listas de precios, además de un esquema externo para compras web no registradas, y se comentaron la facturación y los tiempos de entrega de los pedidos de rollos.
+
+Precios especiales y control en el sistema
+El equipo contrastó el prototipo de gestión de clientes con la necesidad de manejar domicilios y datos editables. Andrea explicó que los precios especiales autorizados se registran actualmente en Excel y se aplican manualmente, lo que puede producir errores; Ricardo planteó centralizar precios y productos en el sistema, y se solicitó revisar los archivos existentes para proponer una solución.
+
+Cotizaciones, inventario y pedidos en tránsito
+Andrea explicó cómo se reciben las solicitudes de cotización y cómo Atención al Cliente verifica la existencia en Compact y en el máster. También describió las opciones de cotización y pago para telas en telares o en tránsito, así como el uso de una lista de espera para reasignar pedidos cancelados.
+
+Recordatorios y recorrido del sistema
+Se propuso automatizar recordatorios para que Atención al Cliente confirme la vigencia de los pedidos en backorder antes de la llegada de la tela. Ricardo inició la revisión visual del proceso de cotización y Andrea señaló los materiales de clientes y precios que compartiría para adaptar el sistema.
+
+Apartados y controles de precios
+Ricardo y Andrea revisaron el significado de la reserva, y precisaron que el cliente dispone de 24 horas para pagar mientras que el apartado interno puede durar tres días. También acordaron ajustar las etiquetas de las listas de precios y establecer autorizaciones para precios especiales y cambios a listas asignadas.
+
+Cotizaciones, permisos y catálogo
+Se revisaron la creación de cotizaciones, la visibilidad del porcentaje de descuento según el rol y la necesidad de probar el catálogo con productos reales. También se propuso revisar una plantilla de productos y sus campos frente a la información disponible en Compact.
+
+Flujo de clientes y cotizaciones
+Ricardo describió el proceso previsto para registrar clientes, asignar ejecutivos y listas de precios, gestionar aprobaciones y apartar mercancía. También solicitó conocer los datos y documentos que se recopilan actualmente de los clientes.
+
+Direcciones y coordinación de entregas
+Se abordó el manejo de clientes con varios domicilios, la selección del destino del pedido y la comunicación de esa información al empaque y al cliente. Se debatió cuándo confirmar los datos de entrega y Andrea se inclinó por solicitar su validación mediante una notificación durante el surtido.
+
+
+Bloc de notas:
+
+* No hay notas

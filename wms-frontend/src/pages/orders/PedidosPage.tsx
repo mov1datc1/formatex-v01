@@ -4,7 +4,11 @@ import type { PaginatedResponse, Order } from '../../hooks/useApi';
 import { api } from '../../config/api';
 import toast from 'react-hot-toast';
 import { WmsIcon, PipelineIcon, StatusBadge } from '../../components/icons/WmsIcons';
-import { X, Plus, Phone, AlertCircle, ShieldCheck, FileText, Download, Mail, Printer, Loader2, Info, Zap } from 'lucide-react';
+import {
+  X, Plus, Phone, AlertCircle, ShieldCheck, FileText, Download, Mail,
+  Printer, Loader2, Info, Zap, MapPin, Truck, Clock, Shield,
+  CheckCircle2, Check, Lock, Building2, Package
+} from 'lucide-react';
 import type { FC } from 'react';
 import type { LucideProps } from 'lucide-react';
 import OrderLineSmart from '../../components/orders/OrderLineSmart';
@@ -52,7 +56,7 @@ export default function PedidosPage() {
   const [invoiceModal, setInvoiceModal] = useState<string | null>(null); // orderId to invoice
   const [invoicing, setInvoicing] = useState(false);
   const [invoiceForm, setInvoiceForm] = useState({ formaPago: '03', metodoPago: 'PUE', usoCfdi: 'G03', condicionesPago: '' });
-  const { canCreate, canUpdate, isAdmin } = usePermission();
+  const { canCreate, canUpdate, isAdmin, isSupervisor, user } = usePermission();
 
   const { data: resp, isLoading } = useApi<PaginatedResponse<Order>>(['orders', search, filterEstado], '/orders', { search: search || undefined, estado: filterEstado || undefined, limit: 20 });
   const { data: detail, refetch: refetchDetail } = useApi<any>(['order-detail', selectedOrder], `/orders/${selectedOrder}`, {}, !!selectedOrder);
@@ -60,15 +64,116 @@ export default function PedidosPage() {
   const { data: skus } = useApi<PaginatedResponse<any>>(['skus-order'], '/catalog/skus', { limit: 100 });
   const { data: vendors } = useApi<PaginatedResponse<any>>(['vendors'], '/catalog/vendors', { limit: 100 });
 
+  // Tareas de confirmación de entrega (filtradas por ATC asignado o todas para Alma/Supervisora)
+  const { data: pendingDeliveries, refetch: refetchPendingDeliveries } = useApi<any[]>(
+    ['pending-delivery-confirmations'],
+    '/orders/delivery-confirmations/pending'
+  );
+
   const createMut = useMutationApi('/orders');
 
   const [clientId, setClientId] = useState('');
   const [vendorId, setVendorId] = useState('');
   const [prioridad, setPrioridad] = useState(3);
-  const [reservaHoras, setReservaHoras] = useState(168);
+  const [reservaHoras, setReservaHoras] = useState(72); // Default 72h (3 días) según política interna
   const [modoEntrega, setModoEntrega] = useState('COMPLETA');
   const [lineas, setLineas] = useState<any[]>([{ skuId: '', metrajeRequerido: 50, precioUnitario: 0, listaPrecios: '', descuentoPct: 0, selectedHUs: [] }]);
   const [expressIngestTarget, setExpressIngestTarget] = useState<any>(null);
+
+  // Domicilio y logística para creación de cotización
+  const [clientAddresses, setClientAddresses] = useState<any[]>([]);
+  const [deliveryAddressId, setDeliveryAddressId] = useState('');
+  const [deliveryContactName, setDeliveryContactName] = useState('');
+  const [deliveryContactPhone, setDeliveryContactPhone] = useState('');
+  const [deliverySchedule, setDeliverySchedule] = useState('');
+  const [fletera, setFletera] = useState('Transportes Castores');
+  const [envioAsegurado, setEnvioAsegurado] = useState(false);
+
+  // Modal para confirmar entrega durante surtido
+  const [deliveryModalOrder, setDeliveryModalOrder] = useState<any>(null);
+  const [deliveryOrderAddresses, setDeliveryOrderAddresses] = useState<any[]>([]);
+  const [confirmingDelivery, setConfirmingDelivery] = useState(false);
+  const [deliveryForm, setDeliveryForm] = useState({
+    deliveryAddressId: '',
+    deliveryContactName: '',
+    deliveryContactPhone: '',
+    deliverySchedule: '',
+    fletera: 'Transportes Castores',
+    envioAsegurado: false,
+    notasEntrega: '',
+  });
+
+  const handleClientChange = async (cId: string) => {
+    setClientId(cId);
+    if (!cId) {
+      setClientAddresses([]);
+      setDeliveryAddressId('');
+      return;
+    }
+    const clientObj = clients?.data?.find((c: any) => c.id === cId);
+    if (clientObj) {
+      if (clientObj.listaPrecioDefault) {
+        setLineas(prev => prev.map(l => ({ ...l, listaPrecios: l.listaPrecios || clientObj.listaPrecioDefault })));
+      }
+      if (clientObj.cartaFletera) setFletera(clientObj.cartaFletera);
+      if (clientObj.seguroEnvioDefault !== undefined) setEnvioAsegurado(clientObj.seguroEnvioDefault);
+    }
+    try {
+      const res = await api.get(`/catalog/clients/${cId}/addresses`);
+      const addrs = res.data || [];
+      setClientAddresses(addrs);
+      const defaultAddr = addrs.find((a: any) => a.esPredeterminada) || addrs[0];
+      if (defaultAddr) {
+        setDeliveryAddressId(defaultAddr.id);
+        setDeliveryContactName(defaultAddr.contactoNombre || clientObj?.contacto || '');
+        setDeliveryContactPhone(defaultAddr.contactoTelefono || clientObj?.telefono || '');
+        setDeliverySchedule(defaultAddr.horarioRecepcion || '');
+      } else {
+        setDeliveryAddressId('');
+        setDeliveryContactName(clientObj?.contacto || '');
+        setDeliveryContactPhone(clientObj?.telefono || '');
+      }
+    } catch {
+      setClientAddresses([]);
+    }
+  };
+
+  const openDeliveryModal = async (order: any) => {
+    setDeliveryModalOrder(order);
+    setDeliveryForm({
+      deliveryAddressId: order.deliveryAddressId || '',
+      deliveryContactName: order.deliveryContactName || order.client?.contacto || '',
+      deliveryContactPhone: order.deliveryContactPhone || order.client?.telefono || '',
+      deliverySchedule: order.deliverySchedule || '',
+      fletera: order.fletera || order.client?.cartaFletera || 'Transportes Castores',
+      envioAsegurado: order.envioAsegurado ?? order.client?.seguroEnvioDefault ?? false,
+      notasEntrega: '',
+    });
+    if (order.client?.id) {
+      try {
+        const res = await api.get(`/catalog/clients/${order.client.id}/addresses`);
+        setDeliveryOrderAddresses(res.data || []);
+      } catch {
+        setDeliveryOrderAddresses([]);
+      }
+    }
+  };
+
+  const handleSaveDeliveryConfirmation = async () => {
+    if (!deliveryModalOrder) return;
+    setConfirmingDelivery(true);
+    try {
+      await api.put(`/orders/${deliveryModalOrder.id}/confirm-delivery`, deliveryForm);
+      toast.success('Datos de entrega confirmados exitosamente — Almacén notificado');
+      setDeliveryModalOrder(null);
+      refetchPendingDeliveries();
+      refetchDetail();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Error al confirmar datos de entrega');
+    } finally {
+      setConfirmingDelivery(false);
+    }
+  };
 
   const addLinea = () => setLineas([...lineas, { skuId: '', metrajeRequerido: 50, precioUnitario: 0, listaPrecios: '', descuentoPct: 0, selectedHUs: [] }]);
 
@@ -83,6 +188,12 @@ export default function PedidosPage() {
         prioridad,
         reservaHoras,
         modoEntrega,
+        deliveryAddressId: deliveryAddressId || undefined,
+        deliveryContactName: deliveryContactName || undefined,
+        deliveryContactPhone: deliveryContactPhone || undefined,
+        deliverySchedule: deliverySchedule || undefined,
+        fletera: fletera || undefined,
+        envioAsegurado,
         lineas: lineas.map(l => ({
           skuId: l.skuId,
           metrajeRequerido: l.metrajeRequerido,
@@ -93,14 +204,14 @@ export default function PedidosPage() {
         })),
       });
       if (hasAnyHUs) {
-        toast.success(`Cotización creada — HUs reservados ${reservaHoras}h · Entrega: ${modoEntrega}`);
+        toast.success(`Cotización creada — Apartado activo por ${reservaHoras}h · Entrega: ${modoEntrega}`);
       } else {
         toast.success(`Cotización creada exitosamente — Mercancía en piso/transición lista para cotizar y vincular en surtido`);
       }
       setShowForm(false);
       setLineas([{ skuId: '', metrajeRequerido: 50, precioUnitario: 0, listaPrecios: '', descuentoPct: 0, selectedHUs: [] }]);
     } catch (e: any) {
-      toast.error(e?.response?.data?.message || 'Error');
+      toast.error(e?.response?.data?.message || 'Error al crear cotización');
     }
   };
 
@@ -153,6 +264,58 @@ export default function PedidosPage() {
         )}
       </div>
 
+      {/* Banner de Tareas: Confirmación de Entrega (Asignado a ATC creador / Supervisora Alma) */}
+      {pendingDeliveries && pendingDeliveries.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 rounded-2xl p-4 shadow-sm animate-fade-in">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-700 flex items-center justify-center font-bold">
+                <Truck size={18} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-amber-950 flex items-center gap-2">
+                  <span>{isSupervisor ? 'Validación de Entregas — Vista Supervisora (Alma / Gerencia)' : 'Tus Pedidos por Confirmar Entrega (ATC)'}</span>
+                </h3>
+                <p className="text-xs text-amber-800">
+                  {pendingDeliveries.length} pedido{pendingDeliveries.length > 1 ? 's' : ''} en surtido o corte requieren validar destino, receptor y fletera antes de empaque
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-mono font-bold bg-amber-200/90 text-amber-900 px-3 py-1 rounded-full">
+              {pendingDeliveries.length} por validar
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {pendingDeliveries.slice(0, 6).map((pOrder: any) => (
+              <div key={pOrder.id} className="bg-white/95 border border-amber-200 rounded-xl p-3 flex flex-col justify-between shadow-xs hover:border-amber-400 transition-all">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-mono text-xs font-bold text-gray-900">{pOrder.codigo}</span>
+                    <span className="text-[10px] bg-indigo-50 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">
+                      {STATUS_MAP[pOrder.estado]?.label || pOrder.estado}
+                    </span>
+                  </div>
+                  <p className="text-xs font-medium text-gray-800 truncate">{pOrder.client?.nombre}</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">
+                    Cotizado por: <strong className="text-gray-700">{pOrder.creadoPor || 'ATC'}</strong>
+                  </p>
+                  <p className="text-[11px] text-gray-500">
+                    Total: <strong className="text-emerald-700">${Number(pOrder.total).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong>
+                  </p>
+                </div>
+                <button
+                  onClick={() => openDeliveryModal(pOrder)}
+                  className="mt-3 w-full py-1.5 px-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <MapPin size={13} /> Validar Datos de Entrega
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Pipeline visual */}
       <div className="grid grid-cols-5 lg:grid-cols-9 gap-1.5">
         {Object.entries(STATUS_MAP).filter(([k]) => k !== 'CANCELADO').map(([key, s]) => {
@@ -178,8 +341,8 @@ export default function PedidosPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Cliente *</label>
-              <select value={clientId} onChange={e => setClientId(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500">
-                <option value="">Seleccionar...</option>
+              <select value={clientId} onChange={e => handleClientChange(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500">
+                <option value="">Seleccionar cliente...</option>
                 {clients?.data?.map((c: any) => <option key={c.id} value={c.id}>{c.nombre} ({c.codigo})</option>)}
               </select>
             </div>
@@ -200,26 +363,113 @@ export default function PedidosPage() {
               </select>
             </div>
 
-            {/* Reserva + Modo Entrega */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t">
+            {/* Domicilio de Entrega & Logística */}
+            <div className="col-span-1 md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">⏱️ Reserva Blanda (horas)</label>
-                <select value={reservaHoras} onChange={e => setReservaHoras(+e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500">
-                  <option value={24}>24 horas (1 día)</option>
-                  <option value={48}>48 horas (2 días)</option>
-                  <option value={72}>72 horas (3 días)</option>
-                  <option value={168}>168 horas (7 días)</option>
-                  <option value={336}>336 horas (14 días)</option>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Domicilio de Destino</label>
+                <select
+                  value={deliveryAddressId}
+                  onChange={e => {
+                    const aId = e.target.value;
+                    setDeliveryAddressId(aId);
+                    const addr = clientAddresses.find(a => a.id === aId);
+                    if (addr) {
+                      setDeliveryContactName(addr.contactoNombre || '');
+                      setDeliveryContactPhone(addr.contactoTelefono || '');
+                      setDeliverySchedule(addr.horarioRecepcion || '');
+                    }
+                  }}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">Mismo domicilio fiscal / Matriz</option>
+                  {clientAddresses.map(addr => (
+                    <option key={addr.id} value={addr.id}>
+                      {addr.alias} — {addr.calleNumero} ({addr.municipio || 'Jalisco'})
+                    </option>
+                  ))}
                 </select>
-                <p className="text-[10px] text-gray-400 mt-0.5">HUs reservados se liberan automáticamente si no se paga</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Receptor en Destino</label>
+                <input
+                  type="text"
+                  value={deliveryContactName}
+                  onChange={e => setDeliveryContactName(e.target.value)}
+                  placeholder="Nombre de quien recibe"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Teléfono Receptor</label>
+                <input
+                  type="text"
+                  value={deliveryContactPhone}
+                  onChange={e => setDeliveryContactPhone(e.target.value)}
+                  placeholder="Teléfono para coordinar entrega"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Fletera Seleccionada</label>
+                <select
+                  value={fletera}
+                  onChange={e => setFletera(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                >
+                  <option value="Transportes Castores">Transportes Castores</option>
+                  <option value="Tres Guerras">Tres Guerras</option>
+                  <option value="Paquetexpress">Paquetexpress</option>
+                  <option value="Estafeta Carga">Estafeta Carga</option>
+                  <option value="Chofer Local Formatex">Chofer Local Formatex</option>
+                  <option value="Ocurre en Almacén">Ocurre en Almacén Formatex</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Horario de Recepción</label>
+                <input
+                  type="text"
+                  value={deliverySchedule}
+                  onChange={e => setDeliverySchedule(e.target.value)}
+                  placeholder="Ej: L-V 09:00 a 14:00"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                />
+              </div>
+
+              <div className="flex items-center pt-5">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={envioAsegurado}
+                    onChange={e => setEnvioAsegurado(e.target.checked)}
+                    className="w-4 h-4 text-primary-600 rounded border-gray-300"
+                  />
+                  <span>Asegurar envío con transportista</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Apartado + Modo Entrega */}
+            <div className="col-span-1 md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Apartado de Mercancía</label>
+                <select value={reservaHoras} onChange={e => setReservaHoras(+e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 font-medium">
+                  <option value={72}>72 horas (3 días — Resguardo de Almacén) [Recomendado]</option>
+                  <option value={24}>24 horas (Plazo Comercial al Cliente)</option>
+                  <option value={48}>48 horas (2 días)</option>
+                </select>
+                <p className="text-[10px] text-gray-400 mt-1">Al cliente se informa 24h para concretar pago; almacén resguarda 72h antes de desapartar rollos.</p>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">📦 Modo de Entrega</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Modo de Entrega</label>
                 <select value={modoEntrega} onChange={e => setModoEntrega(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500">
                   <option value="COMPLETA">Completa — Esperar todo junto</option>
                   <option value="PARCIAL">Parcial — Entregas por separado</option>
                 </select>
-                <p className="text-[10px] text-gray-400 mt-0.5">{modoEntrega === 'PARCIAL' ? 'Se factura cada entrega por separado' : 'Una sola factura cuando todo esté listo'}</p>
+                <p className="text-[10px] text-gray-400 mt-1">{modoEntrega === 'PARCIAL' ? 'Se factura cada entrega por separado' : 'Una sola factura cuando todo esté listo'}</p>
               </div>
             </div>
           </div>
@@ -230,8 +480,8 @@ export default function PedidosPage() {
                 <WmsIcon.Rolls size={16} className="text-indigo-500" />
                 Líneas del Pedido
               </h3>
-              <span className="text-[10px] text-indigo-500 font-medium bg-indigo-50 px-2 py-1 rounded-full flex items-center gap-1">
-                ✨ Sugerencias inteligentes de inventario
+              <span className="text-[10px] text-indigo-600 font-medium bg-indigo-50 px-2 py-1 rounded-full flex items-center gap-1">
+                Sugerencias inteligentes de inventario
               </span>
             </div>
             <div className="space-y-3">
@@ -239,6 +489,7 @@ export default function PedidosPage() {
                 <OrderLineSmart
                   key={idx}
                   index={idx}
+                  clientId={clientId}
                   line={l}
                   skus={skus?.data || []}
                   onChange={(i, field, value) => {
@@ -379,7 +630,7 @@ export default function PedidosPage() {
                   onClick={() => setInvoiceModal(detail.id)}
                   className="w-full px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-700 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-800 text-sm font-medium transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
                 >
-                  <FileText size={16} /> 🧾 Facturar (CFDI 4.0)
+                  <FileText size={16} /> Facturar (CFDI 4.0)
                 </button>
               )}
               {NEXT_STATUS[detail.estado] && (() => {
@@ -393,6 +644,64 @@ export default function PedidosPage() {
                   </button>
                 );
               })()}
+
+              {/* Logística y Datos de Entrega */}
+              <div className="bg-gray-50 rounded-xl p-3.5 text-xs space-y-2 border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-gray-700 flex items-center gap-1.5">
+                    <Truck size={14} className="text-indigo-600" /> Logística y Entrega
+                  </span>
+                  {detail.deliveryConfirmed ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
+                      <CheckCircle2 size={11} /> Confirmada
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 flex items-center gap-1">
+                      <Clock size={11} /> Pendiente ATC
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-1 text-gray-600 text-[11px] pt-1 border-t border-gray-200/60">
+                  {detail.deliveryAddress ? (
+                    <p className="flex items-start gap-1">
+                      <MapPin size={12} className="text-gray-400 mt-0.5 shrink-0" />
+                      <span><strong>{detail.deliveryAddress.alias}:</strong> {detail.deliveryAddress.calleNumero}, {detail.deliveryAddress.municipio || ''}</span>
+                    </p>
+                  ) : (
+                    <p className="text-gray-400 italic">Destino: Domicilio fiscal del cliente</p>
+                  )}
+                  {detail.deliveryContactName && (
+                    <p className="flex items-center gap-1">
+                      <Phone size={12} className="text-gray-400 shrink-0" /> Receptor: {detail.deliveryContactName} {detail.deliveryContactPhone ? `· ${detail.deliveryContactPhone}` : ''}
+                    </p>
+                  )}
+                  {detail.deliverySchedule && (
+                    <p className="flex items-center gap-1">
+                      <Clock size={12} className="text-gray-400 shrink-0" /> Horario: {detail.deliverySchedule}
+                    </p>
+                  )}
+                  {detail.fletera && (
+                    <p className="flex items-center gap-1">
+                      <Truck size={12} className="text-gray-400 shrink-0" /> Fletera: {detail.fletera} {detail.envioAsegurado ? '(Asegurado)' : ''}
+                    </p>
+                  )}
+                  {detail.deliveryConfirmedBy && (
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      Confirmado por: {detail.deliveryConfirmedBy} {detail.deliveryConfirmedAt ? `el ${new Date(detail.deliveryConfirmedAt).toLocaleDateString()}` : ''}
+                    </p>
+                  )}
+                </div>
+
+                {(!detail.deliveryConfirmed || isSupervisor) && ['POR_SURTIR', 'EN_SURTIDO', 'EN_CORTE'].includes(detail.estado) && (
+                  <button
+                    onClick={() => openDeliveryModal(detail)}
+                    className="w-full mt-2 py-1.5 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <MapPin size={13} /> {detail.deliveryConfirmed ? 'Modificar Datos de Entrega' : 'Validar Datos de Entrega'}
+                  </button>
+                )}
+              </div>
 
               {/* Financial summary */}
               <div className="bg-gray-50 rounded-xl p-3 text-xs space-y-1">
@@ -410,7 +719,7 @@ export default function PedidosPage() {
                     <FileText size={16} className="text-emerald-600" />
                     <h4 className="text-sm font-bold text-emerald-800">Factura CFDI</h4>
                     <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-semibold ${detail.facturaStatus === 'valid' ? 'bg-emerald-200 text-emerald-800' : 'bg-red-200 text-red-800'}`}>
-                      {detail.facturaStatus === 'valid' ? '✅ Vigente' : '❌ Cancelada'}
+                      {detail.facturaStatus === 'valid' ? 'Vigente' : 'Cancelada'}
                     </span>
                   </div>
                   <div className="space-y-1 text-xs">
@@ -715,8 +1024,9 @@ export default function PedidosPage() {
             </div>
 
             {/* Info */}
-            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700">
-              <p>💡 Se generará un CFDI de Ingreso con timbrado automático ante el SAT. El XML y PDF estarán disponibles para descarga inmediatamente.</p>
+            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700 flex items-start gap-2">
+              <Info size={16} className="text-blue-600 shrink-0 mt-0.5" />
+              <p>Se generará un CFDI de Ingreso con timbrado automático ante el SAT. El XML y PDF estarán disponibles para descarga inmediatamente.</p>
             </div>
 
             <div className="flex gap-3 mt-5">
@@ -732,7 +1042,7 @@ export default function PedidosPage() {
                   setInvoicing(true);
                   try {
                     const { data } = await api.post(`/invoicing/${invoiceModal}/create`, invoiceForm);
-                    toast.success(`✅ Factura timbrada — UUID: ${data.uuid?.substring(0, 8)}...`);
+                    toast.success(`Factura timbrada exitosamente — UUID: ${data.uuid?.substring(0, 8)}...`);
                     setInvoiceModal(null);
                     refetchDetail();
                   } catch (e: any) {
@@ -748,6 +1058,153 @@ export default function PedidosPage() {
                 ) : (
                   <><FileText size={16} /> Facturar y Timbrar</>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === VALIDAR DATOS DE ENTREGA MODAL === */}
+      {deliveryModalOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => !confirmingDelivery && setDeliveryModalOrder(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 animate-fade-in space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-700 flex items-center justify-center font-bold">
+                  <Truck size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Validar Datos de Entrega</h3>
+                  <p className="text-xs text-gray-500">
+                    Pedido <span className="font-mono font-bold text-amber-700">{deliveryModalOrder.codigo}</span> · {deliveryModalOrder.client?.nombre}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setDeliveryModalOrder(null)} className="text-gray-400 hover:text-gray-600 p-1">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-semibold text-gray-700 mb-1">Domicilio de Destino</label>
+                <select
+                  value={deliveryForm.deliveryAddressId}
+                  onChange={e => {
+                    const aId = e.target.value;
+                    const addr = deliveryOrderAddresses.find(a => a.id === aId);
+                    setDeliveryForm({
+                      ...deliveryForm,
+                      deliveryAddressId: aId,
+                      deliveryContactName: addr?.contactoNombre || deliveryForm.deliveryContactName,
+                      deliveryContactPhone: addr?.contactoTelefono || deliveryForm.deliveryContactPhone,
+                      deliverySchedule: addr?.horarioRecepcion || deliveryForm.deliverySchedule,
+                    });
+                  }}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="">Domicilio Fiscal / Matriz del Cliente</option>
+                  {deliveryOrderAddresses.map(addr => (
+                    <option key={addr.id} value={addr.id}>
+                      {addr.alias} — {addr.calleNumero} ({addr.municipio || 'Jalisco'})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-gray-400 mt-1">Selecciona entre las sucursales o talleres registrados del cliente</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">Nombre de Receptor</label>
+                  <input
+                    type="text"
+                    value={deliveryForm.deliveryContactName}
+                    onChange={e => setDeliveryForm({ ...deliveryForm, deliveryContactName: e.target.value })}
+                    placeholder="Persona que recibe"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">Teléfono Receptor</label>
+                  <input
+                    type="text"
+                    value={deliveryForm.deliveryContactPhone}
+                    onChange={e => setDeliveryForm({ ...deliveryForm, deliveryContactPhone: e.target.value })}
+                    placeholder="Teléfono móvil directo"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">Fletera Asignada</label>
+                  <select
+                    value={deliveryForm.fletera}
+                    onChange={e => setDeliveryForm({ ...deliveryForm, fletera: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                  >
+                    <option value="Transportes Castores">Transportes Castores</option>
+                    <option value="Tres Guerras">Tres Guerras</option>
+                    <option value="Paquetexpress">Paquetexpress</option>
+                    <option value="Estafeta Carga">Estafeta Carga</option>
+                    <option value="Chofer Local Formatex">Chofer Local Formatex</option>
+                    <option value="Ocurre en Almacén">Ocurre en Almacén Formatex</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">Horario de Recepción</label>
+                  <input
+                    type="text"
+                    value={deliveryForm.deliverySchedule}
+                    onChange={e => setDeliveryForm({ ...deliveryForm, deliverySchedule: e.target.value })}
+                    placeholder="Ej: L-V 09:00 a 14:00"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <label className="flex items-center gap-2 cursor-pointer font-semibold text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={deliveryForm.envioAsegurado}
+                    onChange={e => setDeliveryForm({ ...deliveryForm, envioAsegurado: e.target.checked })}
+                    className="w-4 h-4 text-amber-600 rounded border-gray-300"
+                  />
+                  <span>Contratar seguro de envío con la fletera</span>
+                </label>
+                <p className="text-[11px] text-gray-400 ml-6">Cubre valor factura ante siniestros en carretera</p>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-gray-700 mb-1">Notas de Logística para Almacén / Chofer</label>
+                <input
+                  type="text"
+                  value={deliveryForm.notasEntrega}
+                  onChange={e => setDeliveryForm({ ...deliveryForm, notasEntrega: e.target.value })}
+                  placeholder="Ej: Llamar 30 mins antes, rampa de descarga en el callejón posterior..."
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-3 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setDeliveryModalOrder(null)}
+                disabled={confirmingDelivery}
+                className="flex-1 py-2.5 px-4 bg-gray-100 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveDeliveryConfirmation}
+                disabled={confirmingDelivery}
+                className="flex-1 py-2.5 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {confirmingDelivery ? <><Loader2 size={14} className="animate-spin" /> Guardando...</> : <><Check size={14} /> Confirmar y Notificar</>}
               </button>
             </div>
           </div>
