@@ -5,9 +5,71 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - 2026-10-02
+## [1.2.0] - 2026-10-15
 
 ### Added
+- **Levantamiento y Estandarización de Atención al Cliente (ATC) & Ventas:** Integración formal del flujo operativo consensuado en sesión de trabajo con Alma (Jefatura ATC) y Andrea Ramírez (Operaciones/ATC Formatex).
+- **Motor de Backorders ("BARCORDE") & Asignación Marítima FIFO:**
+  - Identificación de pedidos respaldados por mercancía en tránsito marítimo o programada en bodega de telares (`esBackorder`, `backorderStatus`).
+  - Asignación secuencial estricta de posición en cola de espera FIFO (`posicionCola = #1, #2, #3...`) por contenedor y SKU.
+  - Recorrido automático en cascada: al cancelar o ceder metraje un cliente, la cola retrocede automáticamente (`posicionCola - 1`) y reasigna los rollos liberados al siguiente comprador en espera o promovido desde contenedores futuros.
+  - Asociación directa con el embarque y contenedor (`numeroContenedor`, `fechaEstimadaArriboContenedor`, `fechaCapturaPedido`).
+- **Los 3 Formatos Oficiales de Cotización y Cobro en Backorder:**
+  - *Contado con Anticipo:* Pago adelantado para asegurar y congelar metraje del contenedor; ajuste de diferencia al arribar y medir los rollos.
+  - *Contado al Arribo (Cierre Fiscal):* Formado en cola sin cobro previo; liquidación y timbrado de factura sincronizados en el mismo mes calendario del arribo a bodega.
+  - *Crédito Comercial:* Asignación en cola y surtido directo contra línea de crédito autorizada al arribo tras validar la OC.
+- **Motor de Semáforos y Alertas Preventivas de Contenedores:**
+  - *Alerta 15 Días Previos al ETA (`AMBAR_15D`):* Tarea preventiva para que ATC contacte al cliente vía telefónica o WhatsApp para revalidar la vigencia de la Orden de Compra antes del arribo.
+  - *Alerta 5 Días Previos al ETA (`ROJO_5D`):* Alerta de arribo inminente a puerto/bodega para programar cobro o cargo a crédito y alistar maniobras de corte/despacho.
+  - *Estatus `VERDE` (> 15 días) y `VENCIDO`:* Clasificación visual dinámica del estado del tránsito.
+  - Endpoints de backend: `GET /orders/backorder/containers`, `GET /orders/backorder/queue`, `PUT /orders/:id/backorder/confirm-vigencia`, `POST /orders/:id/backorder/cancel-and-reassign`.
+- **Estructura Multi-Domicilio para Clientes (`ClientAddress`):**
+  - Registro de N domicilios por cliente (matriz fiscal y destinos alternos de entrega: sucursales, bodegas y talleres de tapicería externa como Plasencia/Punto Sur).
+  - Campos detallados: `alias`, `tipo`, `calleNumero`, `colonia`, `municipio`, `estado`, `cp`, `contactoNombre`, `contactoTelefono`, `horarioRecepcion` y `esPredeterminada`.
+- **Tarea Preventiva de Validación Logística en Surtido:**
+  - Disparador automático: al transicionar un pedido al estado `EN_SURTIDO`, se genera una tarea prioritaria para el ATC creador y la supervisora Alma para ratificar destino exacto, receptor, teléfono, horario de descarga, fletera y seguro de carga antes de que empaque embale los rollos.
+  - Modal integrado en pedidos y banner superior con conteo de pedidos pendientes de validación.
+- **Matriz Centralizada de Precios Especiales (`ClientSpecialPrice`):**
+  - Modelo en base de datos para registrar acuerdos de Dirección General por dupla `Cliente + SKU` (ej. tapiceros de cadenas muebleras).
+  - Auto-detección en cotización: al ingresar cliente y tela, el WMS inserta el precio neto acordado, bloquea el campo de precio para evitar errores de dedo y coloca distintivo de auditoría.
+- **Catálogo de las 10 Listas Oficiales de Precios Formatex & Candados de Modificación:**
+  - Homologación de F1 a F10: *F1 Casa Decoradora, F2 Tienda, F3 Tienda Especial, F4 Fabricante, F5 Fabricante Especial, F6 Distribuidor, F7 Distribuidor Especial, F8 Cliente Premium, F9 Precio Dirección / Mayorista, F10 Venta Web*.
+  - Candado de seguridad: listas especiales (`F3`, `F5`, `F7`, `F9`) requieren autorización gerencial en sistema (`requiereAprobacion = true`). Si un agente intenta asignar una lista inferior en una cotización, el pedido entra en `REQUIERE_AUTORIZACION` requiriendo aprobación de Supervisora Alma.
+- **Privacidad Estricta de Comisiones y Márgenes:**
+  - Ocultamiento de porcentajes de comisión de vendedores (ej. 2.25%) y márgenes brutos en interfaces operativas de ATC y vendedores. Únicamente se expone el precio neto por metro ($/m). Visibilidad restringida a roles `ADMIN` y `GERENCIA`.
+- **Políticas de Apartado y Doble Ventana de Tiempo (24h vs. 72h):**
+  - Sustitución oficial del concepto técnico "Reserva Blanda" por el término comercial **"Apartado"**.
+  - Ventana comercial comunicada al cliente de **24 horas** para forzar celeridad en el pago.
+  - Ventana operativa interna en almacén de **72 horas (3 días)** para proteger los rollos ante los ciclos de pago corporativos en viernes.
+  - Eliminación de opciones obsoletas de 7 días (168h) y 14 días (336h).
+- **Entregables y Memoria Técnica Formal en [`requerimientos/atencion_al_cliente/`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/requerimientos/atencion_al_cliente/):**
+  - `REGLAS_DE_NEGOCIO_ATC_FORMATEX.docx`: Documento ejecutivo en Word con diseño corporativo, tablas de listas de precios y bloque de 4 firmas de conformidad vinculantes (Alma, Andrea Ramírez, Ricardo Zerpa, Jonathan Palacios).
+  - `REGLAS_DE_NEGOCIO_ATC_FORMATEX.md`: Versión Markdown completa para seguimiento de cambios.
+  - `CORREO_RESUMEN_ALMA_Y_ANDREA.md`: Plantilla ejecutiva del correo formal para envío de minuta y solicitud de insumos pendientes.
+- **Cumplimiento Estricto de Branding:** Erradicación total de emojis genéricos en componentes modificados (`PedidosPage.tsx`, badges y toasts), reemplazados por componentes tipados de `WmsIcon` y `lucide-react` con diseño Tailwind profesional.
+
+### Changed
+- `wms-backend/prisma/schema.prisma`:
+  - Nuevos modelos `ClientAddress` y `ClientSpecialPrice`.
+  - Ampliación de `PriceListConfig` con flags `requiereAprobacion` y `rolMinimoAprobador`.
+  - Ampliación de `Order` con campos logísticos (`deliveryAddressId`, `deliveryContactName`, `deliveryContactPhone`, `deliverySchedule`, `fletera`, `envioAsegurado`, `deliveryConfirmed`, `deliveryConfirmedAt`, `deliveryConfirmedBy`, `notasEntrega`) y campos de backorder (`esBackorder`, `backorderStatus`, `condicionBackorder`, `contenedorNumero`, `fechaEstimadaArriboContenedor`, `posicionCola`, `incomingShipmentId`, `notificado15DiasAt`, `notificado5DiasAt`, `vigenciaConfirmadaAt`, `vigenciaConfirmadaPor`).
+  - Ampliación de `IncomingShipment` con `numeroContenedor` y relación `orders Order[]`.
+- `wms-backend/prisma/migrations/20261015010000_add_backorder_queue_and_containers/migration.sql`:
+  - Migración SQL creada y aplicada directamente al pooler PostgreSQL de Supabase.
+- `wms-backend/src/modules/orders/orders.service.ts` & `orders.controller.ts`:
+  - Lógica de creación de backorder, conteo FIFO, validación de vigencia y reasignación en cascada.
+  - Endpoints de confirmaciones pendientes de entrega asignados a ATC y supervisores.
+- `wms-frontend/src/pages/orders/PedidosPage.tsx`:
+  - Segmented control con pestañas *Flujo Operativo (Pipeline)* y *Cola de Backorders (Tránsito / Telar)*.
+  - Guía operativa Formatex explicando la regla de 15 días, 5 días y recorrido FIFO.
+  - Selector de contenedores activos con métricas de arribo y filtro en vivo.
+  - Tabla de cola de espera con turnos destacados (`#1`, `#2`), semáforos visuales de arribo y botones de confirmación de vigencia o cancelación.
+  - Modal de gestión de backorders para captura de notas de revalidación o cancelación con aviso de recorrido automático de cola.
+  - Sustitución de señalética informal por badges con microanimación de pulso institucional.
+
+---
+
+## [1.1.0] - 2026-10-02
 - **Motor de Planificación y Resurtido Formatex:** Implementación completa de la fórmula del Master de Andrea y Ricardo: cruce de lo que TENDREMOS ($S+P+T$ = Stock Nave + Stock Almacén 9 + Compras en Tránsito con ETA) contra lo que NECESITAREMOS ($4M \text{ Promedio} \times 4.5$ o Demanda Comprometida), dictamen de estatus (`OK` vs. `RESURTIR`) y cálculo de sugerencia en rollos enteros estándar.
 - **Ajuste Ricardo (Dirección):** Campo de captura y endpoint directo (`PATCH /supply-planning/lines/:id/ajuste-direccion`) para registrar la decisión final de Ricardo sobre el pedido sugerido, utilizable al generar la Orden de Compra.
 - **Ingesta Masiva de Facturación (CFDI 4.0 XML & CONTPAQi):** Parser nativo de facturas electrónicas de venta XML emitidas por CONTPAQi o buzón SAT, extrayendo fecha, código de SKU y metros facturados para alimentar el histórico mensual sin captura manual.
