@@ -459,6 +459,7 @@ model IncomingShipment {
   fechaEstimada   DateTime            // ETA — Fecha estimada de llegada
   fechaReal       DateTime?           // Fecha real de llegada
   transportista   String?
+  numeroContenedor String?             // Identificador oficial del contenedor (ej: MSCU-829104-1)
   notas           String?
   receiptId       String?             // Recepción generada al llegar
   creadoPor       String              // userId
@@ -467,10 +468,12 @@ model IncomingShipment {
 
   supplier        Supplier            @relation(fields: [supplierId], references: [id])
   lineas          IncomingShipmentLine[]
+  orders          Order[]             // Pedidos en backorder vinculados a este embarque
 
   @@index([supplierId])
   @@index([estado])
   @@index([fechaEstimada])
+  @@index([numeroContenedor])
 }
 
 model IncomingShipmentLine {
@@ -630,6 +633,19 @@ model Order {
   approvedBy           String?        // userId de Gerencia / Alma / Dirección
   approvedAt           DateTime?
 
+  // === BACKORDER & SEGUIMIENTO DE CONTENEDORES ⭐ ===
+  esBackorder                  Boolean        @default(false)
+  backorderStatus              String?        // "EN_COLA" | "NOTIFICADO_15D" | "NOTIFICADO_5D" | "CONFIRMADO" | "REASIGNADO" | "CANCELADO"
+  condicionBackorder           String?        // "CONTADO_ANTICIPO" | "CONTADO_AL_ARRIBO" | "CREDITO"
+  contenedorNumero             String?        // ej: "MSCU-829104-1"
+  fechaEstimadaArriboContenedor DateTime?     // ETA del contenedor
+  posicionCola                 Int?           // 1, 2, 3... orden cronológico en lista de espera (FIFO)
+  incomingShipmentId           String?        // Embarque en tránsito vinculado
+  notificado15DiasAt           DateTime?      // Fecha en que se notificó la alerta preventiva de 15 días
+  notificado5DiasAt            DateTime?      // Fecha en que se notificó la alerta urgente de 5 días
+  vigenciaConfirmadaAt         DateTime?      // Fecha en que el cliente confirmó vigencia de su orden de compra
+  vigenciaConfirmadaPor        String?        // Ejecutivo ATC o Supervisora que confirmó vigencia
+
   creadoPor            String
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
@@ -637,6 +653,7 @@ model Order {
   client               Client         @relation(fields: [clientId], references: [id])
   deliveryAddress      ClientAddress? @relation(fields: [deliveryAddressId], references: [id])
   vendor               Vendor?        @relation(fields: [vendorId], references: [id])
+  incomingShipment     IncomingShipment? @relation(fields: [incomingShipmentId], references: [id])
   lineas               OrderLine[]
   packingSlips         PackingSlip[]
   shipments            Shipment[]
@@ -651,6 +668,10 @@ model Order {
   @@index([fechaPedido])
   @@index([folioContpaqi])
   @@index([estadoPago])
+  @@index([esBackorder])
+  @@index([incomingShipmentId])
+  @@index([contenedorNumero])
+  @@index([backorderStatus])
 }
 
 enum OrderStatus {

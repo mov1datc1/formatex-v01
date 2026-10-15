@@ -7,7 +7,8 @@ import { WmsIcon, PipelineIcon, StatusBadge } from '../../components/icons/WmsIc
 import {
   X, Plus, Phone, AlertCircle, ShieldCheck, FileText, Download, Mail,
   Printer, Loader2, Info, Zap, MapPin, Truck, Clock, Shield,
-  CheckCircle2, Check, Lock, Building2, Package
+  CheckCircle2, Check, Lock, Building2, Package, Layers, Calendar,
+  ArrowUpDown, ChevronRight, Filter, Sparkles, RefreshCw, AlertTriangle,
 } from 'lucide-react';
 import type { FC } from 'react';
 import type { LucideProps } from 'lucide-react';
@@ -88,6 +89,36 @@ export default function PedidosPage() {
   const [deliverySchedule, setDeliverySchedule] = useState('');
   const [fletera, setFletera] = useState('Transportes Castores');
   const [envioAsegurado, setEnvioAsegurado] = useState(false);
+
+  // Tab principal: Flujo de Pedidos (Pipeline) vs Cola de Backorders (FIFO)
+  const [activeMainTab, setActiveMainTab] = useState<'pipeline' | 'backorder'>('pipeline');
+  const [backorderContainerFilter, setBackorderContainerFilter] = useState('');
+  const [backorderModal, setBackorderModal] = useState<{
+    order: any;
+    action: 'confirm' | 'cancel';
+  } | null>(null);
+  const [backorderNotes, setBackorderNotes] = useState('');
+  const [backorderActionLoading, setBackorderActionLoading] = useState(false);
+
+  // Estados para creación de Backorder en cotización
+  const [esBackorder, setEsBackorder] = useState(false);
+  const [condicionBackorder, setCondicionBackorder] = useState<'CONTADO_ANTICIPO' | 'CONTADO_AL_ARRIBO' | 'CREDITO'>('CONTADO_ANTICIPO');
+  const [selectedShipmentId, setSelectedShipmentId] = useState('');
+  const [contenedorNumero, setContenedorNumero] = useState('');
+  const [fechaEstimadaArriboContenedor, setFechaEstimadaArriboContenedor] = useState('');
+
+  // Cola de Backorders con semáforo de arribo de contenedores (15 días / 5 días)
+  const { data: backorderQueue, refetch: refetchBackorderQueue, isLoading: loadingBackorders } = useApi<any[]>(
+    ['backorder-queue', backorderContainerFilter],
+    '/orders/backorder/queue',
+    backorderContainerFilter ? { contenedorNumero: backorderContainerFilter } : {}
+  );
+
+  // Embarques / Contenedores en tránsito
+  const { data: containersList } = useApi<any[]>(
+    ['backorder-containers'],
+    '/orders/backorder/containers'
+  );
 
   // Modal para confirmar entrega durante surtido
   const [deliveryModalOrder, setDeliveryModalOrder] = useState<any>(null);
@@ -194,6 +225,11 @@ export default function PedidosPage() {
         deliverySchedule: deliverySchedule || undefined,
         fletera: fletera || undefined,
         envioAsegurado,
+        esBackorder,
+        condicionBackorder: esBackorder ? condicionBackorder : undefined,
+        contenedorNumero: esBackorder ? contenedorNumero : undefined,
+        fechaEstimadaArriboContenedor: (esBackorder && fechaEstimadaArriboContenedor) ? fechaEstimadaArriboContenedor : undefined,
+        incomingShipmentId: (esBackorder && selectedShipmentId) ? selectedShipmentId : undefined,
         lineas: lineas.map(l => ({
           skuId: l.skuId,
           metrajeRequerido: l.metrajeRequerido,
@@ -203,15 +239,64 @@ export default function PedidosPage() {
           selectedHUs: l.selectedHUs?.length ? l.selectedHUs : undefined,
         })),
       });
-      if (hasAnyHUs) {
+      if (esBackorder) {
+        toast.success(`Pedido creado en Backorder — Formado en cola FIFO para contenedor ${contenedorNumero || 'en tránsito'}`);
+      } else if (hasAnyHUs) {
         toast.success(`Cotización creada — Apartado activo por ${reservaHoras}h · Entrega: ${modoEntrega}`);
       } else {
         toast.success(`Cotización creada exitosamente — Mercancía en piso/transición lista para cotizar y vincular en surtido`);
       }
       setShowForm(false);
+      setEsBackorder(false);
+      setContenedorNumero('');
+      setFechaEstimadaArriboContenedor('');
+      setSelectedShipmentId('');
+      setCondicionBackorder('CONTADO_ANTICIPO');
       setLineas([{ skuId: '', metrajeRequerido: 50, precioUnitario: 0, listaPrecios: '', descuentoPct: 0, selectedHUs: [] }]);
+      refetchBackorderQueue();
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Error al crear cotización');
+    }
+  };
+
+  const handleConfirmBackorderVigencia = async () => {
+    if (!backorderModal?.order) return;
+    setBackorderActionLoading(true);
+    try {
+      await api.put(`/orders/${backorderModal.order.id}/backorder/confirm-vigencia`, {
+        vigente: true,
+        notas: backorderNotes,
+      });
+      toast.success(`Vigencia confirmada para ${backorderModal.order.codigo} — Listo para surtido al arribo`);
+      setBackorderModal(null);
+      setBackorderNotes('');
+      refetchBackorderQueue();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Error al confirmar vigencia');
+    } finally {
+      setBackorderActionLoading(false);
+    }
+  };
+
+  const handleCancelAndReassignBackorder = async () => {
+    if (!backorderModal?.order) return;
+    setBackorderActionLoading(true);
+    try {
+      const res = await api.post(`/orders/${backorderModal.order.id}/backorder/cancel-and-reassign`, {
+        motivo: backorderNotes || 'Cancelación de Backorder',
+      });
+      const data = res.data;
+      toast.success(`Pedido cancelado. ${data.ordersReorderedCount || 0} pedidos recorridos en la cola FIFO.`);
+      if (data.promotedCandidate) {
+        toast.success(`Pedido adelantado en lista: ${data.promotedCandidate.codigo}`);
+      }
+      setBackorderModal(null);
+      setBackorderNotes('');
+      refetchBackorderQueue();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Error al cancelar y recorrer cola');
+    } finally {
+      setBackorderActionLoading(false);
     }
   };
 
@@ -316,19 +401,66 @@ export default function PedidosPage() {
         </div>
       )}
 
-      {/* Pipeline visual */}
-      <div className="grid grid-cols-5 lg:grid-cols-9 gap-1.5">
-        {Object.entries(STATUS_MAP).filter(([k]) => k !== 'CANCELADO').map(([key, s]) => {
-          const Icon = s.icon;
-          const count = resp?.data?.filter((o: any) => o.estado === key).length || 0;
-          return (
-            <button key={key} onClick={() => setFilterEstado(filterEstado === key ? '' : key)} className={`text-center p-2.5 rounded-xl text-xs transition-all ${filterEstado === key ? 'ring-2 ring-primary-400 shadow-md scale-[1.02]' : 'hover:shadow-sm'} ${s.color}`}>
-              <PipelineIcon icon={Icon} bgClass={s.iconBg} iconClass={s.iconColor} size={16} />
-              <div className="font-bold text-base mt-1.5">{count}</div>
-              <div className="truncate font-medium">{s.label}</div>
-            </button>
-          );
-        })}
+      {/* Switcher de Vistas Principales: Pipeline Regular vs Cola de Backorders (Tránsito) */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-2 rounded-2xl border border-gray-200/80 shadow-xs">
+        <div className="flex items-center gap-1 bg-gray-100/80 p-1 rounded-xl">
+          <button
+            type="button"
+            onClick={() => setActiveMainTab('pipeline')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              activeMainTab === 'pipeline'
+                ? 'bg-white text-gray-900 shadow-xs'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Layers size={15} className={activeMainTab === 'pipeline' ? 'text-primary-600' : 'text-gray-400'} />
+            <span>Flujo Operativo (Pipeline)</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
+              activeMainTab === 'pipeline' ? 'bg-primary-50 text-primary-700 font-bold' : 'bg-gray-200 text-gray-600'
+            }`}>
+              {resp?.data?.length || 0}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveMainTab('backorder')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all relative ${
+              activeMainTab === 'backorder'
+                ? 'bg-white text-gray-900 shadow-xs'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Truck size={15} className={activeMainTab === 'backorder' ? 'text-blue-600' : 'text-gray-400'} />
+            <span>Cola de Backorders (Tránsito / Telar)</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
+              activeMainTab === 'backorder' ? 'bg-blue-50 text-blue-700 font-bold' : 'bg-gray-200 text-gray-600'
+            }`}>
+              {backorderQueue?.length || 0}
+            </span>
+            {backorderQueue?.some((b: any) => b.semaforo === 'AMBAR_15D' || b.semaforo === 'ROJO_5D') && (
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping absolute -top-1 -right-1" />
+            )}
+          </button>
+        </div>
+
+        {activeMainTab === 'backorder' && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-gray-500 hidden sm:inline">Filtrar Contenedor:</span>
+            <select
+              value={backorderContainerFilter}
+              onChange={e => setBackorderContainerFilter(e.target.value)}
+              className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-700 focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Todos los Contenedores en Tránsito</option>
+              {containersList?.map((c: any) => (
+                <option key={c.id} value={c.numeroContenedor || c.codigo}>
+                  {c.numeroContenedor || c.codigo} ({c.ordersCount || 0} pedidos)
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Create Form */}
@@ -472,6 +604,121 @@ export default function PedidosPage() {
                 <p className="text-[10px] text-gray-400 mt-1">{modoEntrega === 'PARCIAL' ? 'Se factura cada entrega por separado' : 'Una sola factura cuando todo esté listo'}</p>
               </div>
             </div>
+
+            {/* Modalidad de Pedido: Inventario Físico vs Backorder en Contenedor */}
+            <div className="col-span-1 md:col-span-3 bg-gradient-to-r from-blue-50/80 to-indigo-50/60 p-4 rounded-2xl border border-blue-200/80 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-blue-600 text-white rounded-xl shadow-xs">
+                    <Truck size={16} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-900">¿Es un pedido en Backorder (Tela en Contenedor o Telar)?</h4>
+                    <p className="text-[11px] text-gray-500">Activa si la tela viene en tránsito marítimo o se programa a producción</p>
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-xl border border-blue-200 text-xs font-bold text-blue-900 shadow-xs hover:border-blue-300 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={esBackorder}
+                    onChange={e => setEsBackorder(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded border-gray-300"
+                  />
+                  <span>Activar Backorder / Cola FIFO</span>
+                </label>
+              </div>
+
+              {esBackorder && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-blue-200/60 text-xs animate-fade-in">
+                  <div>
+                    <label className="block font-semibold text-gray-700 mb-1">Contenedor / Embarque en Tránsito</label>
+                    <select
+                      value={selectedShipmentId}
+                      onChange={e => {
+                        const sId = e.target.value;
+                        setSelectedShipmentId(sId);
+                        const sh = containersList?.find((c: any) => c.id === sId);
+                        if (sh) {
+                          setContenedorNumero(sh.numeroContenedor || sh.codigo);
+                          setFechaEstimadaArriboContenedor(sh.fechaEstimada ? sh.fechaEstimada.split('T')[0] : '');
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-medium text-gray-800"
+                    >
+                      <option value="">Seleccionar contenedor...</option>
+                      {containersList?.map((c: any) => (
+                        <option key={c.id} value={c.id}>
+                          {c.numeroContenedor || c.codigo} — ETA: {new Date(c.fechaEstimada).toLocaleDateString('es-MX')} ({c.supplier?.nombre || 'Proveedor'})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-gray-700 mb-1">Número de Contenedor</label>
+                    <input
+                      type="text"
+                      placeholder="Ej: MSCU-829104-1"
+                      value={contenedorNumero}
+                      onChange={e => setContenedorNumero(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-mono font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-gray-700 mb-1">Fecha Estimada Arribo (ETA)</label>
+                    <input
+                      type="date"
+                      value={fechaEstimadaArriboContenedor}
+                      onChange={e => setFechaEstimadaArriboContenedor(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-medium"
+                    />
+                  </div>
+
+                  <div className="col-span-1 md:col-span-3">
+                    <label className="block font-semibold text-gray-700 mb-1">Formato de Cotización & Cobro en Backorder</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <label className={`p-2.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+                        condicionBackorder === 'CONTADO_ANTICIPO' ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                      }`}>
+                        <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
+                          <input type="radio" name="condBackorder" checked={condicionBackorder === 'CONTADO_ANTICIPO'} onChange={() => setCondicionBackorder('CONTADO_ANTICIPO')} className="hidden" />
+                          <span>Contado con Anticipo</span>
+                        </div>
+                        <p className={`text-[11px] leading-tight ${condicionBackorder === 'CONTADO_ANTICIPO' ? 'text-blue-100' : 'text-gray-500'}`}>
+                          El cliente paga de inmediato para asegurar su lugar y congelar su metraje en el contenedor.
+                        </p>
+                      </label>
+
+                      <label className={`p-2.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+                        condicionBackorder === 'CONTADO_AL_ARRIBO' ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                      }`}>
+                        <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
+                          <input type="radio" name="condBackorder" checked={condicionBackorder === 'CONTADO_AL_ARRIBO'} onChange={() => setCondicionBackorder('CONTADO_AL_ARRIBO')} className="hidden" />
+                          <span>Contado al Arribo (Fiscal)</span>
+                        </div>
+                        <p className={`text-[11px] leading-tight ${condicionBackorder === 'CONTADO_AL_ARRIBO' ? 'text-blue-100' : 'text-gray-500'}`}>
+                          Queda en cola sin cobrarle. Paga y se timbra la factura en el mismo mes que llega el contenedor.
+                        </p>
+                      </label>
+
+                      <label className={`p-2.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+                        condicionBackorder === 'CREDITO' ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                      }`}>
+                        <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
+                          <input type="radio" name="condBackorder" checked={condicionBackorder === 'CREDITO'} onChange={() => setCondicionBackorder('CREDITO')} className="hidden" />
+                          <span>Crédito Comercial</span>
+                        </div>
+                        <p className={`text-[11px] leading-tight ${condicionBackorder === 'CREDITO' ? 'text-blue-100' : 'text-gray-500'}`}>
+                          Se aparta en cola y se surte contra su línea de crédito autorizada una vez arribe la tela.
+                        </p>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="border-t pt-4">
@@ -523,7 +770,25 @@ export default function PedidosPage() {
         </div>
       )}
 
-      {/* Filters */}
+      {/* VISTA 1: PIPELINE OPERATIVO REGULAR */}
+      {activeMainTab === 'pipeline' && (
+        <>
+          {/* Pipeline visual */}
+          <div className="grid grid-cols-5 lg:grid-cols-9 gap-1.5">
+            {Object.entries(STATUS_MAP).filter(([k]) => k !== 'CANCELADO').map(([key, s]) => {
+              const Icon = s.icon;
+              const count = resp?.data?.filter((o: any) => o.estado === key).length || 0;
+              return (
+                <button key={key} onClick={() => setFilterEstado(filterEstado === key ? '' : key)} className={`text-center p-2.5 rounded-xl text-xs transition-all ${filterEstado === key ? 'ring-2 ring-primary-400 shadow-md scale-[1.02]' : 'hover:shadow-sm'} ${s.color}`}>
+                  <PipelineIcon icon={Icon} bgClass={s.iconBg} iconClass={s.iconColor} size={16} />
+                  <div className="font-bold text-base mt-1.5">{count}</div>
+                  <div className="truncate font-medium">{s.label}</div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Filters */}
       <div className="flex gap-3">
         <div className="relative flex-1 max-w-xs">
           <WmsIcon.Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -557,6 +822,11 @@ export default function PedidosPage() {
                         <span className="font-mono text-sm font-semibold text-primary-600">{o.codigo}</span>
                         {o.folioContpaqi && <span className="text-xs text-gray-400 font-mono">({o.folioContpaqi})</span>}
                         <StatusBadge icon={StatusIcon} label={status?.label || o.estado} bgClass={status?.color?.split(' ')[0] || 'bg-gray-100'} textClass={status?.color?.split(' ')[1] || 'text-gray-600'} />
+                        {o.esBackorder && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                            <Truck size={10} /> Backorder {o.contenedorNumero ? `· ${o.contenedorNumero}` : ''} (#{o.posicionCola || 1})
+                          </span>
+                        )}
                         {prio && o.prioridad <= 2 && (
                           <span className={`inline-flex items-center gap-1 text-xs font-semibold ${prio.color}`}>
                             <AlertCircle size={12} /> {prio.label}
@@ -573,8 +843,8 @@ export default function PedidosPage() {
                       <div className="flex items-center gap-3 text-xs text-gray-400">
                         {o.vendor && <span className="flex items-center gap-1"><Phone size={10} /> {o.vendor.nombre}</span>}
                         {o.lineas?.some((l: any) => !l.assignments?.length) && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-50 text-amber-700 font-medium border border-amber-200">
-                            🟠 En piso
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-amber-50 text-amber-700 font-medium border border-amber-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" /> En piso
                           </span>
                         )}
                         <span>{o._count?.lineas || o.lineas?.length} líneas</span>
@@ -644,6 +914,49 @@ export default function PedidosPage() {
                   </button>
                 );
               })()}
+
+              {/* Backorder en Tránsito Marítimo si aplica */}
+              {detail.esBackorder && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3.5 text-xs space-y-2 border border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-blue-900 flex items-center gap-1.5">
+                      <Truck size={14} className="text-blue-600" /> Backorder en Tránsito
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-200 text-blue-900">
+                      Cola #{detail.posicionCola || 1}
+                    </span>
+                  </div>
+                  <div className="space-y-1 text-gray-700 text-[11px] pt-1 border-t border-blue-200/60">
+                    <p className="flex justify-between">
+                      <span className="text-gray-500">Contenedor:</span>
+                      <strong className="font-mono">{detail.contenedorNumero || 'Por asignar'}</strong>
+                    </p>
+                    {detail.fechaEstimadaArriboContenedor && (
+                      <p className="flex justify-between">
+                        <span className="text-gray-500">ETA Arribo:</span>
+                        <strong>{new Date(detail.fechaEstimadaArriboContenedor).toLocaleDateString('es-MX')}</strong>
+                      </p>
+                    )}
+                    <p className="flex justify-between">
+                      <span className="text-gray-500">Condición:</span>
+                      <strong className="text-blue-800">
+                        {detail.condicionBackorder === 'CONTADO_ANTICIPO' ? 'Contado con Anticipo' :
+                         detail.condicionBackorder === 'CONTADO_AL_ARRIBO' ? 'Contado al Arribo (Fiscal)' : 'Crédito Comercial'}
+                      </strong>
+                    </p>
+                    <div className="pt-1 flex items-center justify-between">
+                      <span className="text-gray-500">Vigencia 15 días:</span>
+                      {detail.vigenciaConfirmadaAt ? (
+                        <span className="text-emerald-700 font-bold flex items-center gap-1">
+                          <CheckCircle2 size={11} /> Confirmada ({detail.vigenciaConfirmadaPor || 'ATC'})
+                        </span>
+                      ) : (
+                        <span className="text-amber-700 font-semibold">Pendiente de revalidación</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Logística y Datos de Entrega */}
               <div className="bg-gray-50 rounded-xl p-3.5 text-xs space-y-2 border border-gray-100">
@@ -789,7 +1102,7 @@ export default function PedidosPage() {
                         if (!email) return;
                         try {
                           await api.post(`/invoicing/${detail.id}/email`, { email });
-                          toast.success(`📧 Factura enviada a ${email}`);
+                          toast.success(`Factura enviada a ${email}`);
                         } catch { toast.error('Error al enviar email'); }
                       }}
                       className="flex items-center justify-center gap-1.5 px-3 py-2 bg-purple-100 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-200 transition-colors"
@@ -858,7 +1171,9 @@ export default function PedidosPage() {
                     ) : (
                       <div className="mt-2 pt-2 border-t border-dashed border-gray-200 flex items-center justify-between">
                         <div>
-                          <span className="text-[11px] text-amber-600 font-medium block">🟠 Mercancía en piso / transición</span>
+                          <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" /> Mercancía en piso / transición
+                          </span>
                           <span className="text-[10px] text-gray-400">Sin HU asignado aún</span>
                         </div>
                         <button
@@ -896,6 +1211,367 @@ export default function PedidosPage() {
           )}
         </div>
       </div>
+    </>
+  )}
+
+      {/* VISTA 2: COLA DE BACKORDERS (FIFO) Y ALERTAS DE CONTENEDORES */}
+      {activeMainTab === 'backorder' && (
+        <div className="space-y-4 animate-fade-in">
+          {/* Guía Operativa Formatex: Regla de 15 Días, 5 Días y Recorrido FIFO */}
+          <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-5 shadow-lg border border-indigo-900/40">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-indigo-800/40">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center border border-blue-400/30">
+                  <Truck size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <span>Motor de Backorders & Asignación Marítima FIFO</span>
+                    <span className="text-[10px] font-mono uppercase bg-blue-500/20 text-blue-300 px-2.5 py-0.5 rounded-full border border-blue-400/30">
+                      Formatex WMS 360°
+                    </span>
+                  </h3>
+                  <p className="text-xs text-indigo-200/80">
+                    Control de pedidos con tela en contenedor marítimo o telar, alertas de arribo y reasignación automática de cola
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-start md:self-auto">
+                <button
+                  type="button"
+                  onClick={() => refetchBackorderQueue()}
+                  className="px-3 py-1.5 bg-indigo-900/60 hover:bg-indigo-800/80 text-indigo-200 rounded-xl text-xs font-semibold border border-indigo-700/50 flex items-center gap-1.5 transition-colors"
+                >
+                  <RefreshCw size={13} className={loadingBackorders ? 'animate-spin' : ''} />
+                  <span>Actualizar Cola</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 3 Reglas operativas ATC */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-4">
+              <div className="bg-indigo-950/60 border border-indigo-800/50 rounded-xl p-3">
+                <div className="flex items-center gap-2 text-amber-300 text-xs font-bold mb-1">
+                  <Clock size={14} />
+                  <span>1. Regla 15 Días (Semáforo Ámbar)</span>
+                </div>
+                <p className="text-[11px] text-indigo-200/90 leading-relaxed">
+                  A 15 días del arribo del contenedor, ATC contacta al cliente vía llamada o WhatsApp para validar si la Orden de Compra sigue vigente y mantener reservado su metraje.
+                </p>
+              </div>
+
+              <div className="bg-indigo-950/60 border border-indigo-800/50 rounded-xl p-3">
+                <div className="flex items-center gap-2 text-rose-300 text-xs font-bold mb-1">
+                  <AlertTriangle size={14} />
+                  <span>2. Regla 5 Días (Semáforo Rojo)</span>
+                </div>
+                <p className="text-[11px] text-indigo-200/90 leading-relaxed">
+                  A 5 días de la llegada a puerto/bodega, se detona la confirmación final de pago (o aplicación a crédito) para preparar corte y tarimas de despacho inmediato.
+                </p>
+              </div>
+
+              <div className="bg-indigo-950/60 border border-indigo-800/50 rounded-xl p-3">
+                <div className="flex items-center gap-2 text-emerald-300 text-xs font-bold mb-1">
+                  <ArrowUpDown size={14} />
+                  <span>3. Recorrido Automático FIFO</span>
+                </div>
+                <p className="text-[11px] text-indigo-200/90 leading-relaxed">
+                  Si un cliente cancela o cede metros, el sistema recorre los turnos automáticamente (posición - 1), notificando al siguiente cliente en espera de ese contenedor o futuro.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Cards de Contenedores en Tránsito */}
+          {containersList && containersList.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Package size={14} className="text-blue-600" />
+                  <span>Contenedores Activos en Tránsito ({containersList.length})</span>
+                </h4>
+                {backorderContainerFilter && (
+                  <button
+                    onClick={() => setBackorderContainerFilter('')}
+                    className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                  >
+                    <X size={12} /> Ver todos
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {containersList.map((cont: any) => {
+                  const isSelected = backorderContainerFilter === (cont.numeroContenedor || cont.codigo);
+                  const diasRestantes = cont.fechaEstimada
+                    ? Math.ceil((new Date(cont.fechaEstimada).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+                    : null;
+                  return (
+                    <div
+                      key={cont.id}
+                      onClick={() => setBackorderContainerFilter(isSelected ? '' : (cont.numeroContenedor || cont.codigo))}
+                      className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                        isSelected
+                          ? 'bg-blue-50/80 border-blue-500 ring-2 ring-blue-300 shadow-md'
+                          : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-xs'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="font-mono text-xs font-bold text-gray-900 truncate">
+                          {cont.numeroContenedor || cont.codigo}
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          diasRestantes !== null && diasRestantes <= 5
+                            ? 'bg-rose-100 text-rose-800'
+                            : diasRestantes !== null && diasRestantes <= 15
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          {diasRestantes !== null ? `${diasRestantes} días` : 'En camino'}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-gray-600 truncate">{cont.supplier?.nombre || 'Proveedor Internacional'}</p>
+                      
+                      <div className="flex items-center justify-between text-[11px] text-gray-500 mt-2 pt-2 border-t border-gray-100">
+                        <span className="flex items-center gap-1">
+                          <Calendar size={11} className="text-gray-400" />
+                          <span>ETA: {cont.fechaEstimada ? new Date(cont.fechaEstimada).toLocaleDateString('es-MX') : 'Por definir'}</span>
+                        </span>
+                        <span className="font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                          {cont.ordersCount || 0} pedidos
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Tabla de la Cola FIFO */}
+          <div className="bg-white rounded-2xl border border-gray-200/90 shadow-xs overflow-hidden">
+            <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                  <span>Cola FIFO de Asignación por Contenedor</span>
+                  <span className="text-xs font-mono font-bold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full">
+                    {backorderQueue?.length || 0} en espera
+                  </span>
+                </h4>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Orden de despacho estricto según fecha de congelamiento y formato de cobro
+                </p>
+              </div>
+
+              {backorderContainerFilter && (
+                <div className="flex items-center gap-1.5 bg-blue-50 text-blue-800 px-3 py-1.5 rounded-xl text-xs font-medium border border-blue-200">
+                  <Filter size={13} />
+                  <span>Filtrado por: <strong>{backorderContainerFilter}</strong></span>
+                  <button onClick={() => setBackorderContainerFilter('')} className="ml-1 text-blue-600 hover:text-blue-900">
+                    <X size={13} />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {loadingBackorders ? (
+              <div className="p-12 text-center text-gray-400">
+                <Loader2 size={32} className="animate-spin mx-auto text-blue-500 mb-2" />
+                <p className="text-xs">Cargando cola de backorders y análisis de contenedores...</p>
+              </div>
+            ) : !backorderQueue?.length ? (
+              <div className="p-12 text-center text-gray-400 space-y-2">
+                <Truck size={40} className="mx-auto text-gray-300" />
+                <p className="text-sm font-semibold text-gray-600">No hay pedidos en cola de backorder</p>
+                <p className="text-xs text-gray-400 max-w-md mx-auto">
+                  {backorderContainerFilter
+                    ? `No se encontraron pedidos asignados al contenedor ${backorderContainerFilter}.`
+                    : 'Cuando captures una cotización activando la opción de Backorder en Contenedor, aparecerá en esta lista organizada por turno FIFO.'}
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-200">
+                      <th className="py-3 px-3.5 text-center w-16">Turno</th>
+                      <th className="py-3 px-3.5">Pedido / Cotización</th>
+                      <th className="py-3 px-3.5">Cliente & Vendedor</th>
+                      <th className="py-3 px-3.5">Telas & Metraje Requerido</th>
+                      <th className="py-3 px-3.5">Formato Comercial</th>
+                      <th className="py-3 px-3.5">Contenedor / ETA</th>
+                      <th className="py-3 px-3.5">Alerta Arribo (ATC)</th>
+                      <th className="py-3 px-3.5">Vigencia 15D</th>
+                      <th className="py-3 px-3.5 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {backorderQueue.map((bo: any) => {
+                      const totalMts = bo.lineas?.reduce((acc: number, l: any) => acc + Number(l.metrajeRequerido || 0), 0) || 0;
+                      return (
+                        <tr key={bo.id} className="hover:bg-blue-50/30 transition-colors">
+                          <td className="py-3.5 px-3.5 text-center">
+                            <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full font-mono font-bold text-xs ${
+                              bo.posicionCola === 1
+                                ? 'bg-amber-100 text-amber-900 ring-2 ring-amber-300 shadow-xs'
+                                : bo.posicionCola === 2
+                                ? 'bg-slate-200 text-slate-800'
+                                : 'bg-gray-100 text-gray-700'
+                            }`}>
+                              #{bo.posicionCola || 1}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 px-3.5">
+                            <div className="font-mono font-bold text-gray-900">{bo.codigo}</div>
+                            <div className="text-[11px] text-gray-400">
+                              Captura: {new Date(bo.fechaPedido).toLocaleDateString('es-MX')}
+                            </div>
+                            <div className="text-[10px] text-gray-500 mt-0.5">
+                              Por: <strong className="text-gray-700">{bo.creadoPor || 'ATC'}</strong>
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-3.5">
+                            <div className="font-semibold text-gray-900 max-w-[200px] truncate">
+                              {bo.client?.nombre}
+                            </div>
+                            <div className="text-[11px] text-gray-500">
+                              {bo.client?.telefono || bo.client?.email || 'Sin contacto directo'}
+                            </div>
+                            {bo.vendor && (
+                              <div className="text-[10px] text-indigo-700 mt-0.5 flex items-center gap-1">
+                                <Phone size={10} /> {bo.vendor.nombre}
+                              </div>
+                            )}
+                          </td>
+
+                          <td className="py-3.5 px-3.5">
+                            <div className="font-bold text-emerald-700 text-sm">
+                              {totalMts.toLocaleString('es-MX')} m
+                            </div>
+                            <div className="text-[11px] text-gray-500 max-w-[220px] truncate">
+                              {bo.lineas?.map((l: any) => `${l.sku?.nombre || l.sku?.codigo} (${l.metrajeRequerido}m)`).join(', ')}
+                            </div>
+                            <div className="text-[10px] text-gray-400">
+                              Total: ${Number(bo.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-3.5">
+                            {bo.condicionBackorder === 'CONTADO_ANTICIPO' && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-100 text-blue-900 border border-blue-200">
+                                <ShieldCheck size={12} className="text-blue-600" />
+                                <span>Contado Anticipo (Congelado)</span>
+                              </span>
+                            )}
+                            {bo.condicionBackorder === 'CONTADO_AL_ARRIBO' && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-100 text-purple-900 border border-purple-200">
+                                <Calendar size={12} className="text-purple-600" />
+                                <span>Contado Arribo (Fiscal)</span>
+                              </span>
+                            )}
+                            {bo.condicionBackorder === 'CREDITO' && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-200">
+                                <Check size={12} className="text-emerald-600" />
+                                <span>Crédito Comercial</span>
+                              </span>
+                            )}
+                            {!bo.condicionBackorder && (
+                              <span className="text-gray-400 italic">Por definir</span>
+                            )}
+                          </td>
+
+                          <td className="py-3.5 px-3.5">
+                            <div className="font-mono font-bold text-gray-800">
+                              {bo.contenedorNumero || bo.incomingShipment?.numeroContenedor || 'Sin Asignar'}
+                            </div>
+                            <div className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
+                              <Calendar size={11} className="text-gray-400" />
+                              <span>ETA: {bo.fechaEstimadaArriboContenedor ? new Date(bo.fechaEstimadaArriboContenedor).toLocaleDateString('es-MX') : 'Por definir'}</span>
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-3.5">
+                            {bo.semaforo === 'ROJO_5D' && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-900 border border-rose-300 animate-pulse">
+                                <AlertTriangle size={12} className="text-rose-600" />
+                                <span>Arribo &lt;= 5 días</span>
+                              </span>
+                            )}
+                            {bo.semaforo === 'AMBAR_15D' && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                <Clock size={12} className="text-amber-700" />
+                                <span>Llamar Cliente ({bo.diasParaArribo}d)</span>
+                              </span>
+                            )}
+                            {bo.semaforo === 'VERDE' && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                <Check size={12} className="text-emerald-600" />
+                                <span>En tiempo ({bo.diasParaArribo}d)</span>
+                              </span>
+                            )}
+                            {bo.semaforo === 'VENCIDO' && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-gray-100 text-gray-700">
+                                <span>Arribo pasado</span>
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="py-3.5 px-3.5">
+                            {bo.vigenciaConfirmadaAt ? (
+                              <div>
+                                <span className="inline-flex items-center gap-1 text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
+                                  <CheckCircle2 size={11} className="text-emerald-600" /> Confirmada
+                                </span>
+                                <div className="text-[10px] text-gray-500 mt-0.5">
+                                  {bo.vigenciaConfirmadaPor || 'ATC'} · {new Date(bo.vigenciaConfirmadaAt).toLocaleDateString('es-MX')}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-amber-700 font-semibold text-[11px] flex items-center gap-1">
+                                <Clock size={11} /> Pendiente ATC
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="py-3.5 px-3.5 text-right space-x-1.5 whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBackorderNotes(bo.notasVigencia || '');
+                                setBackorderModal({ order: bo, action: 'confirm' });
+                              }}
+                              className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold transition-colors"
+                              title="Revalidar con cliente que sigue queriendo el pedido"
+                            >
+                              Confirmar Vigencia
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBackorderNotes('');
+                                setBackorderModal({ order: bo, action: 'cancel' });
+                              }}
+                              className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-semibold transition-colors"
+                              title="Cancelar pedido y recorrer lugares automáticamente en la cola"
+                            >
+                              Cancelar / Ceder
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* === Custom Confirmation Modal === */}
       {confirmModal && (
@@ -1207,6 +1883,163 @@ export default function PedidosPage() {
                 {confirmingDelivery ? <><Loader2 size={14} className="animate-spin" /> Guardando...</> : <><Check size={14} /> Confirmar y Notificar</>}
               </button>
             </div>
+          </div>
+        </div>
+      {/* === MODAL DE GESTIÓN DE BACKORDER (CONFIRMAR VIGENCIA O CANCELAR Y RECORRER COLA) === */}
+      {backorderModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => !backorderActionLoading && setBackorderModal(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 animate-fade-in space-y-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${
+                  backorderModal.action === 'confirm' ? 'bg-blue-500/10 text-blue-700' : 'bg-rose-500/10 text-rose-700'
+                }`}>
+                  {backorderModal.action === 'confirm' ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">
+                    {backorderModal.action === 'confirm'
+                      ? 'Revalidar Vigencia de Backorder (15 Días)'
+                      : 'Cancelar y Recorrer Cola Automáticamente'}
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Pedido <span className="font-mono font-bold text-blue-700">{backorderModal.order.codigo}</span> · {backorderModal.order.client?.nombre}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBackorderModal(null)}
+                disabled={backorderActionLoading}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Info summary */}
+            <div className="bg-gray-50 rounded-xl p-3.5 space-y-1.5 text-xs text-gray-700 border border-gray-200/60">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Contenedor:</span>
+                <span className="font-mono font-bold text-gray-900">
+                  {backorderModal.order.contenedorNumero || 'En tránsito'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">ETA Arribo:</span>
+                <span className="font-semibold">
+                  {backorderModal.order.fechaEstimadaArriboContenedor
+                    ? new Date(backorderModal.order.fechaEstimadaArriboContenedor).toLocaleDateString('es-MX')
+                    : 'Por definir'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Turno en Cola:</span>
+                <span className="font-mono font-bold text-blue-700">
+                  Posición #{backorderModal.order.posicionCola || 1}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Condición Comercial:</span>
+                <span className="font-semibold text-gray-800">
+                  {backorderModal.order.condicionBackorder === 'CONTADO_ANTICIPO' ? 'Contado con Anticipo' :
+                   backorderModal.order.condicionBackorder === 'CONTADO_AL_ARRIBO' ? 'Contado al Arribo (Fiscal)' : 'Crédito Comercial'}
+                </span>
+              </div>
+            </div>
+
+            {backorderModal.action === 'confirm' ? (
+              <div className="space-y-3">
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 flex items-start gap-2">
+                  <Info size={16} className="text-blue-600 shrink-0 mt-0.5" />
+                  <p>
+                    Al confirmar la vigencia, se registra que ATC contactó al cliente a 15 días del arribo y que éste revalida su pedido y orden de compra. El apartado permanecerá activo para surtido directo una vez arribe el contenedor.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Notas de la llamada con el cliente (opcional)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={backorderNotes}
+                    onChange={e => setBackorderNotes(e.target.value)}
+                    placeholder="Ej: Cliente confirma vía telefónica que requiere los rollos; programar entrega el día posterior al arribo..."
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setBackorderModal(null)}
+                    disabled={backorderActionLoading}
+                    className="flex-1 py-2.5 px-4 bg-gray-100 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-200 transition-colors"
+                  >
+                    Cerrar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmBackorderVigencia}
+                    disabled={backorderActionLoading}
+                    className="flex-1 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    {backorderActionLoading ? <><Loader2 size={14} className="animate-spin" /> Guardando...</> : <><Check size={14} /> Revalidar y Mantener Apartado</>}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-900 flex items-start gap-2">
+                  <AlertTriangle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block font-bold">Aviso de Recorrido de Cola FIFO:</strong>
+                    <p className="mt-0.5">
+                      Al cancelar este pedido, el metraje se liberará y la posición de todos los clientes que esperan detrás en este contenedor (#{backorderModal.order.posicionCola + 1} en adelante) se recorrerá automáticamente un lugar hacia arriba.
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Motivo de la cancelación / cesión de metraje *
+                  </label>
+                  <input
+                    type="text"
+                    value={backorderNotes}
+                    onChange={e => setBackorderNotes(e.target.value)}
+                    placeholder="Ej: Cliente no confirmó vigencia a los 15 días / Adquirió otro producto"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setBackorderModal(null)}
+                    disabled={backorderActionLoading}
+                    className="flex-1 py-2.5 px-4 bg-gray-100 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-200 transition-colors"
+                  >
+                    No cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelAndReassignBackorder}
+                    disabled={backorderActionLoading || !backorderNotes.trim()}
+                    className="flex-1 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    {backorderActionLoading ? <><Loader2 size={14} className="animate-spin" /> Procesando...</> : <><X size={14} /> Cancelar y Recorrer Cola</>}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

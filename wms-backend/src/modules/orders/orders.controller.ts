@@ -25,6 +25,58 @@ export class OrdersController {
     return this.ordersService.getPendingDeliveryConfirmations(req.user.sub, isSupervisor);
   }
 
+  @Get('delivery-confirmations/pending')
+  @ApiOperation({ summary: 'Alias para confirmaciones pendientes de entrega' })
+  getPendingDeliveriesAlias(@Req() req: any) {
+    return this.getPendingDeliveryConfirmations(req);
+  }
+
+  @Get('backorder/containers')
+  @ApiOperation({ summary: 'Listar contenedores y embarques en tránsito para cotización y asignación de backorders' })
+  getActiveContainersInTransit() {
+    return this.ordersService.getActiveContainersInTransit();
+  }
+
+  @Get('backorder/queue')
+  @ApiOperation({ summary: 'Cola de pedidos en backorder (FIFO) con semáforo de arribo de contenedores (15 días / 5 días)' })
+  getBackorderQueue(
+    @Req() req: any,
+    @Query('contenedorNumero') contenedorNumero?: string,
+    @Query('incomingShipmentId') incomingShipmentId?: string,
+    @Query('skuId') skuId?: string,
+  ) {
+    const isSupervisor = req.user.role === 'ADMIN' ||
+                         req.user.role === 'GERENCIA' ||
+                         req.user.role === 'SUPERVISOR' ||
+                         (req.user.nivel && req.user.nivel <= 2) ||
+                         req.user.username?.toLowerCase().includes('alma');
+    return this.ordersService.getBackorderQueue(req.user.sub, isSupervisor, {
+      contenedorNumero,
+      incomingShipmentId,
+      skuId,
+    });
+  }
+
+  @Put(':id/backorder/confirm-vigencia')
+  @ApiOperation({ summary: 'Confirmar vigencia de orden de compra en backorder (o descartar)' })
+  confirmBackorderVigencia(
+    @Param('id') id: string,
+    @Body() body: { vigente: boolean; notas?: string },
+    @Req() req: any,
+  ) {
+    return this.ordersService.confirmBackorderVigencia(id, req.user.sub, body.vigente, body.notas);
+  }
+
+  @Post(':id/backorder/cancel-and-reassign')
+  @ApiOperation({ summary: 'Cancelar pedido en backorder y recorrer la cola FIFO automáticamente' })
+  cancelAndReassignBackorder(
+    @Param('id') id: string,
+    @Body() body: { motivo?: string },
+    @Req() req: any,
+  ) {
+    return this.ordersService.cancelAndReassignBackorder(id, req.user.sub, body.motivo);
+  }
+
   @Get()
   @ApiOperation({ summary: 'Listar pedidos' })
   findAll(@Query('search') search?: string, @Query('estado') estado?: string, @Query('clientId') clientId?: string, @Query('page') page?: number, @Query('limit') limit?: number) {

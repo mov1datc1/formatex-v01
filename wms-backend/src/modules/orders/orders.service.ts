@@ -118,6 +118,11 @@ export class OrdersService {
     deliverySchedule?: string;
     fletera?: string;
     envioAsegurado?: boolean;
+    esBackorder?: boolean;
+    condicionBackorder?: string;
+    contenedorNumero?: string;
+    fechaEstimadaArriboContenedor?: string;
+    incomingShipmentId?: string;
     creadoPor: string;
     lineas: Array<{
       skuId: string;
@@ -143,6 +148,22 @@ export class OrdersService {
         requiresApproval = true;
         approvalReason = `Requiere autorización: Asignación de ${l.listaPrecios} en cotización`;
       }
+    }
+
+    // Calcular posición en cola de espera si es Backorder (FIFO)
+    let posicionCola: number | null = null;
+    let backorderStatus: string | null = null;
+    if (data.esBackorder) {
+      backorderStatus = 'EN_COLA';
+      const existingQueueCount = await this.prisma.order.count({
+        where: {
+          esBackorder: true,
+          estado: { notIn: ['CANCELADO'] },
+          ...(data.incomingShipmentId ? { incomingShipmentId: data.incomingShipmentId } : {}),
+          ...(data.contenedorNumero ? { contenedorNumero: data.contenedorNumero } : {}),
+        },
+      });
+      posicionCola = existingQueueCount + 1;
     }
 
     // Calcular totales financieros considerando descuentos aplicados
@@ -171,6 +192,13 @@ export class OrdersService {
           deliverySchedule: data.deliverySchedule || null,
           fletera: data.fletera || null,
           envioAsegurado: data.envioAsegurado ?? false,
+          esBackorder: !!data.esBackorder,
+          backorderStatus,
+          condicionBackorder: data.condicionBackorder || (data.esBackorder ? 'CONTADO_ANTICIPO' : null),
+          contenedorNumero: data.contenedorNumero || null,
+          fechaEstimadaArriboContenedor: data.fechaEstimadaArriboContenedor ? new Date(data.fechaEstimadaArriboContenedor) : null,
+          posicionCola,
+          incomingShipmentId: data.incomingShipmentId || null,
           vendorId: data.vendorId || null,
           atcUserId: data.creadoPor,
           prioridad: data.prioridad || 3,
@@ -206,7 +234,7 @@ export class OrdersService {
             }),
           },
         },
-        include: { client: true, deliveryAddress: true, lineas: true },
+        include: { client: true, deliveryAddress: true, incomingShipment: true, lineas: true },
       });
 
       // 2. For each line, auto-assign HUs and create reservations
@@ -735,6 +763,216 @@ export class OrdersService {
         approvedBy,
         approvedAt: new Date(),
       },
+    });
+  }
+
+  // =========================================================================
+  // GESTIÓN DE BACKORDERS & CONTENEDORES ⭐ (Cola FIFO, Arribos y Alertas)
+  // =========================================================================
+
+  async getActiveContainersInTransit() {
+    return this.prisma.incomingShipment.findMany({
+      where: { estado: 'EN_TRANSITO' },
+      orderBy: { fechaEstimada: 'asc' },
+      include: {
+        supplier: { select: { id: true, nombre: true, codigo: true } },
+        lineas: {
+          include: {
+            sku: { select: { id: true, codigo: true, nombre: true, color: true, composicion: true } },
+          },
+        },
+        orders: {
+          where: { esBackorder: true, estado: { notIn: ['CANCELADO'] } },
+          select: { id: true, codigo: true, posicionCola: true },
+        },
+      },
+    });
+  }
+
+  async getBackorderQueue(
+    userId?: string,
+    isSupervisor: boolean = false,
+    filters?: { contenedorNumero?: string; incomingShipmentId?: string; skuId?: string },
+  ) {
+    const whereClause: any = {
+      esBackorder: true,
+      estado: { notIn: ['CANCELADO'] },
+    };
+
+    if (!isSupervisor && userId) {
+      whereClause.atcUserId = userId;
+    }
+
+    if (filters?.contenedorNumero) {
+      whereClause.contenedorNumero = filters.contenedorNumero;
+    }
+
+    if (filters?.incomingShipmentId) {
+      whereClause.incomingShipmentId = filters.incomingShipmentId;
+    }
+
+    const orders = await this.prisma.order.findMany({
+      where: whereClause,
+      orderBy: [
+        { fechaEstimadaArriboContenedor: 'asc' },
+        { posicionCola: 'asc' },
+        { createdAt: 'asc' },
+      ],
+      include: {
+        client: {
+          select: {
+            id: true,
+            codigo: true,
+            nombre: true,
+            telefono: true,
+            email: true,
+            listaPrecioDefault: true,
+          },
+        },
+        deliveryAddress: true,
+        lineas: {
+          include: {
+            sku: {
+              select: { id: true, codigo: true, nombre: true, color: true, precioReferencia: true },
+            },
+          },
+        },
+        incomingShipment: {
+          select: {
+            id: true,
+            codigo: true,
+            numeroContenedor: true,
+            fechaEstimada: true,
+            supplier: { select: { nombre: true } },
+          },
+        },
+      },
+    });
+
+    const now = new Date();
+
+    return orders.map((o) => {
+      const eta = o.fechaEstimadaArriboContenedor || o.incomingShipment?.fechaEstimada;
+      let diasParaArribo: number | null = null;
+      let semaforoAlerta: 'VERDE' | 'AMBAR_15D' | 'ROJO_5D' | 'VENCIDO' = 'VERDE';
+
+      if (eta) {
+        const diffMs = new Date(eta).getTime() - now.getTime();
+        diasParaArribo = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+        if (diasParaArribo < 0) {
+          semaforoAlerta = 'VENCIDO';
+        } else if (diasParaArribo <= 5) {
+          semaforoAlerta = 'ROJO_5D';
+        } else if (diasParaArribo <= 15) {
+          semaforoAlerta = 'AMBAR_15D';
+        } else {
+          semaforoAlerta = 'VERDE';
+        }
+      }
+
+      return {
+        ...o,
+        diasParaArribo,
+        semaforoAlerta,
+        requiereNotificarVigencia:
+          (semaforoAlerta === 'AMBAR_15D' || semaforoAlerta === 'ROJO_5D') && !o.vigenciaConfirmadaAt,
+      };
+    });
+  }
+
+  async confirmBackorderVigencia(
+    orderId: string,
+    confirmedBy: string,
+    vigente: boolean,
+    notas?: string,
+  ) {
+    if (!vigente) {
+      return this.cancelAndReassignBackorder(orderId, confirmedBy, notas || 'Cliente no revalidó orden de compra');
+    }
+
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        vigenciaConfirmadaAt: new Date(),
+        vigenciaConfirmadaPor: confirmedBy,
+        backorderStatus: 'CONFIRMADO',
+        notas: notas ? `[Vigencia Confirmada ${new Date().toLocaleDateString('es-MX')}]: ${notas}` : undefined,
+      },
+      include: { client: true, incomingShipment: true },
+    });
+  }
+
+  async cancelAndReassignBackorder(orderId: string, cancelledBy: string, motivo?: string) {
+    return this.prisma.$transaction(async (tx: any) => {
+      // 1. Obtener la orden a cancelar
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        include: { lineas: true },
+      });
+      if (!order) throw new Error('Pedido no encontrado');
+
+      const cancelledPos = order.posicionCola || 1;
+      const contenedor = order.contenedorNumero;
+      const shipmentId = order.incomingShipmentId;
+
+      // 2. Marcar como cancelado
+      const updatedCancelled = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          estado: 'CANCELADO',
+          backorderStatus: 'CANCELADO',
+          notas: `[Cancelado ${new Date().toLocaleDateString('es-MX')} por ${cancelledBy}]: ${motivo || 'Cancelación de Backorder'}`,
+        },
+      });
+
+      // 3. Recorrer la cola en cascada para las órdenes activas del mismo contenedor / embarque
+      const remainingOrders = await tx.order.findMany({
+        where: {
+          esBackorder: true,
+          estado: { notIn: ['CANCELADO'] },
+          ...(shipmentId ? { incomingShipmentId: shipmentId } : {}),
+          ...(contenedor ? { contenedorNumero: contenedor } : {}),
+          posicionCola: { gt: cancelledPos },
+        },
+        orderBy: { posicionCola: 'asc' },
+      });
+
+      for (const rem of remainingOrders) {
+        if (rem.posicionCola && rem.posicionCola > 1) {
+          await tx.order.update({
+            where: { id: rem.id },
+            data: {
+              posicionCola: rem.posicionCola - 1,
+              backorderStatus: rem.posicionCola - 1 === 1 ? 'EN_COLA_PROXIMO' : rem.backorderStatus,
+            },
+          });
+        }
+      }
+
+      // 4. Buscar si hay clientes esperando en un contenedor futuro para este mismo SKU y adelantarlos
+      const skuIds = order.lineas.map((l: any) => l.skuId);
+      const promotedOrders = await tx.order.findMany({
+        where: {
+          esBackorder: true,
+          estado: { notIn: ['CANCELADO'] },
+          incomingShipmentId: { not: shipmentId },
+          lineas: { some: { skuId: { in: skuIds } } },
+        },
+        orderBy: [{ fechaEstimadaArriboContenedor: 'asc' }, { posicionCola: 'asc' }],
+        take: 1,
+      });
+
+      let promotedOrder: any = null;
+      if (promotedOrders.length > 0) {
+        promotedOrder = promotedOrders[0];
+      }
+
+      return {
+        cancelledOrder: updatedCancelled,
+        ordersReorderedCount: remainingOrders.length,
+        promotedCandidate: promotedOrder,
+      };
     });
   }
 }
