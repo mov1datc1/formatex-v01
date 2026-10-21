@@ -1,0 +1,366 @@
+Rev. #02 Ventas y ATC - Proyecto Formatex
+mié, 21 oct 2026
+
+0:01 - Conference Room (automatizacion) - Speaker 1
+Hola, hola. ¿Me escuchas, Jonathan?
+
+0:03 - Orador no identificado
+¿Qué tal, Santi?
+
+0:05 - Orador no identificado
+¿Cómo estás?
+
+0:06 - MOVIDA TCI
+Buenos días. ¿Cómo estás?
+
+0:08 - Conference Room (automatizacion) - Speaker 1
+Perdóname, perdóname el lugar, pero es que como están teniendo muchas juntas, entonces no hemos podido tener o asignar un espacio para la junta. Entonces, nos cambiamos el lugar, vaya. Sí, sí, no te preocupes.
+
+0:25 - MOVIDA TCI
+Y lo importante es que se hayan reunido.
+
+0:29 - Conference Room (automatizacion) - Speaker 1
+El día de hoy desafortunadamente no nos va a poder acompañar a Andrea debido a esta misma reunión que tienen allá en la oficina de abajo, ya sabrás. Pero nada, solo para saber qué onda con el seguimiento, ya te mandé ciertos documentos en relación a lo de de las importaciones. Según yo, eso era todo. Si requieres algún otro otro documento, este me podrías decir.
+
+1:06 - MOVIDA TCI
+Si permite, no permite no revisar ese que nos compartiste. Igual tenemos ahí en cola las las que nos han compartido Andrea. También estamos preparando unos correos que lo vamos a compartir. Vamos a ver si que finalice la semana. En ese correo vamos a justamente hacer el recap, la recapitalización de todo lo que hemos venido hablando. Y hay un pequeño documento que, bueno, de todo lo que hablamos en estas entrevistas, se están derivando las reglas del negocio.
+
+ O sea, las reglas del negocio ¿Por qué? Porque es la forma en que se trabaja. O sea, cómo se trabaja y cómo se está llevando a la digitalización. Y bueno, y a la automatización. Sí, claro. Que quede como un marco de trabajo compartido donde lo veamos. Ah, mira, sí, estamos bien así. Falta este detalle. Ahí podemos verlo. Y el equipo de desarrollo de nosotros ya, ya está teniendo también, de hecho, son los que nos están ayudando a armar esos documentos para de una vez ya incorporándolo, incorporándolo en que se tenía.
+
+ Ya tenemos algo, se va incorporando.
+
+2:25 - Conference Room (automatizacion) - Speaker 1
+Entonces, otra cosa, no sé si soy yo, igual no lo quería recalcar mucho, pero se escucha el sonido de fondo de Mayra. Ahí está, gracias, gracias, perdóname.
+
+2:41 - MOVIDA TCI
+Ok, ok. Sí, sí, Mayra nos Entonces, bueno, pues dándole más que nada continuación a todo esto.
+
+2:52 - Conference Room (automatizacion) - Speaker 1
+Discutimos un poquito sobre, no sé si te acuerdas la imagen que también mandé al grupo de WhatsApp, dándole más que nada seguimiento también a como la interfaz de registro de clientes.
+
+3:11 - Orador no identificado
+Sí.
+
+3:12 - Conference Room (automatizacion) - Speaker 1
+Perdóname por interrumpirte, pero si hay dos, tres cosas también pendientes, ya que en la parte de horarios, si hay ciertos clientes que bueno tienen más o menos como un horario en los que aceptan entregas. Entonces, ahí más o menos habíamos hecho dos, tres bocetos en el En la imagen que yo te mandé no está bien, bueno, no está representado, pero habíamos más o menos discutido algo así como un tipo calendario.
+
+ Digo, no sería el calendario de, pues, un calendario así de todos los meses, todos los días. Nomás sería como unos recuadros, igual y teniendo como lunes, martes, miércoles, y viernes y cada uno como desplegando una, este, una opción para asignar un horario de entrega o bueno cuando aceptan las entregas estos clientes. Digo aquí yo lo tengo más o menos dibujado, lo dibujé este con Andrea más o menos así.
+
+
+
+4:30 - MOVIDA TCI
+Ok, sí, sí, ya lo vi.
+
+4:33 - Conference Room (automatizacion) - Speaker 1
+Más o menos era este que desplegara el lunes. No sé, que tuvieran ciertas opciones. Digo, si hay la gran mayoría, según yo, digo, no sé de qué hora a qué hora es. Según tengo entendido es como de nueve a dos el horario. Son de nueve a cinco.
+
+4:53 - Conference Room (automatizacion) - Speaker 1
+De nueve a cinco.
+
+4:55 - Conference Room (automatizacion) - Speaker 1
+Dependiendo, en muchos son de nueve a seis.
+
+4:58 - Conference Room (automatizacion) - Speaker 2
+De nueve a seis, sí, sí, sí.
+
+5:01 - Conference Room (automatizacion) - Speaker 1
+Me había comentado, está Ayeli, que es la cargada de la página web. Y ahora brincándome más a otras cosas, la limpia de números de clientes y verificando que ya todo esté bien, ya se está realizando. No sé si tendrías alguna fecha que se te acomode mejor entre antes mejor. Pero alguna fecha en específico en la que la quisieras tener lista como, bueno, esa limpia. Mira, no sé si puede estar antes del 10 de noviembre.
+
+
+
+5:45 - MOVIDA TCI
+O sea, muy lejos ya, sería el 10 de noviembre. Muy lejos. Pero sí, mientras más rápido. O sea, tú mismo lo acabas de mencionar. Mucho mejor para nosotros tener la información por si tenemos dudas, si se puede devolver algo o terminar de darle ventana a ustedes de revisión. Sí, lo de las diez entregas de mercancía y eso. Ahí la pregunta que te hago, si están en la imagen que nos compartiste, solo que habría que hacerle algo como lo que me acabas de mostrar.
+
+ ¿Cómo funciona eso cuando ustedes están O sea, ahorita cómo funciona. Perdón.
+
+6:31 - MOVIDA TCI
+Sí, adelante.
+
+6:32 - Conference Room (automatizacion) - Speaker 2
+Ahorita nosotros se los ponemos, ya sean un post-it en el, en la factura. Ponemos los datos del cliente, los ponemos en los datos del cliente, le ponemos el nombre de quien recibe y los horarios en que está, en que pueden recibir al chofer o a ella.
+
+6:54 - MOVIDA TCI
+Ok, datos del cliente y ellos, o sea, en el proceso se empaca y la persona que está ahí y que va a subirlo, él como, o sea, después del empaque, yo me imagino que la persona que es el que se encarga de hacer todo el envío, el que va a subir al carro, es quien decide. Ah, esto es para esta mercancía. Nada más se recibe los miércoles. Ya hoy es jueves, ya no y no la puedo enviar, entonces la deja ahí en...
+
+
+
+7:25 - Conference Room (automatizacion) - Speaker 2
+De hecho les descargan. Ajá. Todo lo que tienen una entrega nada más un día, eso lo tenemos aquí en bodega hasta que se llegue ese día. Por ejemplo, el jueves, que es cuando recibes, cuando se considera en ruta. Mientras no sale para nada a ruta esas mercancías. Exactamente.
+
+7:42 - MOVIDA TCI
+Pero la forma ahorita de hacerlo es que bueno, tiene que llegar la persona literal a ver todos los días. Mira, o tiene una lista Porque cuando son dos, tres paquetes es fácil, no? Pero cuando tienes muchos y dices bueno, hoy es día de ruta. Déjame ver que si va para ruta y que no tiene que revisar todo a este si, este no, este.
+
+8:05 - Orador no identificado
+¿Cómo lo hace?
+
+8:06 - Conference Room (automatizacion) - Speaker 1
+Es que ahorita tenemos lo que es una aplicación que es el Drive In. Ah, es este. Básicamente esta aplicación se llama Drive In. Este es, este es todo junto. No sé si quieren que se los deletree o les hace el link de esta página en donde básicamente se ve la entrega de cada uno de los pedidos. Se registra el número de pedido, a dónde va, con qué conductor, en qué carro, etcétera. Todos esos requerimientos se los va pidiendo la misma página de Driving y se hacen se hacen llamar rutas.
+
+ Así es.
+
+8:50 - Conference Room (automatizacion) - Speaker 2
+Entonces. Y eso salen ciertos, o sea, salen las facturas y es lo que se considera en ruta, lo que ya está listo, lo que ya está facturado, trabajado y todo lo que se considera en ruta. Ya una vez que sale la ruta, ya eso se considera para entrega al día siguiente.
+
+9:08 - MOVIDA TCI
+Sí, claro, se considera para el día siguiente, pero si no concuerda con los días de entrega del cliente, no lo pueden subir, ¿No?
+
+9:17 - Conference Room (automatizacion) - Speaker 2
+No, así es, ya sería hasta cuando se considera.
+
+9:19 - MOVIDA TCI
+La semana siguiente, cuando, o sea, por eso, ese proceso tienen que estar validando, a menos, si ya está en ruta, ya tenemos factura y todo, pero resulta que este cliente no recibe hoy, entonces no lo puedo subir, ni hoy ni mañana, es hasta el martes. Entonces tiene que agarrarlo en bodega, ponerlo por allá, esperar y bueno, y subiendo la ruta lo que, lo que sí corresponde. Ese es el que digamos.
+
+9:42 - Conference Room (automatizacion) - Speaker 2
+Como por ejemplo, si tenemos una ruta que es los martes y jueves, que es para Ocotlán, es fuera de aquí de Guadalajara. Entonces martes y jueves se considera esa ruta de Ocotlán. Entonces todos los todos los pedidos que están listos para el martes. Es lo que se considera en esa ruta. Ya lo que pasó el cliente pasó por decir el el lunes ya muy tarde ya se le considera su entrega para el jueves porque pues prácticamente se tiene que trabajar con ese pedido ya no alcanzaría el día siguiente ya se su pedido ya se le entrega hasta el jueves exactamente y esa ruta como la que menciona Geocotlan es con carros y eso son vehículos de forma no es una paquetería no es con con carros de aquí, con las camionetas de aquí.
+
+
+
+10:40 - MOVIDA TCI
+¿Cuántas rutas hay actualmente? Si te las sabes de memoria. Así como Marcos de Jueves, Ocotlán, no sé cuáles son todas.
+
+10:51 - Conference Room (automatizacion) - Speaker 2
+Aunque bueno, pudiéramos hablar con la persona que se encarga de eso más adelante.
+
+10:58 - Conference Room (automatizacion) - Speaker 1
+Embarques. Tengo el grupo de embarques. A ver, déjame. Ingreso rápido. Este A ver, Iguali presentó ahorita pantalla para que vean más o menos este cómo se maneja. Sí, la pueden ver. Ok, a ver. Entonces, pues básicamente esto es lo que manejan. Bueno, la plataforma que maneja embarques, no? Entonces aquí tienes, bueno, vaya todas tus. Todas tus rutas, entonces aquí le picas en ver todos los planes y aquí tienes todas las, este, tienes los vehículos, este, bueno, las direcciones a donde tienen que ir.
+
+ No sé, vamos a entrar a esta ingestión en vivo. Entonces, ah, bueno, déjame, vuelvo a, ah, entonces básicamente aquí tienes, este, desde dónde inició y a dónde va a ir. Entonces acá en la parte de arriba ves los pendientes o los que se van a realizar.
+
+12:16 - MOVIDA TCI
+Y tienes acá los conductores, según yo.
+
+12:20 - Conference Room (automatizacion) - Speaker 1
+¿Cuántos vehículos hay? ¿Ocho? ¿Diez? Este, creo que, según yo, ¿cuántos? Hay como unos... Aquí 1, 2, 3, 4, 5, 6, 7 y 8.
+
+12:34 - MOVIDA TCI
+Hay una persona que se encarga de estar subiendo la información de todo esto.
+
+12:42 - Conference Room (automatizacion) - Speaker 1
+Sí, sí, sí, sí. Es esta Carla.
+
+12:46 - Conference Room (automatizacion) - Speaker 1
+Que seguro sería bueno asignar también una reunión con ella.
+
+12:52 - Orador no identificado
+Sí.
+
+12:52 - MOVIDA TCI
+Ok. Perfecto. Así como lo está mostrando, nada más para tener la noción. Pero luego con ella volvemos al detalle, ¿No? Volvemos al detalle de cómo impacta en el tema de, justamente, o sea, cómo queremos conectar la atención al cliente con, con, con la promesa de entrega, ¿No? Porque de repente la atención al cliente, mira, si ya te estoy armando esto. ¿Cuándo me lo envías? Que la atención al cliente se guíe por un conjunto de reglas, ¿No?
+
+ Si ya tenemos, por ejemplo, un conjunto de reglas, ya tenemos ubicado el paquete, ya tenemos la existencia, ya, ya tenemos, digamos todo lo que compete. Este nada más sería como procesarlo dos días, dos días hábiles de procesar ese pedido. O sea, poner cuáles son las reglas para que luego se pueda dar una, una promesa más o menos orientada a entrega, pero que también esté conectado con esto. Con este flujo.
+
+ Sí, con el flujo y con los horarios que también estamos viendo, lo que es algo como, como un indicador de que impactan los tiempos de entrega. Si no, si hay un retraso durante el proceso operativo del pedido y se pasan los días que eran posiblemente entregados, obviamente se retrasa más, el pedido. O sea, eso impacta en cuándo. Entonces ver cómo, cómo mitigar este tipo de este. Del proceso, pero que y cómo impacta en todo, porque tenemos que verlo como, como una línea completa.
+
+ Desde que alguien levanta el teléfono, hace un pedido y hace el pago hasta que se entrega. Para poder, de hecho, más adelante, incluso me dio esos tiempos. Este, el tiempo que dura dentro de Formatters. Hoy no está con nosotros entonces la persona encargada de los pedidos web, que es lo que nos faltaba.
+
+14:56 - Conference Room (automatizacion) - Speaker 1
+Pues de la sección de embarques no, pero yo le comentaría a Andrea que sería bueno también, este, vaya a asignar una cita con la persona de embarques para ver todo este. Porque pues es una plataforma aparte, es una de las muchas porque ya tenemos el master, tenemos la bitácora, tenemos muchas más plataformas, las cuales pues cada una está dispersa. Entonces, como no tenemos todo junto, pues ahí es cuando empiezan los problemas.
+
+ Si había sección de embarques en el... Sí, claro. O empaques.
+
+15:36 - MOVIDA TCI
+Digamos, de embarque o envío. Creo que le pusimos pero podemos ponerle embarque, que es la última etapa de subirlo ya y decidir el ruta, por decirlo así. Si embarque sería la palabra adecuada, la manejamos siempre como embarque, esa etapa.
+
+15:55 - Conference Room (automatizacion) - Speaker 1
+Sí, usualmente sí nos dirigimos a ellos como, como, como embarques. Pero pues eso ya lo, esa parte ya la maneja. La manejamos allá.
+
+16:05 - MOVIDA TCI
+Pero había otra, había otra persona de atención al cliente que era los pedidos de internet. Que lo nombraste ahorita, era Nayeli. Sí, Nayeli. Esa persona usa otro proceso diferente, ¿No? Y nos has comentado antes, ¿No?
+
+16:20 - Conference Room (automatizacion) - Speaker 1
+Pues tal diferente, no, ¿Eh?
+
+16:22 - Conference Room (automatizacion) - Speaker 2
+Es lo mismo. Una vez que su pago se ve, por ejemplo, reflejado en la página web, los pedidos los pasa igual a crédito, crédito lo libera y los pasa al másen para que los trabajen. Y es el mismo tiempo de entrega que los que manejamos nosotros. Una vez que ya su pedido está listo, se lo reportan a ella y ya los manda.
+
+16:46 - Orador no identificado
+Ok.
+
+16:46 - MOVIDA TCI
+Lo que quiero entender es cuando dicen página web, es que qué es lo que hace el cliente? O sea, se mete una, a un e-commerce.
+
+16:55 - Conference Room (automatizacion) - Speaker 1
+Qué es lo que hace? Es que ahí te va a él. Como son diferentes, digo, y esto apenas yo lo estoy, lo estoy entendiendo, pero pues ya me, ya, ya me estaba informando más sobre esto son diferentes tipos de compra porque como en página web es este venta de una sola exhibición entonces no se tiene que registrar el cliente para poder hacer la compra porque es una sola compra entonces como no va a ser un cliente fijo alguien que nos va a estar comprando este muy seguido no se registra en nuestro sistema entonces pues debido a esto ha habido pues no ha habido problema porque no son compras masivas entonces igual y esas tienen digo obviamente tenemos nuestros clientes prioritarios pero a esos si más que nada los maneja solamente Nayeli porque pues son clientes de que no más van a comprar una vez o sea que no más van a ver la tela y se van.
+
+
+
+18:00 - MOVIDA TCI
+pero quiero entender algo. O sea, si hay una página web. Si, si hay página web.
+
+18:10 - MOVIDA TCI
+Si la tienes ahí, lo puedes mostrar.
+
+18:15 - Orador no identificado
+Entra para visualizar el proceso.
+
+18:18 - MOVIDA TCI
+A ver, déjame ahora.
+
+18:20 - Conference Room (automatizacion) - Speaker 1
+Para simular la pantalla completa. Entonces yo, yo, yo voy acá, busco Formatex. Entro, pues digo, ah mira, no sé, ponle que estoy buscando esta tela. Ya selecciono la canasta y procedo el pago como, básicamente como cualquier Amazon, como MercadoLibre, como lo que quieras.
+
+18:53 - MOVIDA TCI
+Una e-commerce o una página. Exactamente.
+
+18:57 - Conference Room (automatizacion) - Speaker 1
+está hecho con Shopify. O sea, no es algo nuevo.
+
+19:01 - MOVIDA TCI
+Ok.
+
+19:02 - Orador no identificado
+Sí.
+
+19:02 - Conference Room (automatizacion) - Speaker 1
+Y pues ya pones todos los datos.
+
+19:06 - MOVIDA TCI
+Cuando llega, les llega a ella, a Nayeli por un correo. Mira, alguien hizo una compra. Sí, exactamente. El seguimiento.
+
+19:14 - MOVIDA TCI
+Ya, ya.
+
+19:15 - Conference Room (automatizacion) - Speaker 1
+Eso es lo que quería ver.
+
+19:18 - MOVIDA TCI
+Ok. Justamente esto, nada más cuando Nayeli ve las compras, que tiene una lista de lo que va comprando y bueno, empieza a hacer el proceso de validación. Ah mira, validan si el dinero llegó. O sea, aunque muestre ahí que sí pagó. Validan el tema del pago. Después empieza el proceso de pedido, solo que ese es en línea. Exactamente. Un pedido en línea web y ahí se pone etiqueta que este es un pedido en línea y tiene la ubicación, porque ya lo puso ahí la dirección donde se va a enviar.
+
+ De hecho, el cliente paga la, ya la, digamos la paquetería o luego la paga.
+
+20:01 - Conference Room (automatizacion) - Speaker 1
+Porque ahí las tiendas. Pues le, le, le podíamos preguntar ahorita.
+
+20:06 - MOVIDA TCI
+Digo, ya lo he leído.
+
+20:08 - Conference Room (automatizacion) - Speaker 1
+dice envío y si te das cuenta dice envío y si se introduce una dirección yo creo que si te da llega llega ahí pero el problema es que yo yo honestamente no sé si este porque ha habido veces en las que se hacen compras internacionales ahorita hubo una vez de lo que yo escuché no me involucré mucho que hicieron una compra desde Colombia entonces tenían que mandar todo ese pedido hasta hasta allá por diferentes paqueterías Entonces eso ya es un tema diferente, porque es como solamente a la república.
+
+ Pues ya sería ver cómo, cómo resolverlo.
+
+20:45 - Conference Room (automatizacion) - Speaker 2
+Esa conversación es directa con nosotros. Es con Luis Javier. Solo que esta vez la guía, como están allí, tiene lo de las vías prepagadas. Es por eso que nos empezamos a que nos cotizaran la la guía. Pero esa compra fue con nosotros y el cliente estaba rodeado.
+
+21:08 - Conference Room (automatizacion) - Speaker 1
+Ah, perfecto. Colombia, Medellín.
+
+21:09 - Conference Room (automatizacion) - Speaker 1
+Sí, es para saber más o menos exacto cuáles son las variantes.
+
+21:14 - MOVIDA TCI
+Quizás no tenemos todos los detalles, pero las diferentes variantes que suceden a nivel de atención al cliente y la compra como tal. Este nosotros ya, de hecho, como te digo, vamos a tener una reunión para validar esa primera parte de ATC que habíamos recopilado, la primera llamada, para ver el flujo. Este no la tenemos ahorita todavía montado en el mockup, ese que ustedes tienen acceso. Queremos tenerla ahí para justamente hacer esa validación.
+
+ Pero primero vamos, vamos a ir, vamos en la secuencia de, como te digo, se recopiló la información, se hace las reglas de negocio de un documento en el marco de trabajo. Ese se le envía para que lo, para que lo tenga. Paralelamente se va incorporando en el mockup Pero es un, sigue siendo temporal, porque cada vez que nos reunimos con un área, puede ser que eso no, eso dispare de un ajuste adicional ¿No?
+
+ Ah, teníamos así, pero resulta que esta área también espera esto. Entonces siempre que está haciendo un ajuste. Sí, sí, sí.
+
+22:16 - Conference Room (automatizacion) - Speaker 1
+Es ya tener la información completa. El flujo completo.
+
+22:19 - MOVIDA TCI
+Sí, los flujos, todos los flujos. O sea, vamos como adelantando, pero no son los definitivos, ¿No? Porque si a medida que vamos hablando, vamos este escudriñando más en los procesos. Este vamos viendo que si mira, esto si me cambiaría aquí, me cambiaría allá. Entonces, este digamos que por ahora vamos bastante bien. Si, si yo, si vemos oportuno el tema de verla con una Jelly algo, algo puntual. Hasta ahora con lo que me dijiste que ya es una tienda, o sea que me la estás mostrando.
+
+ Yo creo que con eso ya sabemos este Con embarque sí, para ver un, para ver un poco detalle. Y también veríamos con, yo creo que la siguiente llamada ya veríamos con este. Yo creo que con almacén ya directo.
+
+23:15 - Conference Room (automatizacion) - Speaker 1
+Sí, porque esa, básicamente en almacén, porque pues este, el máster se, cada uno tiene su sección, ¿no? Entonces, sería explicar el máster desde el punto de vista de cada uno de las áreas. En este caso, en servicio cliente solamente se maneja para hacer la verificación de producto, existencia, etcétera. Y en almacén ya es más distinto porque ahí se ven los pedidos también desde telado. ¿Sabes? Entonces ahí está todo ese registro de las telas de telares, las que llegan al almacén de acá de Formatex y todos los que, por ejemplo, el flujo ahorita de cómo se, digo, ya te mandé la orden de compra también en el archivo de Formatex, como se lo pide a a Telares, pero básicamente lo que hace esta persona, digo esto ya quedaría para la siguiente junta, pero nomás para que lo tengas medio a la mano, es que se le manda screenshot de lo que necesitan a la persona encargada en Telares y se manda directamente acá.
+
+ La solicito, no tiene Mucha ciencia, o sea, literalmente se le toma un screenshot, se le manda un WhatsApp y ahí quedó.
+
+24:53 - MOVIDA TCI
+Sí, por ahí justamente vamos a ver cómo lo integramos, porque el sistema tiene que ser también su función de auditor y registrar el récord de todo eso a la hora de, ah, ¿qué pasó? Bueno, vámonos aquí al sistema y validamos qué fue lo que se solicitó y quién. Entonces eso es lo que queremos llevar. No sé si sería el viernes habría que ver la disponibilidad de Israel. Este viernes estamos trabajando.
+
+
+
+25:21 - Conference Room (automatizacion) - Speaker 1
+Le podemos comentar desde hoy. También se le comentaría a Andrea también de una vez para saber si ella también va a estar disponible. Puede ser 11 o 12. Perdóname. Puede ser 11 o 12.
+
+25:38 - MOVIDA TCI
+O sea, para que tenga como.
+
+25:40 - Conference Room (automatizacion) - Speaker 1
+Pues digo yo, yo no porque no. El problema es que ya casi se cerraron. Entonces a ver si no lo agarramos tan ocupado. Digo yo no veo por qué no. Le podría mandar un mensajito ahorita de ay oye puedes asistir el viernes de 11 a 12 o no sé si en el caso de que te diga de 12 a 1 también estaría bien.
+
+26:08 - MOVIDA TCI
+También creo que sí.
+
+26:10 - Conference Room (automatizacion) - Speaker 1
+Y ya nomás para para checar la disponibilidad de Israel. Otra cosa que me acabo de acordar es muestras. Muestras también no es que tenga mucha ciencia, pero también es como un producto que se maneja diferente, porque en este caso ya no son metros, son unidades. Y hay ciertas personas, ciertos clientes que los piden y se les manda.
+
+26:39 - Conference Room (automatizacion) - Speaker 2
+que vienen siendo como producto terminado.
+
+26:42 - Conference Room (automatizacion) - Speaker 1
+Exactamente. Entonces también digo, según yo, no sé si recuerdo mal que también estaban en el Mockup. Déjame revisarlo, porque espero que sí lo hablamos.
+
+26:54 - MOVIDA TCI
+Pero déjame, ahorita no lo tengo fresco, pero déjame volver a ver cómo lo estamos manejando en el Mockup y ahí te respondo en la próxima reunión.
+
+27:06 - Conference Room (automatizacion) - Speaker 1
+¿Te parece? ¿Alguna otra cosa? ¿Pedidos? ¿Pedidos? El proceso horario, algo que necesiten.
+
+27:14 - Conference Room (automatizacion) - Speaker 2
+Solo mándame la foto de lo que me mostraste de tu cuaderno con eso.
+
+27:22 - MOVIDA TCI
+Una fotito nada más por el WhatsApp.
+
+27:26 - Conference Room (automatizacion) - Speaker 1
+Y otra cosa que me pidió Andrea, perdóname, que se me olvidó mencionar fue Es que los digo no sé si esto ya había quedado claro desde la reunión. Bueno, es que la pasada fue con con importaciones desde la primera reunión que tuvimos. Pues lo de los precios especiales ya asignados o predeterminados, porque eso ha sido un este un problema. Porque lo lo de los precios especiales es básicamente el vendedor o bueno el gerente de ventas le asigna los precios especiales yo creo que esto ya lo habíamos comentado antes pero se le asignan los precios especiales y cada una de las telas ya tiene pues bueno su precio especial o el precio que se le aplicaría a esa persona sí sí o sea lo que le solicitaba Andrea era que ya estuvieran como precargados que ya salieran que no se aplicarán manual o sea que cada que cada persona de servicio cliente le asignará un este a esta persona tiene F1 y F2 porque luego hay ciertas ocasiones especiales bueno ya te ya te mandamos la...
+
+ Las listas de precios de casa decoradora de tienda especial etc etc este entonces para que la gente de servicio al cliente no se confundirá en el momento de aplicar los precios especiales.
+
+29:07 - Conference Room (automatizacion) - Speaker 2
+Sí, más que nada porque los precios especiales los tienen que poner manualmente.
+
+29:13 - Conference Room (automatizacion) - Speaker 1
+Entonces, pues luego salen problemas como el que habíamos comentado la primera vez, que es errores o luego que se aplican precios especiales por X y Y razón, que no son los asignados y que si hubiera como un tipo de... Que ya estuvieran cargados o bloqueados, ¿no? Bloqueados más que nada que por... No puedan cambiar. Para que tuvieran, para que no tuvieran permiso de, porque luego si se pueden cambiar al gusto, nosotros terminamos perdiendo.
+
+ Así es.
+
+29:51 - MOVIDA TCI
+Sí, ya en esa llamada habíamos recopilado, digamos, está buena que lo refuerce. Nosotros ya estamos trabajando sobre eso. Hasta ahorita no, o sea, estamos con la propuesta de cómo lo vamos a plantear allí. Permítennos como termina de digerir toda esa información, porque ya si la estamos trabajando, pero no tenemos toda la, ya listo, como decir, pero si está contemplado verlo, porque era uno de los puntos críticos de esa área.
+
+
+
+30:23 - Conference Room (automatizacion) - Speaker 1
+Más que nada es porque Andrea no sabía si eso había quedado completamente claro, pero pues si ya a ustedes les quedó claro lo de los precios especiales precargados o pre asignados, Ya entonces, yo creo que...
+
+30:37 - MOVIDA TCI
+Sí, mira, en la teoría sí, en la teoría sí, pero yo creo que cuando tengamos ya el visual, ahí hacemos el ejercicio y vemos si falta algo. Pero digamos que en teoría sí, si entendemos qué es lo que se busca, estamos haciendo el planteamiento de cómo lo vamos a mostrar, cómo se va a manejar y ahí es donde vamos a hacer esa validación de que si ya quedó o si falta algo adicional.
+
+31:02 - Conference Room (automatizacion) - Speaker 1
+Entonces, bueno, ya para finalizar, porque no creo que ya haya, este, muchas dudas, dudas de parte de ustedes, ¿no?
+
+31:10 - MOVIDA TCI
+No, hasta ahora no. Si te digo, creo que las dudas ya te las pregunté, que era esta parte web, este, la parte de embarque, que, bueno, digamos, no es de ATC como tal, pero sí impacta, este, desde la llamada, ¿no?
+
+31:25 - Conference Room (automatizacion) - Speaker 1
+Como te decía. Este, quisieras que agendemos una, una, este, minicita para checar lo de, lo de página web, o no creas que sea?
+
+31:34 - MOVIDA TCI
+Yo creo que sí. Yo creo que si pudiéramos hacerlo. Llegamos primero, vamos con Israel y ya la semana que entra, si ya vemos ese espacio, pues una cita corta nada más para que nos revalide. Si hay algún detalle que no sepa, no sepamos nosotros de cómo maneja, hace el manejo de la web, etcétera. Pero hasta ahora pareciera que fuera así como cualquier otro tiendeline.
+
+31:58 - Conference Room (automatizacion) - Speaker 1
+Sí, sí, sí, exactamente. Entonces va a ser La siguiente con Israel. Pero seguro no vamos a terminar porque almacén, yo creo que... Exactamente. No sé si dos juntas. Puede ser dos con él.
+
+32:10 - MOVIDA TCI
+Por eso quiero empezar con él de una vez, porque yo creo que atención al cliente, almacén son las más. Así que tenemos que estar recabando. Ya con César ya yo había tenido una, la podemos tener ya un poquito más al final. Porque ya de hecho tuve dos con César. Este tema de facturación que necesita, pero vamos a dejarlo, digamos, cuando salgamos ya del tema almacén, atención cliente, vemos ya los detalles de embarque, temas de...
+
+
+
+32:44 - Conference Room (automatizacion) - Speaker 1
+Entonces ahorita la prioritaria sería con almacén este viernes. Sí, por favor. Y luego embarques sería después ya, No, no sé si usted es que haya dos sesiones de almacén, porque puede haber sesión 1 este viernes y sesión 2 podría ser el miércoles o cualquier día que se les acomode. También ya sería ver con Israel.
+
+33:09 - MOVIDA TCI
+Sí, yo creo que tiene que ser así más o menos un ventana. Por ejemplo, si es el viernes, entonces si hay una sesión 2, que sea el miércoles o el viernes, la siguiente semana para dejar un espacio de revisión.
+
+33:23 - Conference Room (automatizacion) - Speaker 1
+Sí, sí, sí. Entonces el el viernes con con Israel el y una después de esa que también sea con Israel, porque pues es un proceso bastante largo y el viernes de la siguiente semana que sea con con embarques. Sí, sí, me parece perfecto.
+
+33:47 - MOVIDA TCI
+Bueno, muchísimas gracias.
+
+33:48 - Conference Room (automatizacion) - Speaker 1
+Gracias a ti por por la parte. No, no, no,

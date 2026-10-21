@@ -1,0 +1,55 @@
+Rev. #02 Ventas y ATC - Proyecto Formatex
+mié, 21 oct 2026
+
+Resumen:
+
+La reunión revisó procesos de importación, ventas, entregas y almacén para documentarlos en el sistema.
+• Limpieza de números de clientes prevista para el 10 de noviembre.
+• Drive In organiza pedidos, vehículos, conductores y rutas.
+• Shopify gestiona compras web; los envíos internacionales siguen sin aclararse.
+• Se busca registrar solicitudes de telares y muestras en el sistema.
+• Los precios especiales deberán precargarse y limitar cambios manuales.
+
+
+Elementos de acción:
+
+* MOVIDA TCI: Enviar antes de que termine la semana el correo de recapitulación y el documento de reglas de negocio.
+* Participante de la sala de conferencias: Consulta a Israel y Andrea su disponibilidad para una sesión el viernes entre las 11:00 y las 12:00, o entre las 12:00 y las 13:00.
+* MOVIDA TCI: Revisa en el Mockup cómo se gestionan las muestras y responde en la próxima reunión.
+* MOVIDA TCI: Envía por WhatsApp una foto de las notas del cuaderno que se mostraron.
+* MOVIDA TCI: Coordina una cita breve sobre la página web después de la sesión con Israel, si hay disponibilidad la semana siguiente.
+
+
+Puntos clave de la discusión:
+
+Documentación y reglas de negocio
+Se revisó el seguimiento de los documentos sobre importaciones y MOVIDA TCI indicó que prepararía una recapitulación y un documento de reglas de negocio. El equipo de desarrollo está ayudando a integrar esa información en los documentos de trabajo.
+
+Registro de clientes y limpieza de datos
+Se propuso representar los horarios de recepción de los clientes mediante opciones por día de la semana en la interfaz de registro. También se solicitó completar la limpieza de números de clientes, con el 10 de noviembre como límite propuesto y preferencia por una entrega anterior.
+
+Operación de entregas y plataforma de embarques
+El equipo explicó cómo registra las instrucciones de recepción y mantiene en bodega los pedidos que aún no corresponden a una ruta. Se mostró Drive In y se planteó revisar con Carla el proceso de embarques para vincularlo con las promesas de entrega de atención al cliente.
+
+Compras web y variantes de envío
+Se describió el proceso de compra en línea, gestionado mediante Shopify, y el seguimiento que Nayeli realiza tras recibir la notificación por correo. Quedó por aclarar cómo se gestionan las variantes de envío, especialmente las compras internacionales.
+
+Validación de flujos y próximas revisiones
+MOVIDA TCI explicó que documentará las reglas de negocio e incorporará los flujos al mockup de forma provisional mientras se completa la revisión con las áreas. Se mencionaron revisiones posteriores con embarques y almacén.
+
+Almacén, solicitudes a Telares y muestras
+Se explicó que el proceso de almacén comprende pedidos y registros de telas procedentes de Telares, y que las solicitudes se gestionan actualmente mediante capturas de pantalla y WhatsApp. Se planteó que el sistema registre las solicitudes para auditoría, se habló de coordinar una sesión con Israel y se señaló que MOVIDA TCI revisará el tratamiento de las muestras en el Mockup.
+
+Precios especiales
+El equipo reiteró que los precios especiales asignados a clientes deben estar precargados y evitar modificaciones manuales que puedan causar errores o pérdidas. MOVIDA TCI indicó que trabaja en una propuesta de manejo y presentación que deberá validarse cuando exista una versión visual.
+
+Revisión de la página web
+Se acordó considerar una cita breve para revisar la gestión de la página web y confirmar que el proceso esté entendido correctamente. La revisión se planteó para después de la sesión con Israel, posiblemente durante la semana siguiente.
+
+Priorización y programación de sesiones
+Se priorizaron las sesiones con Israel para revisar almacén, con la posibilidad de realizar una segunda sesión por la extensión del proceso. Se propuso abordar embarques después y dejar los detalles de facturación para cuando se haya avanzado con almacén y atención al cliente; las fechas quedaron pendientes de coordinación.
+
+
+Bloc de notas:
+
+* No hay notas
