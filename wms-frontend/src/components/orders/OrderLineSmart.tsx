@@ -72,13 +72,14 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
           onChangeRef.current(index, 'precioUnitario', Number(data.precioUnitario));
           onChangeRef.current(index, 'listaPrecios', 'ESPECIAL');
           onChangeRef.current(index, 'descuentoPct', 0);
-        } else if (!overrideLista && (!line.listaPrecios || line.listaPrecios === 'ESPECIAL')) {
-          onChangeRef.current(index, 'listaPrecios', data.listaCodigo);
+        } else if (data?.precioUnitario !== undefined) {
           onChangeRef.current(index, 'precioUnitario', Number(data.precioUnitario));
-          onChangeRef.current(index, 'descuentoPct', 0);
-        } else if (overrideLista) {
-          onChangeRef.current(index, 'listaPrecios', data.listaCodigo);
-          onChangeRef.current(index, 'precioUnitario', Number(data.precioUnitario));
+          if (data.listaCodigo) {
+            onChangeRef.current(index, 'listaPrecios', data.listaCodigo);
+          }
+          if (!overrideLista && (!line.listaPrecios || line.listaPrecios === 'ESPECIAL')) {
+            onChangeRef.current(index, 'descuentoPct', 0);
+          }
         }
       })
       .catch(() => {
