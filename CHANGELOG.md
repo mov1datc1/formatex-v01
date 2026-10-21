@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-10-21
+
+### Added
+- **Levantamiento y Estandarización de Compras Internacionales e Importaciones:** Integración formal de la sesión operativa sostenida con Elba (Compras e Importaciones Formatex / Telares y Tejidos), Mane (Importaciones) y Andrea Ramírez (Operaciones/ATC).
+- **Especificación de Reglas de Negocio Inter-Compañía (Telares y Tejidos ↔ Formatex):**
+  - *Arquitectura Inter-Empresa:* Separación de roles donde Telares y Tejidos (TNT) figura como importadora oficial en aduana y almacén de custodia matriz (Bodega Rensselaer), y Formatex opera como comercializadora bajo demanda diaria.
+  - *Ciclo de Compras Internacionales a China:* Frecuencia semanal (1 orden/semana) detonada por directiva de Dirección (Ricardo), con tiempos de fabricación de 4 a 8 semanas y embarques marítimos de 600 a 900 rollos hacia Manzanillo.
+  - *Homologación de Catálogo (Código/Nombre Chino vs. Nombre Comercial):* Estructuración de equivalencias en `SkuMaster` (`codigoChina`/`nombreChino` vs. `nombreComercial`) para eliminar cruces manuales en Excel.
+  - *Doble Costeo y Divisas:* Registro dual de Costo FOB en USD (`costoOrigenUSD`) y Costo Puesto en México en MXN (`costoPuestoMexicoMXN` / Landed Cost).
+  - *Regla Crítica de Tipo de Cambio Histórico:* Anclaje permanente del costeo en moneda nacional al Tipo de Cambio Oficial del Pedimento liquidado ante el SAT en la fecha de despacho, prohibiendo el recálculo con tasas flotantes del día de la consulta.
+  - *Flujo de Reposición Inter-Bodegas:* Consolidado diario matutino (5 a 6 pedidos/semana) y traspasos exprés vespertinos desde un rollo individual, coordinados operativamente con Almacén (Israel).
+  - *Facturación Inter-Compañía y Regla de Margen:* Margen de 7% a 12% entre empresas, adoptando la regla del costo más alto de los últimos embarques recibidos para blindar el margen ante volatilidad logística.
+  - *Integración con ATC y Disponibilidad Neta:* Visibilidad unificada de Stock Formatex, Stock Telares (24h) y Tránsito Marítimo, descontando rigurosamente apartados (72h) y backorders FIFO de otros clientes.
+- **Entregables y Memoria Técnica Formal en [`requerimientos/compras_importaciones/`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/requerimientos/compras_importaciones/):**
+  - `REGLAS_DE_NEGOCIO_COMPRAS_IMPORTACIONES_FORMATEX.docx`: Documento ejecutivo en Word con diseño corporativo, callouts de reglas críticas, tabla de compromisos y bloque de firmas de 5 participantes (Elba, Mane, Andrea Ramírez, Ricardo Zerpa, Jonathan Palacios).
+  - `REGLAS_DE_NEGOCIO_COMPRAS_IMPORTACIONES_FORMATEX.md`: Versión completa en Markdown para control de cambios.
+  - `CORREO_RESUMEN_ELBA_COMPRAS_IMPORTACIONES.md`: Minuta ejecutiva para envío a Elba, Mane y Andrea con la solicitud de archivos muestra de costeo, órdenes y catálogos.
+
+### Fixed
+- **Vercel Build Error en `PedidosPage.tsx`:**
+  - Corrección de expresión JSX condicional no cerrada (`{deliveryModalOrder && (` faltaba `)}` en línea 1888), resolviendo el fallo de compilación de Vite en despliegues de Preview en la rama `dev`.
+
 ## [1.2.0] - 2026-10-15
 
 ### Added
