@@ -9,7 +9,7 @@ import {
   UserCheck, BookOpen, CheckCircle2, MapPin, Tag, Sparkles,
   HelpCircle, Building2, Phone, Clock, ShieldCheck, Check,
   ChevronRight, ArrowUpDown, Filter, Lock, RefreshCw,
-  FileSpreadsheet, Eye, Info, AlertCircle,
+  FileSpreadsheet, Eye, Info, AlertCircle, Calendar,
 } from 'lucide-react';
 import { KpiIcon, WmsIcon } from '../../components/icons/WmsIcons';
 
@@ -97,6 +97,12 @@ export default function CatalogosPage() {
     referencias: '',
     esPredeterminada: false,
   });
+
+  // Estados para Días de Entrega y Ruta Formatex (Flota 8 camionetas / DriveIn - Sesión #2)
+  const [addrDays, setAddrDays] = useState<string[]>(['Lun', 'Mar', 'Mie', 'Jue', 'Vie']);
+  const [addrTimePreset, setAddrTimePreset] = useState<string>('09:00 a 14:00');
+  const [addrCustomTime, setAddrCustomTime] = useState<string>('');
+  const [addrRoute, setAddrRoute] = useState<string>('Ruta Local GDL / Zapopan (Diaria Lun-Vie)');
 
   // Estados para Precios Especiales
   const [allSkusList, setAllSkusList] = useState<any[]>([]);
@@ -347,7 +353,14 @@ export default function CatalogosPage() {
       return;
     }
     try {
-      await api.post(`/catalog/clients/${editingId}/addresses`, addressFormData);
+      const timeVal = addrTimePreset === 'Personalizado' ? (addrCustomTime || '09:00 a 14:00') : addrTimePreset;
+      const compositeHorario = `Días: ${addrDays.join(', ')} | Horario: ${timeVal} | Ruta: ${addrRoute}`;
+      const payload = {
+        ...addressFormData,
+        horarioRecepcion: addressFormData.horarioRecepcion?.trim() || compositeHorario,
+      };
+
+      await api.post(`/catalog/clients/${editingId}/addresses`, payload);
       toast.success('Domicilio registrado exitosamente');
       setShowAddressModal(false);
       setAddressFormData({
@@ -364,6 +377,10 @@ export default function CatalogosPage() {
         referencias: '',
         esPredeterminada: false,
       });
+      setAddrDays(['Lun', 'Mar', 'Mie', 'Jue', 'Vie']);
+      setAddrTimePreset('09:00 a 14:00');
+      setAddrCustomTime('');
+      setAddrRoute('Ruta Local GDL / Zapopan (Diaria Lun-Vie)');
       const res = await api.get(`/catalog/clients/${editingId}/addresses`);
       setClientAddresses(res.data || []);
     } catch (e: any) {
@@ -634,9 +651,16 @@ export default function CatalogosPage() {
                         </p>
                       )}
                       {addr.horarioRecepcion && (
-                        <p className="text-[11px] text-gray-500 flex items-center gap-1">
-                          <Clock size={11} className="text-gray-400" /> Horarios: {addr.horarioRecepcion}
-                        </p>
+                        <div className="mt-2 space-y-1">
+                          <p className="text-[11px] text-indigo-700 bg-indigo-50/80 border border-indigo-100 rounded-lg px-2 py-1 flex items-center gap-1.5 font-medium">
+                            <Truck size={12} className="text-indigo-600 shrink-0" />
+                            <span>{addr.horarioRecepcion}</span>
+                          </p>
+                          <p className="text-[10px] text-gray-400 pl-1 flex items-center gap-1">
+                            <Clock size={10} className="text-gray-400" />
+                            <span>Retención en bodega si el pedido concluye fuera de días u horarios pactados</span>
+                          </p>
+                        </div>
                       )}
                     </div>
                   ))}
@@ -1362,15 +1386,147 @@ export default function CatalogosPage() {
                 />
               </div>
 
-              <div className="col-span-2">
-                <label className="block font-semibold text-gray-700 mb-1">Horarios de Recepción</label>
-                <input
-                  type="text"
-                  placeholder="Ej: Lunes a Viernes 08:30 a 14:00"
-                  value={addressFormData.horarioRecepcion}
-                  onChange={(e) => setAddressFormData({ ...addressFormData, horarioRecepcion: e.target.value })}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl"
-                />
+              {/* Días y Horarios de Entrega (Matriz de Recepción Sesión #2) */}
+              <div className="col-span-2 p-3.5 bg-indigo-50/50 border border-indigo-100 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={15} className="text-indigo-600" />
+                    <span className="text-xs font-bold text-gray-900 uppercase tracking-wide">
+                      Matriz de Días de Recepción del Cliente
+                    </span>
+                  </div>
+                  <span className="text-[10px] bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">
+                    Sincronizado con DriveIn
+                  </span>
+                </div>
+
+                {/* Day of Week Selector */}
+                <div>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1.5">
+                    Días autorizados en que el cliente / taller recibe mercancía:
+                  </label>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {[
+                      { key: 'Lun', label: 'Lunes' },
+                      { key: 'Mar', label: 'Martes' },
+                      { key: 'Mie', label: 'Miércoles' },
+                      { key: 'Jue', label: 'Jueves' },
+                      { key: 'Vie', label: 'Viernes' },
+                      { key: 'Sab', label: 'Sábado' },
+                    ].map(d => {
+                      const selected = addrDays.includes(d.key);
+                      return (
+                        <button
+                          key={d.key}
+                          type="button"
+                          onClick={() => {
+                            if (selected) {
+                              if (addrDays.length > 1) {
+                                setAddrDays(addrDays.filter(k => k !== d.key));
+                              }
+                            } else {
+                              setAddrDays([...addrDays, d.key]);
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                            selected
+                              ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300'
+                              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'
+                          }`}
+                        >
+                          {d.key} · {d.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-[10px] text-gray-400">Atajos rápidos:</span>
+                    <button
+                      type="button"
+                      onClick={() => setAddrDays(['Lun', 'Mar', 'Mie', 'Jue', 'Vie'])}
+                      className="text-[10px] text-indigo-600 hover:underline font-medium"
+                    >
+                      Lun a Vie (Estándar)
+                    </button>
+                    <span className="text-gray-300">·</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddrDays(['Mar', 'Jue']);
+                        setAddrRoute('Ruta Ocotlán / Ribera de Chapala (Martes y Jueves)');
+                      }}
+                      className="text-[10px] text-indigo-600 hover:underline font-medium"
+                    >
+                      Mar y Jue (Ruta Ocotlán)
+                    </button>
+                    <span className="text-gray-300">·</span>
+                    <button
+                      type="button"
+                      onClick={() => setAddrDays(['Lun', 'Mie', 'Vie'])}
+                      className="text-[10px] text-indigo-600 hover:underline font-medium"
+                    >
+                      Lun / Mié / Vie
+                    </button>
+                  </div>
+                </div>
+
+                {/* Ruta Asignada Formatex (Flota 8 camionetas / Drive In) */}
+                <div>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1">
+                    Ruta Programada Asignada (Flota 8 Camionetas Formatex):
+                  </label>
+                  <select
+                    value={addrRoute}
+                    onChange={(e) => setAddrRoute(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-800 focus:ring-2 focus:ring-indigo-400"
+                  >
+                    <option value="Ruta Local GDL / Zapopan (Diaria Lun-Vie)">Ruta Local GDL / Zapopan (Diaria Lun-Vie)</option>
+                    <option value="Ruta Tlaquepaque / Tonalá (Diaria Lun-Vie)">Ruta Tlaquepaque / Tonalá (Diaria Lun-Vie)</option>
+                    <option value="Ruta Ocotlán / Ribera de Chapala (Martes y Jueves)">Ruta Ocotlán / Ribera de Chapala (Martes y Jueves)</option>
+                    <option value="Ruta Foránea / Fletera Asignada (Lunes a Viernes)">Ruta Foránea / Fletera Asignada (Lunes a Viernes)</option>
+                    <option value="Recolección en Mostrador Formatex (Bodega Central)">Recolección en Mostrador Formatex (Bodega Central)</option>
+                  </select>
+                </div>
+
+                {/* Horario de Recepción */}
+                <div>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1">
+                    Ventana Horaria de Recepción:
+                  </label>
+                  <div className="grid grid-cols-4 gap-1.5 mb-2">
+                    {['09:00 a 14:00', '09:00 a 17:00', '09:00 a 18:00', 'Personalizado'].map(h => (
+                      <button
+                        key={h}
+                        type="button"
+                        onClick={() => setAddrTimePreset(h)}
+                        className={`py-1.5 px-2 rounded-lg text-xs font-medium text-center border transition-all ${
+                          addrTimePreset === h
+                            ? 'bg-indigo-600 text-white border-indigo-600 font-semibold'
+                            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        {h}
+                      </button>
+                    ))}
+                  </div>
+                  {addrTimePreset === 'Personalizado' && (
+                    <input
+                      type="text"
+                      placeholder="Ej: 10:00 a 13:00 y 15:00 a 18:00"
+                      value={addrCustomTime}
+                      onChange={(e) => setAddrCustomTime(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs"
+                    />
+                  )}
+                </div>
+
+                {/* Banner de regla logística */}
+                <div className="flex items-start gap-2 p-2.5 bg-amber-50/80 border border-amber-200/80 rounded-xl text-[11px] text-amber-900">
+                  <AlertCircle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Candado de Retención Física:</strong> Todo pedido empacado o facturado que concluya fuera de los días u horarios autorizados permanecerá en <strong>Bodega en Espera de Ruta</strong> y no saldrá a camioneta hasta el día hábil programado.
+                  </span>
+                </div>
               </div>
 
               <div className="col-span-2">

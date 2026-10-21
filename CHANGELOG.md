@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-10-21
+
+### Added
+- **Consolidación Sesión #2 ATC & Operaciones (21 de Octubre de 2026 - Andrea Ramírez & Santiago):**
+  - **Especificación Oficial de Reglas de Negocio v1.1:**
+    - Actualización integral de `REGLAS_DE_NEGOCIO_ATC_FORMATEX.md` incorporando las Reglas 8 a 13.
+    - Generación corporativa del documento Word ejecutivo `REGLAS_DE_NEGOCIO_ATC_FORMATEX.docx` con tablas de autorizaciones, notas vinculantes y 4 firmas de conformidad.
+    - *Regla 8 (Matriz de Días de Entrega):* Configuración por cliente de días autorizados de recepción (`Lun`-`Sáb`) y candado de retención física `Bodega en Espera de Ruta` cuando un pedido concluye fuera de día o corte.
+    - *Regla 9 (Flota Propia & Drive In):* Gestión de 8 camionetas propias y rutas programadas, formalizando la política de corte para la Ruta Ocotlán (exclusiva Martes y Jueves).
+    - *Regla 10 (E-Commerce Web Shopify):* Canal minorista en una sola exhibición gestionado por Nayeli bajo lista `F10` y cotizaciones internacionales vía Luis Javier.
+    - *Regla 11 (Muestras como Producto Terminado):* Muestrarios y carpetas de tela configurados como unidad `PZA` sin cálculo de corte ni merma de rollo.
+    - *Regla 12 (Traspasos Digitales Telares ↔ Formatex):* Reconocimiento de sinergia inter-empresa ("mismo dueño / se pagan y se dan el vuelto") y sustitución de capturas informales de WhatsApp por órdenes digitales de traspaso con auditoría.
+    - *Regla 13 (Candado Estricto de Precios):* Bloqueo infranqueable de edición manual en captura de pedidos para blindar a la empresa contra pérdidas comerciales.
+- **Frontend UI - Matriz de Recepción y Rutas Programadas (`CatalogosPage.tsx`):**
+  - Selector interactivo de días de recepción (`[Lun] [Mar] [Mié] [Jue] [Vie] [Sáb]`) con atajos (`Lun-Vie`, `Mar/Jue Ocotlán`, `Lun/Mié/Vie`).
+  - Asignación de ruta de entrega de flota propia (GDL/Zapopan, Tlaquepaque/Tonalá, Ocotlán Mar/Jue, Fletera Foránea, Mostrador).
+  - Presets de ventanas horarias (`09:00 a 14:00`, `09:00 a 17:00`, `09:00 a 18:00`, `Personalizado`).
+  - Tarjetas de domicilio con badges visuales de ruta, días permitidos y alerta preventiva de retención en rampa.
+- **Frontend UI - Bloqueo de Precios y Soporte de Muestras PZA (`OrderLineSmart.tsx`):**
+  - Candado visual y operativo de precio unitario (`disabled` / `readOnly` con indicador 🔒) ante listas oficiales o convenios directivos.
+  - Conmutación automática a `Piezas (PZA)` y `$/PZA` para muestrarios, carpetas y libros, deshabilitando sugerencia de corte de rollo y desplegando banner informativo.
+
 ## [1.4.0] - 2026-10-21
 
 ### Added

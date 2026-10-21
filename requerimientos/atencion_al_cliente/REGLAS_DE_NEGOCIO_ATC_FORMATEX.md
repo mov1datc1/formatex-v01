@@ -1,13 +1,16 @@
 # Formatex WMS 360° — Especificación de Reglas de Negocio
 ## Módulo de Atención al Cliente (ATC) & Ventas
 
-**Fecha de Levantamiento:** Miércoles, 14 de Octubre de 2026  
+**Fecha de Levantamiento Original:** Miércoles, 14 de Octubre de 2026  
+**Fecha de Revisión y Validación (Sesión #2):** Miércoles, 21 de Octubre de 2026  
 **Organización:** Forma Textil S. de R.L. de C.V. (Formatex)  
 **Proveedor Tecnológico:** Movida TCI LLC  
-**Versión:** 1.0 (Oficial para Revisión, Edición y Firma de Conformidad)  
-**Participantes en la Sesión:**
+**Versión:** 1.1 (Oficial Consolidada con Sesión #2 para Revisión y Firma)  
+**Participantes en las Sesiones:**
 - **Alma** — Jefatura de Atención al Cliente (Formatex)
 - **Andrea Ramírez** — Atención al Cliente & Operaciones (Formatex)
+- **Santiago** — Operaciones & Comercial (Formatex)
+- **Nayeli** — Atención a Clientes Canal Web / E-Commerce Shopify (Formatex)
 - **Ricardo Zerpa** — Arquitectura de Producto & Procesos (Movida TCI)
 - **Jonathan Palacios** — Dirección Técnica & Desarrollo WMS (Movida TCI)
 
@@ -15,7 +18,7 @@
 
 ## 1. Propósito y Marco de Aceptación Vinculante
 
-El presente documento recopila y formaliza de manera transparente y exhaustiva todas las **reglas de negocio, candados de seguridad operativa y flujos de trabajo** consensuados durante la entrevista operativa sostenida el 14 de octubre de 2026 entre el equipo de Atención al Cliente (ATC) de Formatex y Movida TCI.
+El presente documento recopila y formaliza de manera transparente y exhaustiva todas las **reglas de negocio, candados de seguridad operativa y flujos de trabajo** consensuados durante las sesiones operativas del 14 y 21 de octubre de 2026 entre el equipo de Atención al Cliente (ATC) de Formatex y Movida TCI.
 
 ### Finalidad Operativa y Contractual:
 Este documento actúa como **anexo técnico vinculante**. Su propósito es dejar por escrito el alcance, las excepciones y los criterios de aceptación para que ambas partes cuenten con un estándar único y homologado, evitando discrepancias futuras ("no me lo preguntaste" o "yo te lo dije") y garantizando que el WMS 360° responda exactamente a las necesidades operativas de Formatex.
@@ -153,21 +156,79 @@ Aplica para pedidos respaldados por rollos que vienen en tránsito marítimo (em
 
 ---
 
-## 9. Matriz de Compromisos y Entregables (Checklist)
+---
 
-| Responsable | Entregable / Acción Acordada | Estatus |
-| :--- | :--- | :---: |
-| **Andrea Ramírez / Alma** | Compartir catálogo detallado de las 10 listas de precios oficiales vigentes | Pendiente envío |
-| **Andrea Ramírez** | Compartir archivo Excel de Precios Especiales autorizados por Dirección General | Pendiente envío |
-| **Andrea Ramírez** | Enviar paquete documental de alta de clientes: CSF muestra, Carta de fleteras y seguro | Pendiente envío |
-| **Movida TCI** | Entrega de documento oficial de especificación y reglas de negocio para firma | **Completado** |
-| **Movida TCI & Mkt** | Agendar sesión de levantamiento para compras y pedidos de Página Web | Por agendar |
+## 9. Reglas de Negocio Derivadas de la Sesión #2 (21 de Octubre de 2026)
+
+### 9.1. Regla 8: Matriz de Días y Horarios de Entrega por Cliente (Lunes a Sábado) & Retención en Bodega en Espera de Ruta
+- **Problemática Detectada:** Los clientes de mayoreo y talleres de maquila externa no reciben mercancía de forma continua de lunes a viernes, sino en días fijos pactados (ej. únicamente Lunes y Miércoles, o solo Jueves) y en ventanas horarias estrictas (ej. 09:00 a 14:00 hrs). Si el chofer acude fuera de ese día u horario, el cliente rechaza la entrega, generando fletes falsos, desgaste vehicular y riesgo de daño de la tela.
+- **Configuración en el Catálogo de Días Permitidos:**
+  - En cada domicilio de entrega (`ClientAddress`) se registran mediante selectores booleanos los días autorizados de recepción: `[Lun] [Mar] [Mié] [Jue] [Vie] [Sáb]`.
+  - Se define la ventana horaria oficial: selecciones predeterminadas (`09:00 - 14:00`, `09:00 - 17:00`, `09:00 - 18:00`) o ventana personalizada.
+- **Candado de Retención Física en Bodega (`Bodega en Espera de Ruta`):**
+  - Cuando un pedido concluye su proceso de corte, empaque y facturación, el sistema evalúa de inmediato si la fecha y hora actual coinciden con los días hábiles de recepción del cliente.
+  - Si el pedido está terminado el lunes pero el cliente solo recibe el jueves, **el WMS prohíbe subir el bulto al vehículo de reparto**. El pedido queda clasificado en estado visual `Bodega en Espera de Ruta` hasta la noche anterior o la mañana del día autorizado.
+
+### 9.2. Regla 9: Flota Propia de Formatex (8 Camionetas) y Rutas Fijas Programadas (Drive In / Drivin)
+- **Operación de Embarques:** Formatex cuenta con **8 vehículos propios (camionetas)** para el reparto metropolitano y regional, coordinados por Carla (Jefatura de Embarques) mediante la plataforma de ruteo **Drive In / Drivin**.
+- **Rutas Programadas Foráneas — El Caso Ocotlán (Jalisco):**
+  - Existen rutas fijas semanales fuera de la Zona Metropolitana de Guadalajara. Específicamente, la **Ruta a Ocotlán** opera de forma estricta los días **Martes y Jueves**.
+  - **Regla de Corte de Surtido:** Un pedido con destino a Ocotlán que sea liberado por crédito o terminado de cortar el lunes por la tarde/noche ya no alcanza la logística de carga del martes temprano. Por ende, su entrega se reprograma forzosamente para el **Jueves**.
+  - **Sincronización ATC ↔ Embarques:** ATC no podrá prometer entregas en días no habilitados para la ruta del cliente. Al capturar el pedido, el sistema despliega el semáforo de ruta: *"Ruta Ocotlán: Próxima salida disponible Jueves"*.
+
+### 9.3. Regla 10: Canal E-Commerce Web (Shopify / Nayeli / Lista F10)
+- **Venta Minorista en Línea:** Formatex opera una tienda en línea abierta al público en general sobre la plataforma **Shopify**, gestionada por **Nayeli** (Atención a Clientes Web).
+- **Flujo Operativo Diferenciado:**
+  1. **Compra en Una Sola Exhibición:** Los clientes finales no requieren expediente crediticio, carta de fletera ni alta de distribuidor.
+  2. **Lista de Precios F10:** El catálogo de Shopify se liquida automáticamente bajo la lista oficial `F10` (Venta Web / Catálogo Especial).
+  3. **Validación de Pago:** Una vez que la pasarela de pagos confirma la dispersión bancaria y Nayeli recibe la notificación, se genera el pedido en WMS marcándolo con el origen `WEB_SHOPIFY`.
+  4. **Embarque y Guías Prepagadas:** Los pedidos nacionales se despachan con guías prepagadas de paquetería (DHL, FedEx, Estafeta).
+  5. **Pedidos Internacionales Excepcionales (ej. Colombia / Medellín):** Para compras transfronterizas excepcionales, Nayeli canaliza la cotización de flete internacional directamente con **Luis Javier**, emitiéndose la proforma con el costo de envío exterior antes de despachar la tela.
+
+### 9.4. Regla 11: Tratamiento de Muestras (Muestrarios y Libros) como Producto Terminado por Pieza (PZA)
+- **Naturaleza del Artículo:** Los muestrarios, carpetas de colección y libros de telas son considerados **Producto Terminado** y no rollos de tela en metros lineales.
+- **Regla de Captura y Almacén:**
+  - Unidad de medida oficial: **`PZA` (Pieza / Unidad)**.
+  - No aplica metraje lineal, cálculo de corte, tolerancia de rollo ni generación de retales (`RETAL`).
+  - El precio en listas y convenios se liquida por pieza unitaria (`$/PZA`).
+  - En la interfaz de captura de pedidos, el WMS conmuta automáticamente la etiqueta de cantidad a "Piezas" y desactiva el motor de sugerencia de corte de rollos cuando el SKU corresponde a un muestrario.
+
+### 9.5. Regla 12: Traspasos Inter-Compañía Digitales Telares y Tejidos (TNT) ↔ Formatex
+- **Estructura Corporativa Hermana:**
+  - **Telares y Tejidos (TNT)** y **Formatex** pertenecen al **mismo propietario** ("se pagan y se dan el vuelto").
+  - Telares y Tejidos funge como la importadora oficial y custodia de rollos en bodegas colindantes (Río Tototlán / Río La Barca / Bodega Rensselaer).
+  - Diariamente, Formatex solicita a Telares el traspaso físico de rollos para resurtir pedidos comerciales.
+- **Eliminación del Flujo Informal de WhatsApp:**
+  - Históricamente, el personal de Formatex enviaba capturas de pantalla de la pantalla del monitor o fotos por WhatsApp al encargado de bodega de Telares para pedir telas.
+  - **Nuevo Módulo de Solicitud Digital de Traspaso:**
+    1. Se genera una **Orden de Traspaso Inter-Compañía (Formatex $\leftarrow$ Telares)** con folio formal en el WMS.
+    2. El sistema almacena la bitácora de auditoría digital completa: quién solicitó, fecha, hora, rollos requeridos (SKU, metraje, color).
+    3. Al ingresar físicamente a la rampa de Formatex, el almacenista escanea los rollos con la Handheld TC22 para confirmar el traspaso y darles alta en el stock disponible de venta.
+
+### 9.6. Regla 13: Bloqueo Estricto de Precios Especiales y Listas Asignadas en Captura
+- **Mandato Directivo:** Andrea Ramírez y la Jefatura de ATC determinaron que los precios especiales acordados por Dirección y los precios derivados de las 10 listas oficiales deben estar **estrictamente precargados y bloqueados para edición manual** en la pantalla de pedidos.
+- **Candado de Integridad:** Se prohíbe que el agente de ATC teclee manualmente o modifique a discreción el precio unitario del metro de tela. Cualquier excepción comercial no tabulada deberá ser gestionada como descuento porcentual sujeto a las políticas de autorización, o requerirá el alta formal previa del convenio en la Matriz de Precios Especiales.
 
 ---
 
-## 10. Formalización y Firmas de Conformidad
+## 10. Matriz de Compromisos y Entregables Actualizada (Checklist)
 
-Al firmar el presente documento, las partes manifiestan su conformidad con los requerimientos, candados de seguridad y reglas operativas aquí descritas, reconociéndolas como el marco oficial de validación y control de cambios para el módulo de Atención al Cliente (ATC) del WMS 360+ Formatex:
+| Responsable | Entregable / Acción Acordada | Estatus |
+| :--- | :--- | :---: |
+| **Andrea Ramírez / Alma** | Compartir catálogo detallado de las 10 listas de precios oficiales vigentes | **Completado (12,386 precios ingeridos)** |
+| **Andrea Ramírez** | Compartir archivo Excel de Precios Especiales autorizados por Dirección General | **Completado (306 convenios ingeridos)** |
+| **Andrea Ramírez** | Enviar paquete documental de alta de clientes: CSF muestra, Carta de fleteras y seguro | Pendiente envío |
+| **Formatex / Carla** | Sesión de levantamiento de Embarques y plataforma Drive In | Programada para semana siguiente |
+| **Formatex / Israel** | Sesiones de levantamiento de Almacén y recepción de Telares (Sesión 1 y 2) | Programada Viernes 23 de Octubre |
+| **Formatex / Nayeli** | Validación de variantes Shopify y envíos internacionales | Por agendar breve llamada |
+| **Movida TCI** | Entrega de documento oficial v1.1 consolidado con Sesión #2 para firma | **Completado** |
+| **Movida TCI** | Implementación de selector de días de ruta, bloqueo de precios y soporte de muestras en WMS | **Completado en frontend v1.4.1** |
+
+---
+
+## 11. Formalización y Firmas de Conformidad
+
+Al firmar el presente documento, las partes manifiestan su plena conformidad con los requerimientos, candados de seguridad operativa y reglas de negocio aquí descritas, reconociéndolas como el marco oficial y vinculante de desarrollo y aceptación para el módulo de Atención al Cliente (ATC), Ventas y Conexión Logística del WMS 360+ Formatex:
 
 <br/><br/>
 

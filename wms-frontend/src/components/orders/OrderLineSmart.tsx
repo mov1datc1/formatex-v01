@@ -3,7 +3,7 @@ import { api } from '../../config/api';
 import {
   Scroll, Scissors, Search, TrendingDown, Truck,
   MapPin, AlertTriangle, Check, ChevronDown, X, Sparkles, CalendarClock,
-  Package, Layers, Target, ShieldAlert,
+  Package, Layers, Target, ShieldAlert, Lock,
 } from 'lucide-react';
 
 interface OrderLineSmartProps {
@@ -33,6 +33,22 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
   const selectedSku = skus.find((s: any) => s.id === line.skuId);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+
+  // Detección de Muestras / Muestrarios / Carpetas (Unidades PZA)
+  const isMuestrario = Boolean(
+    selectedSku?.tipoArticulo === 'MUESTRARIO' ||
+    selectedSku?.unidadMedida === 'PZA' ||
+    selectedSku?.categoria?.toLowerCase().includes('muestra') ||
+    selectedSku?.nombre?.toLowerCase().includes('muestrario') ||
+    selectedSku?.nombre?.toLowerCase().includes('carpeta')
+  );
+
+  // Candado Estricto de Precios (Directriz de Sesión #2 Andrea & Santiago):
+  // Prohíbe alteración manual cuando proviene de lista oficial o convenio especial para evitar pérdidas comerciales
+  const isPriceLocked = Boolean(
+    pricingInfo?.esPrecioEspecial || 
+    (line.listaPrecios && pricingInfo?.precioUnitario !== undefined)
+  );
 
   // Auto-resolución de lista y precio exacto según Matriz Oficial Formatex (Rollo vs Corte y Tipo de Cliente)
   const fetchPricing = useCallback((overrideLista?: string) => {
@@ -102,7 +118,7 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
   const lastFetchedRef = useRef('');
 
   const fetchSuggestions = useCallback(async (skuId: string, metraje: number) => {
-    if (!skuId || !metraje || metraje <= 0) { setSuggestions(null); return; }
+    if (!skuId || !metraje || metraje <= 0 || isMuestrario) { setSuggestions(null); return; }
 
     // Prevent re-fetching the same params (avoids infinite loop)
     const key = `${skuId}-${metraje}`;
@@ -127,15 +143,15 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
       }
     } catch { setSuggestions(null); }
     setLoadingSugg(false);
-  }, [index]);
+  }, [index, isMuestrario]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (line.skuId && line.metrajeRequerido > 0) {
+    if (line.skuId && line.metrajeRequerido > 0 && !isMuestrario) {
       debounceRef.current = setTimeout(() => fetchSuggestions(line.skuId, line.metrajeRequerido), 400);
     }
     return () => clearTimeout(debounceRef.current);
-  }, [line.skuId, line.metrajeRequerido, fetchSuggestions]);
+  }, [line.skuId, line.metrajeRequerido, isMuestrario, fetchSuggestions]);
 
   const selectSku = (sku: any) => {
     onChange(index, 'skuId', sku.id);
@@ -213,9 +229,11 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
           </div>
         </div>
 
-        {/* Metraje */}
+        {/* Metraje o Piezas */}
         <div className="col-span-1">
-          <label className="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Metros</label>
+          <label className="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide truncate">
+            {isMuestrario ? 'Piezas' : 'Metros'}
+          </label>
           <input type="number" min={1} value={line.metrajeRequerido}
             onChange={(e) => onChange(index, 'metrajeRequerido', +e.target.value)}
             className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400" />
@@ -289,20 +307,31 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
         {/* Precio Unitario */}
         <div className="col-span-2">
           <label className="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide flex items-center justify-between">
-            <span>$/m</span>
-            {pricingInfo?.esPrecioEspecial ? (
+            <span>{isMuestrario ? '$/PZA' : '$/m'}</span>
+            {isPriceLocked ? (
+              <span className="text-[10px] text-indigo-700 font-semibold flex items-center gap-0.5" title="Precio bloqueado por lista oficial o convenio especial">
+                <Lock size={9} /> Bloqueado
+              </span>
+            ) : pricingInfo?.esPrecioEspecial ? (
               <span className="text-[10px] text-violet-600 font-semibold">Pactado</span>
             ) : line.listaPrecios ? (
               <span className="text-[10px] text-indigo-600 font-semibold">{line.listaPrecios}</span>
             ) : null}
           </label>
-          <input type="number" step={0.01} value={line.precioUnitario}
-            disabled={pricingInfo?.esPrecioEspecial}
-            onChange={(e) => onChange(index, 'precioUnitario', +e.target.value)}
-            className={`w-full px-3 py-2 bg-white border rounded-lg text-sm focus:ring-2 focus:ring-indigo-400 ${
-              pricingInfo?.esPrecioEspecial ? 'border-violet-300 bg-violet-50 text-violet-900 font-bold' :
-              pricingInfo?.requiereAprobacion ? 'border-amber-300 bg-amber-50/20 text-amber-900 font-semibold' : 'border-gray-200'
-            }`} />
+          <div className="relative">
+            <input type="number" step={0.01} value={line.precioUnitario}
+              disabled={isPriceLocked}
+              readOnly={isPriceLocked}
+              onChange={(e) => onChange(index, 'precioUnitario', +e.target.value)}
+              className={`w-full px-3 py-2 bg-white border rounded-lg text-sm focus:ring-2 focus:ring-indigo-400 ${
+                isPriceLocked ? 'border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed font-medium pr-7' :
+                pricingInfo?.esPrecioEspecial ? 'border-violet-300 bg-violet-50 text-violet-900 font-bold' :
+                pricingInfo?.requiereAprobacion ? 'border-amber-300 bg-amber-50/20 text-amber-900 font-semibold' : 'border-gray-200'
+              }`} />
+            {isPriceLocked && (
+              <Lock size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            )}
+          </div>
         </div>
 
         {/* Importe */}
@@ -310,7 +339,7 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
           <label className="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Importe</label>
           <p className="text-sm font-bold text-emerald-600 py-2">${importe.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
           {descPct > 0 && (
-            <p className="text-[10px] text-gray-400 -mt-1">${precioConDescuento.toFixed(2)}/m (-{descPct}%)</p>
+            <p className="text-[10px] text-gray-400 -mt-1">${precioConDescuento.toFixed(2)}/{isMuestrario ? 'pza' : 'm'} (-{descPct}%)</p>
           )}
         </div>
 
@@ -324,12 +353,27 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
         </div>
       </div>
 
+      {/* Banner de Muestrario / Producto Terminado */}
+      {isMuestrario && (
+        <div className="flex items-center justify-between px-3 py-2 bg-blue-50/90 border border-blue-200 rounded-lg text-xs text-blue-900">
+          <div className="flex items-center gap-2">
+            <Package size={15} className="text-blue-600 shrink-0" />
+            <span>
+              <strong>Muestrario / Producto Terminado (PZA):</strong> Artículo unitario terminado ({line.metrajeRequerido} PZA). No requiere proceso de corte de rollo ni genera merma.
+            </span>
+          </div>
+          <span className="text-[10px] bg-blue-200 text-blue-900 px-2 py-0.5 rounded font-bold uppercase">
+            Unitario PZA
+          </span>
+        </div>
+      )}
+
       {/* Banners Inteligentes de Precios Formatex */}
       {pricingInfo?.esPrecioEspecial && (
         <div className="flex items-center justify-between px-3 py-2 bg-violet-50/90 border border-violet-200 rounded-lg text-xs text-violet-900">
           <div className="flex items-center gap-2">
             <span className="font-semibold">Precio Especial Autorizado por Dirección:</span>
-            <span className="font-bold text-violet-950 font-mono">${Number(pricingInfo.precioUnitario).toFixed(2)}/m</span>
+            <span className="font-bold text-violet-950 font-mono">${Number(pricingInfo.precioUnitario).toFixed(2)}/{isMuestrario ? 'pza' : 'm'}</span>
             {pricingInfo.referenciaProyecto && (
               <span className="text-violet-600">· {pricingInfo.referenciaProyecto}</span>
             )}
@@ -338,7 +382,7 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
             )}
           </div>
           <span className="text-[10px] bg-violet-200/80 text-violet-800 px-2 py-0.5 rounded font-medium">
-            Tarifa Protegida
+            Tarifa Protegida 🔒
           </span>
         </div>
       )}
@@ -374,7 +418,7 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
       )}
 
       {/* Row 2: Smart Fulfillment Plan */}
-      {line.skuId && line.metrajeRequerido > 0 && (
+      {line.skuId && line.metrajeRequerido > 0 && !isMuestrario && (
         <div ref={suggRef}>
           {/* Toggle bar */}
           <button
