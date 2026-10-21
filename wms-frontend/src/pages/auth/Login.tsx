@@ -55,6 +55,10 @@ export const Login = () => {
           navigate('/cobranza');
           return;
         }
+        if (roleName === 'DIRECTOR_COMPRAS' || roleName === 'IMPORTACIONES' || roleName === 'COMPRAS') {
+          navigate('/transito');
+          return;
+        }
       }
 
       navigate(from);

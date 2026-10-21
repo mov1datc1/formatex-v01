@@ -47,15 +47,11 @@ const menuSections: MenuSection[] = [
     ],
   },
   {
-    title: 'Compras',
+    title: 'Compras & Importaciones',
     items: [
-      { label: 'Compras', path: '/compras', icon: ShoppingCart, permission: 'compras' },
-    ],
-  },
-  {
-    title: 'Planificación',
-    items: [
-      { label: 'Planificación', path: '/planificacion', icon: CalendarRange, permission: 'supply-planning' },
+      { label: 'Órdenes de Compra', path: '/compras', icon: ShoppingCart, permission: 'compras' },
+      { label: 'Tránsito & Costeo', path: '/transito', icon: Ship, permission: 'transit' },
+      { label: 'Plan de Resurtido', path: '/planificacion', icon: CalendarRange, permission: 'supply-planning' },
     ],
   },
   {

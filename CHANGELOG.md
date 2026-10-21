@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-10-21
+
+### Added
+- **Padrón de Agentes Oficiales de Ventas & Vinculación de Cartera:**
+  - Alta en base de datos de los 5 agentes de ventas oficiales extraídos de `CARTERA PRUEBA PRECIOS ESP.xlsx`:
+    - `VEND-LJR`: Luis Javier Robledo (`luis.robledo@formatex.mx`)
+    - `VEND-GNA`: Gabriel Navarro Aguilar (`gabriel.navarro@formatex.mx`)
+    - `VEND-JPH`: Juan Pablo Hernández Ríos (`juanpablo.hernandez@formatex.mx`)
+    - `VEND-JMC`: Juan Manuel Casillas López (`juanmanuel.casillas@formatex.mx`)
+    - `VEND-AVR`: Andrea Verónica Robles Ruvalcaba (`andrea.robles@formatex.mx`)
+  - Vinculación de los 21 clientes clave a su respectivo agente de ventas (`Client.vendorId`), habilitando trazabilidad de comisiones y atención personalizada.
+- **Registro Formal de Bodega Empresa Hermana (Telares y Tejidos):**
+  - Alta en el modelo `Warehouse` de la bodega hermana `BOD-TNT` (*Bodega Telares y Tejidos / Río Tototlán / Rensselaer*) para soportar traspasos digitales de stock intercompañía.
+- **Acceso & Roles Especializados de Compras e Importaciones:**
+  - Usuarios operativos para el equipo de importaciones creados en base de datos: `elba.compras` (Elba Vázquez — Jefa de Compras & Costeo) y `mane.import` (Mane Gómez — Importaciones & Tráfico Aduanal Manzanillo) bajo rol `DIRECTOR_COMPRAS`.
+  - Reestructuración de la barra de navegación lateral (`Sidebar.tsx`) agrupando la sección **Compras & Importaciones** con accesos directos a *Órdenes de Compra* (`/compras`), *Tránsito & Costeo* (`/transito`), y *Plan de Resurtido* (`/planificacion`).
+  - Redirección automática en `Login.tsx` hacia `/transito` para roles de compras e importaciones.
+
 ## [1.4.1] - 2026-10-21
 
 ### Added
