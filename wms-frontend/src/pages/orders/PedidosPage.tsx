@@ -1885,6 +1885,8 @@ export default function PedidosPage() {
             </div>
           </div>
         </div>
+      )}
+
       {/* === MODAL DE GESTIÓN DE BACKORDER (CONFIRMAR VIGENCIA O CANCELAR Y RECORRER COLA) === */}
       {backorderModal && (
         <div
