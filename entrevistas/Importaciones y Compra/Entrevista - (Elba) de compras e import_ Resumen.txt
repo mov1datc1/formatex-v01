@@ -1,0 +1,53 @@
+Entrevista - (Elba) de compras e importaciones - Formatex
+vie, 16 oct 2026
+
+Resumen:
+
+La reunión delimitó los procesos de compras e importaciones que se integrarán al WMS de Formatex.
+• Una orden semanal a China y cinco o seis pedidos semanales a Telares.
+• Catálogo compartido con nombres chinos y comerciales.
+• Registrar costos en dólares y costos puestos en México.
+• Consultar existencias y contenedores en tránsito con llegada estimada.
+• La disponibilidad debe excluir stock comprometido para otros clientes.
+
+
+Elementos de acción:
+
+* MOVIDA TCI: Comparte el lunes un correo de síntesis de las entrevistas y un documento con las reglas de negocio para revisión.
+* Participantes de la sala de conferencias: Compartan ejemplos de los archivos de costos, cálculos, órdenes de compra y datos de productos y proveedores en la carpeta acordada.
+* Participantes de la sala de conferencias: Suban la información disponible a la misma carpeta entre el lunes y el martes.
+
+
+Puntos clave de la discusión:
+
+Flujo de compras internacionales y recepción de mercancía
+Se presentó el propósito de documentar reglas de negocio para el WMS y se describió el proceso de compra internacional gestionado por Telares y Tejidos. La producción, el embarque, el despacho, el costeo en moneda nacional y el registro de mercancía en bodega forman parte del flujo actual.
+
+Reposición entre Telares y Formatex
+Se explicó que la información de órdenes y mercancía en tránsito se mantiene manualmente en un archivo maestro. Formatex solicita mercancía a Telares en entregas parciales, normalmente agrupando pedidos diarios, con solicitudes urgentes cuando hace falta; la coordinación operativa entre bodegas quedó por aclarar con Israel.
+
+Visibilidad de inventario y necesidades del sistema
+Se planteó que Atención al Cliente pueda consultar existencias en ambas bodegas y mercancía en tránsito con fechas estimadas para ofrecer alternativas al cliente. Se señaló que la disponibilidad debe respetar la programación para otros clientes y se propuso integrar las compras a China y los contenedores en tránsito, mientras la conversación comenzaba a abordar el registro de proveedores.
+
+Alcance del módulo administrativo
+Se identificaron tareas manuales de importación, como homologar nombres de telas, mantener costos y preparar solicitudes con hojas de cálculo. Se delimitó el alcance hacia un módulo administrativo, diferenciándolo del control completo de telares y almacenes.
+
+Catálogos, proveedores y órdenes de compra
+Se propuso compartir el catálogo de telas entre Formatex y Telares, conservando el nombre chino y el nombre comercial. También se definieron como componentes del módulo los catálogos de proveedores y las órdenes de compra.
+
+Costos, divisas e historial de importación
+El grupo examinó cómo registrar los costos de proveedor en dólares y el costo de la mercancía puesta en México. Se destacó la necesidad de conservar el tipo de cambio y los datos del pedimento por embarque para respaldar consultas históricas.
+
+Cálculo de precios y documentación de procesos
+Se describió el método actual para fijar el precio de facturación de Telares a Formatex: se consideran costos de embarques, se aplica un margen y se revisa la utilidad, con cálculos realizados manualmente en Excel. Se solicitaron ejemplos de órdenes, archivos de costos y documentos para evaluar cómo llevar estos procesos al módulo.
+
+Integración con Formatex y datos de ingreso
+Se confirmó que el catálogo de productos se compartiría entre las empresas, aunque cantidades y existencias podrían variar. También se señaló que el registro de ingreso de telas debe vincular el lote con el proveedor de origen.
+
+Próxima sesión y entrega de información
+El grupo decidió posponer la revisión completa del archivo maestro hasta haber comprendido las distintas áreas, y realizar una segunda sesión. Los participantes acordaron subir la información disponible a la misma carpeta entre el lunes y el martes, y cerraron la reunión sin plantear otros asuntos sustantivos.
+
+
+Bloc de notas:
+
+* No hay notas

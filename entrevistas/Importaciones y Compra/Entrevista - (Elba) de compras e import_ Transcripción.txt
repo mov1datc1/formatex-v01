@@ -1,0 +1,629 @@
+Entrevista - (Elba) de compras e importaciones - Formatex
+vie, 16 oct 2026
+
+0:02 - MOVIDA TCI
+Hola, buenos días.
+
+0:07 - Conference Room (santiago perez) - Speaker 1
+Está por aquí conectándome.
+
+0:15 - Orador no identificado
+Hola.
+
+0:18 - Orador no identificado
+No sé por qué tiene tanta sola.
+
+0:39 - Orador no identificado
+Sí.
+
+0:43 - MOVIDA TCI
+¿Ustedes me escuchan?
+
+0:48 - Orador no identificado
+Sí.
+
+0:49 - Conference Room (santiago perez) - Speaker 2
+Puedes subir la pantalla.
+
+0:56 - Conference Room (santiago perez) - Speaker 1
+OK.
+
+0:57 - Conference Room (santiago perez) - Speaker 2
+Pues estamos listos. Hola, Andrea, Elba.
+
+1:06 - Conference Room (santiago perez) - Speaker 1
+¿Alguien más?
+
+1:09 - Conference Room (santiago perez) - Speaker 1
+de importaciones. Ok.
+
+1:11 - Conference Room (santiago perez) - Speaker 1
+No escucho su nombre.
+
+1:13 - MOVIDA TCI
+¿Cómo se llama? Mane.
+
+1:15 - MOVIDA TCI
+M A N E.
+
+1:17 - Conference Room (santiago perez) - Speaker 2
+Mucho gusto.
+
+1:18 - MOVIDA TCI
+Por aquí Jonathan Palacios. Placer. Este con el ya ya nos hemos reunido en una oportunidad. Sí. Bueno por aquí también nos está acompañando santiago que también está por ahí escondido.
+
+1:35 - Conference Room (santiago perez) - Speaker 2
+Hola buen día.
+
+1:37 - Conference Room (santiago perez) - Speaker 2
+la esquina.
+
+1:38 - Conference Room (santiago perez) - Speaker 1
+No se preocupe. Está muy bien.
+
+1:40 - MOVIDA TCI
+Eh bueno, previamente ya las llamadas que tuvimos, Andrea, para decirte, ya hicimos como un baneo de todo lo que de los puntos, de hecho ya ya algunos se empezaron a subir al Mocop. Eh el lunes te vamos a compartir como un correo como resumen de esas de todas las llamadas o todas estas entrevistas que estamos teniendo eh punto a punto y un documento donde va a estar como la, las reglas de negocios que van, van apareciendo, ¿No?
+
+ Le llamamos regla de negocio porque cada vez que nos dice mira, es que nosotros hacemos esto, lo cruzamos. Entonces son unas reglas de negocio que vamos integrando a la plataforma, ¿No? Y para que ustedes la revisan y quede como un marco de trabajo, ¿No? Este tengamos el marco de trabajo de cada área. En el caso del miércoles toda la parte, digamos, de ATC. Atención al cliente y cómo se movía, con quién se conectaba.
+
+ Hoy por, ahorita Elba nos va a explicar un poco cómo vamos a manejar el tema de compras e importaciones. Ya en aquella reunión nosotros habíamos levantado algo. Elba, si nos diste algunos tips. Pero por eso te llamamos Elba, porque ya empezamos el proyecto. Vamos a profundizar un poco más. De hecho, estoy tomando nota, estoy grabando aquí la conversación con unas herramientas para también releer. Este y nosotros ir destrabando cómo se conecta compras e importaciones hoy por hoy con la cadena completa de lo que es el negocio.
+
+ O sea, desde que se compra hasta que se vende y llega hasta el cliente final. Y cómo, cómo se percibe para este proceso de digitalización que estamos haciendo en el WMS. Entonces, lo primero La primera pregunta es. Como que se repitió. Bueno, es que hay un poquito de eco porque caminamos.
+
+3:36 - Conference Room (santiago perez) - Speaker 1
+El sonido porque no te escuchaba. Ah ok.
+
+3:40 - Conference Room (santiago perez) - Speaker 2
+Ya como que ya se normalizó ¿No?
+
+3:44 - MOVIDA TCI
+Ajá. Sí. Ya se normalizó. Entonces la primera pregunta era que es la básica ¿No? O sea, descríbenos el proceso de ustedes, cómo, cómo va a ser el proceso de compra hoy por hoy. Este, no sé si, si, sin obviar algunos detalles, nosotros vamos a ir tomando notas y ver si generan órdenes de compra. Sabemos que está telares, o sea, ¿Cómo es ese proceso? Si ustedes la envían directo, tú también haces la importación a China.
+
+ O sea, ¿Cómo es el proceso para ir armando ese, ese diagrama de flujo? Y sacar las reglas de negocio.
+
+4:23 - Conference Room (santiago perez) - Speaker 1
+Sí, mira, nosotros actualmente no, no manejamos las órdenes de compra en el sistema que tenemos allá en Compa, nunca se le explotó por ese lado, porque la empresa de telares y tejidos es la que realiza las compras a todos los proveedores internacionales. Y esta empresa de telares y tejidos las compra, las órdenes de compra las enviamos en dólares, en otras monedas las enviamos en dólares y ya cuando llega la mercancía aquí a México, pues ya está importada y todo y la compra se mete en moneda nacional una vez que se costea con todo lo que incluye, ¿no?
+
+ Costo de pleite, internacional, seguro, maniobra, etcétera, etcétera. Entonces, el ingreso de las telas en el sistema de telares en moneda nacional, ahí manejamos en las empresas. Podemos decir que dos, y nosotros hacemos un resurtido semanal que le llamamos. Cada semana nuestro jefe, nuestro director Ricardo, empieza la voz y nos manda todo y nos da un e-mail con todas las reuniones de compra nuevas que debemos generar.
+
+ Le damos seguimiento con los proveedores. La producción se va de cuatro, seis u ocho semanas dependiendo del proveedor. Y una vez que ya tenemos el producto, que la producción está lista. Hacemos la orden de embarque con el proveedor en origen. Contactamos a nuestro forwarder, cotizamos el plete, el seguro, la grana y todo lo demás. Ya que se pone en tránsito la mercancía, hacemos y llega un anzalillo al puerto de entrada por el que lo vayamos a hacer.
+
+ Hacemos el despacho a donar. Igual se vuelven a costear los gastos y le damos ingreso a la almacén de telares, como te comentaba, en moneda nacional y ya que está la mercancía disponible en el stock de telares, Formatex le manda un pedido a telares para traerse la mercancía, inclusive porque está en otra bodega, la bodega de Rensselaer, y aquí las chicas de operaciones son las que ya le dan entrada y hacen la compra en Formatex, pero cuando le damos entrada la mercancía hacemos la compra en una hoja electrónica, porque por ejemplo un contenedor puede traer desde 600, 700 rollos de tela hasta 900, más o menos.
+
+ Antes cuando yo entré era proceso manual, ingresaban uno por uno, pero posteriormente se desarrolló una hoja electrónica. No sé si esa ya la conozcas o te la haya mostrado el equipo de operación.
+
+7:10 - MOVIDA TCI
+No, esa no, bueno, ahorita no, no la, no lo ubico para que Andrea allí nos ayude a verla. Ahí te tengo una preguntita, este Elba, ya sé que has ido con buena descripción. Todo el proceso, este, te hace telar. Obviamente eso, eso se factura, toda esa negociación se hace con la cuenta, con esa empresa, pues no tiene que ver todavía Formatex hasta que te hacen la orden de pedido, que es la que describiste ahorita, que esa es la que yo ya digamos, orden de compra, ¿No?
+
+ Digamos.
+
+7:40 - Conference Room (santiago perez) - Speaker 1
+Exacto, cuando fórmate ya le compra a Telares, ¿No?
+
+7:44 - MOVIDA TCI
+Este, porque supongo que Telares, o sea, te pones la camisa de Telares y tú haces todo el proceso que que dices, ¿No? Con los proveedores, este, hace toda la compra, tránsito, despacho, dinero, todo, dólares, pesos, llega. Cuando llega a Telares, que está el Incluso cuando viene en tránsito, ¿No? Que, que, que es la, la parte, la información que también puede tener ventas. Que dice, bueno, no te tengo esta tela, pero viene una en tránsito.
+
+ Fue porque ya ese pedido, este fórmate ya se lo hizo a Telares y Telares le dijo, por decirlo así. Ah, mira, sí, ya compramos la tela y tenemos una orden que viene en dos meses.
+
+8:29 - Conference Room (santiago perez) - Speaker 1
+Sí, actualmente esa información la estamos manejando en el archivo que En el máster, las columnas de tránsito, esas las alimentamos nosotras, pero pues el proceso es manual, es una escena. Una vez que tenemos, cada semana le metemos ahí información de lo que tenemos en tránsito y de las nuevas órdenes de compra.
+
+8:52 - Conference Room (santiago perez) - Speaker 1
+Esa es la información que por nuestra parte Vendas puede obtener.
+
+8:57 - MOVIDA TCI
+Exactamente. Sí, perfecto. Ahí está parte del pedido. Ahí comentabas algo importante. Cuando haces el pedido, este es completo, por ejemplo, 600 rollos en el contenedor completo. Eso, aunque tú le hagas el pedido a Telares, obviamente no te manda todo, no empieza a enviarte. O sea, como el proceso de envío de Telares Formatter. O sea, ya Ricardo te pasó, te dio. Mira, esto es lo que se necesita. Porque se hace semanal.
+
+ Esto es lo que necesito con los proveedores. Tú haces todo el procedimiento, pero cuando llega la mercancía, ¿Cómo empieza? ¿Cómo? ¿Cómo se hace ese cambio de stock? Donde dice bueno, esto viene del área. ¿Cómo? No sé si me lo puedes explicar un poquito.
+
+9:44 - Conference Room (santiago perez) - Speaker 2
+Ahí como en la Telares bodega es donde resguardamos todos los rollos y únicamente las estamos trayendo por día lo que se está necesitando al momento.
+
+9:53 - Conference Room (santiago perez) - Speaker 2
+En formato.
+
+9:54 - Conference Room (santiago perez) - Speaker 1
+O sea, no se viene un contenedor completo, ni una orden completa. O no se factura un contenedor completo de telares a Formatex, sino que se almacena el stock en telares protegidos y y se van surtiendo parcialidades de todo el stock que tiene TNT.
+
+10:12 - MOVIDA TCI
+Pero es una sola orden, entonces, no es solo un pedido que se le hace a Telare y ya luego, o sea, ¿Quieren entender la parte también de documentación de entre Telare y Formate, por si hay que colocarlo? O sea, entiendo que se va pidiendo a medida que se va surtiendo, ¿No? Porque por temas de capacidad de la bodega no van a tener algo innecesario. Pero por ejemplo, y si tú es un pedido del que eran, no sé, 900 rollos.
+
+ Ese mismo orden, ese mismo pedido. Este ya no se hace otro de cada vez que se pide. No es que cada vez que te pido te digo. Dame un pedido por 100, ahora por 200. No, sino uno solo y luego cuando necesites es mándame ya.
+
+11:00 - Conference Room (santiago perez) - Speaker 1
+O sea, es llamar.
+
+11:02 - Conference Room (santiago perez) - Speaker 2
+Mira del pedido número XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX una orden de compra a telares, de Formatex a telares. Exacto. Con todo lo que salió el día de ayer, por así decirlo. Si tuvimos 10 clientes que hicieron pedido de cosas de telares, esos 10 clientes se pasan al día siguiente para la solicitud y esos rollos llegan a la bodega en el mismo día.
+
+ Pero si suele suceder que si sale uno a media tarde y que necesitamos un rollo urgente de telares, se manda la orden de compra de Formatex a telares hasta por un rollo y ellos nos hacen el pedido.
+
+11:37 - Conference Room (santiago perez) - Speaker 2
+Ok, perfecto.
+
+11:38 - Conference Room (santiago perez) - Speaker 2
+Pero es diferente la, perdón, es diferente la orden de compra que hacen las chicas de servicio al cliente. Ya, creo que ya te entendí. Contra la que hacemos de forma texas pedagas.
+
+11:52 - MOVIDA TCI
+Sí, sí, sí, pero lo de servicio al cliente, realmente ellos, ellos lo que van a tener la capacidad es de, bueno, como también le al cliente final o a sus clientes que tienen fórmate, porque el perfil de cliente, ellos lo que necesitan es ver qué hay en stop. Cuando digo que hay en stop, es que qué hay dentro de la bodega de fórmate y qué hay dentro de la bodega de telares, porque igual está cerca.
+
+ Entonces qué es lo que hay en stop ahí cerca y también qué es lo que hay en tránsito que ya vengan, o sea que ya esté definido con el número de contenedor, o sea que ya vengan en tránsito totalmente. No que es lo que se va a comprar ¿No? ¿Para qué? Porque esta es la lógica que tenemos nosotros. Por eso la explicamos para que ustedes no la revaliden. Voy a poner un ejemplo típico. Un cliente llega y me pide mil metros de tela.
+
+ Vamos a poner un solo, un solo modelo. Yo, el de ATC, la persona de atención al cliente dice ah, déjame ver el modelo. La típica seda que siempre ponemos. Seda tal que no existe. Seda. Modelos XXY. Cuando revisa el sistema, allí el sistema que ser inteligente. Es decir, o sea, la pregunta al sistema cuando ella coloca ¿Tienes mil metros de tela para este cliente? Esta es la pregunta que realmente le está haciendo al sistema.
+
+ El sistema es inteligente y va a buscar dentro de base de datos, toda la parte de importación. O sea, va a decir, ah, mira, la demanda de mil metros de tela no te la cumplo al 100%. Tengo 500 metros de tela, que tengo 500 metros de tela dentro de la bodega de fórmata y telares. O sea, lo que es aquí y los otros 500 vienen en una embarcación, o sea en tránsito, que llegan el 15 de diciembre. Entonces eso lo va a ver atención al cliente.
+
+ Atención al cliente le va a decir al cliente final. Mira, tal cual lo mismo. Mira, te tengo 500 aquí ahorita que te lo puedo enviar esta semana y la otra te llega el 15. ¿Qué quieres hacer? ¿Quieres hacer el pedido total de los 1000 completos y te entrego parcial? ¿O cómo quieres? ¿O nada más te doy los 500? O sea, eso es lo que nosotros pretendemos que llegue a ese nivel de de inteligencia, ¿No? La plataforma, que que ATC tenga la información, este, y que esa información de tránsito se actualice, o sea, porque para que ella pueda ver esa información, ustedes tienen que en un módulo de la plataforma, estar actualizando, bueno, los pedidos que se vengan de importación, ¿No?
+
+ Y con fecha, ¿No?
+
+14:14 - Conference Room (santiago perez) - Speaker 2
+Sí, sí, sí. Entonces, ahí, por ejemplo, si este cliente está haciendo la solicitud de quinientos metros de nuestras bodegas y quinientos metros de las bodegas atelares, ahí se tendría que hacer automáticamente una orden de compra externa para telares, de forma tex para telares. Para que ahí.
+
+14:33 - MOVIDA TCI
+Eso es lo que, déjame anotarlo aquí, pues se hace una, ahí es donde se hace la orden, entonces se hace como un pedido a telares, ¿Quién lo hace?
+
+14:45 - Conference Room (santiago perez) - Speaker 2
+¿De ustedes? ¿Quién lo haría?
+
+14:47 - MOVIDA TCI
+Es el.
+
+14:49 - Orador no identificado
+Sería este...
+
+14:50 - MOVIDA TCI
+Israel.
+
+14:51 - Conference Room (santiago perez) - Speaker 1
+Israel hace el pedido.
+
+14:53 - MOVIDA TCI
+Pero entonces, para entender un proceso un poquito más detalle, me están pidiendo mil metros. Tengo 500 entelares. La persona va, habla con Israel. Israel está ocupada. O sea, ¿cómo hace ese contacto con Israel? Para decir, porque la persona cliente está por allá. Israel está por acá.
+
+15:16 - Orador no identificado
+Sí.
+
+15:16 - Conference Room (santiago perez) - Speaker 2
+A ver, eso... Será más fácil si lo hacemos o lo preguntamos con Israel. Ahorita el tema de o lo de importaciones es más bien basado a lo que hacemos de telares hacia China. Ok. Cómo se comunica la bodega de Pornotex con la bodega de Revash es 100% área operativa.
+
+15:41 - MOVIDA TCI
+Ok, entonces vamos a dejar esa parte con Israel.
+
+15:45 - Conference Room (santiago perez) - Speaker 2
+porque no te queríamos dar una pues algo solo.
+
+15:48 - MOVIDA TCI
+Ok, pero ya con esa información ya entiendo que, que, que está conectado con Israel. Ya luego vemos cómo vamos a hacer, cómo vamos a hacer esa conexión, cómo la vamos a mejorar, ¿No?
+
+15:58 - Conference Room (santiago perez) - Speaker 1
+Sí, Nachi es para que te des aquí todo, porque la situación, bueno, si habló y lo platicaron con él, por ejemplo, pues es más compleja. O sea, si quieres un sistema inteligente que le diga al cliente cuándo le puedes ofrecer una mercancía, tienes que tomar en cuenta el valor de la programación, Porque a veces el stock y lo que viene en tránsito, no se le puede dar al cliente que te está llamando. Si tú ya lo tienes programado, pues va a acordar para otros clientes.
+
+ Pero bueno, ese es el tema de atención al cliente.
+
+16:28 - Conference Room (santiago perez) - Speaker 2
+Exacto. Y ahorita con el tema de operaciones, más que nada es, ¿cómo hacer que el mismo sistema se pueda involucrar también en las compras que hacemos a China? Para que cada vez que se haga la solicitud de los pedidos, un pedido a China, se puede integrar a los contenedores que vienen en tránsito.
+
+16:50 - MOVIDA TCI
+Claro. Entonces, déjame ver que perdí un poco la.
+
+16:55 - MOVIDA TCI
+No sé si me escuchan, ¿Sí?
+
+16:59 - MOVIDA TCI
+Sí. Ok. Sí. Entonces, nosotros podemos colocar, porque acuérdate que lo que te decía, ¿No? Como son dos la conexión, o sea, la camiseta de telares, ¿No?
+
+17:13 - Orador no identificado
+Primero.
+
+17:14 - MOVIDA TCI
+O sea, voy a hacer un pedido a un proveedor. Y allí esa parte del proceso que mencionó Elba, que es, aquí lo tengo. Este crear esa, esa, o sea, tener cargado a los proveedores, ¿No? Hacer esa, contactarlo, eso lo, lo, o sea, no, no lo hace el sistema, lo tiene que seguir Aquí lo que tenemos que definir es. ¿Qué vamos a integrar en el sistema de esta parte de importación? ¿Qué afecte lo que es fórmata?
+
+ O sea, ¿Qué es necesariamente importante de esa parte que deberíamos integrar dentro de la plataforma de fórmata? O sea, el sistema de compra no, creo que no como tal.
+
+18:00 - Conference Room (santiago perez) - Speaker 2
+Ajá, por ejemplo, hay una parte importante.
+
+18:03 - Orador no identificado
+Ajá.
+
+18:06 - Conference Room (santiago perez) - Speaker 2
+El tema es que actualmente se maneja de forma manual la solicitud de telas de Alchina, ¿cierto? Sí. Y los ingresos y todo. Cuando nosotros hacemos un ingreso, nosotros hacemos el cambio de nombre. El proveedor lo tiene con códigos, hacemos el cambio de nombre para que ingresen a nuestras bodegas con el nombre que nosotros estamos recibiendo. Pero en el sistema actual no podemos tener una comparativa de cuál era el nombre China, por así decirlo, y cuál es el nombre de nosotros.
+
+
+
+18:39 - Conference Room (santiago perez) - Speaker 1
+Eso se hace actualmente de forma manual.
+
+18:41 - Conference Room (santiago perez) - Speaker 2
+La cuestión de costo de las telas la tenemos también de forma manual, ¿cierto? No hemos podido integrarlo al sistema para que también tengamos todo nuestro catálogo de telas con el costo actual de cada una de ellas. O sea, todo ese tipo de cosas, el área de importaciones actualmente lo hacen manualmente.
+
+19:01 - Conference Room (santiago perez) - Speaker 1
+En pocas palabras. Con Excel, con archivitos, con fórmulas, cálculos y todo, pero todo es manual. O sea, no se genera un orden de compra por sistema. Ajá.
+
+19:13 - Conference Room (santiago perez) - Speaker 2
+Que aquí en este caso sería algo similar a un departamento de compras normal nacional, pero simplemente llamado Terades y Tejidos. O sea, hacen más o menos el mismo tipo de solicitudes, ¿no? Sí, es el mismo proceso. Ajá. El ingreso de productos, colocación de los precios, se le pone el tipo del proveedor y la orden de compra como tal para que nos vaya poniendo también qué es lo que tenemos en producción.
+
+
+
+19:41 - MOVIDA TCI
+Sí, pero hay que delimitar algo allí. De repente podemos hacer, por ejemplo, ahorita tenemos que integrar lo que, la parte administrativa que afecta a Formate, porque si entramos en temas de cuándo ingresa, cuándo no ingresa, ahí estamos hablando de un WMS de Telares, que fue lo que hablamos cuando con la última reunión con Ricardo. O sea, ya ese sería desarrollar todo lo que es Telares. Ahorita, digamos, es que me para poderlo integrar.
+
+ De repente podemos hacer un módulo administrativo que se cargue parte de la información, pero no podemos hacer control total de telares. No, obviamente, porque estamos haciendo el Deformate. Entonces yo creo que, yo creo que aquí lo que hay que definir es este, qué parte, como bien lo decías, de repente sí, sí manejar un solo catálogo de tela, porque eso sí es lo mismo Deformate, es el mismo catálogo.
+
+ Quizás es este, en ese módulo decir, bueno, LSKU o el nombre del producto. Que sea, el nombre chino, el nombre del producto que ya ustedes definieron. Y si eso cambia para Formatex o si es el mismo. Yo creo que, yo creo que no cambia, no. El nombre como tal de la tela, cuando ya la definen en Telares.
+
+21:00 - Conference Room (santiago perez) - Speaker 2
+No, de Telares a Formatex no cambia.
+
+21:03 - Orador no identificado
+Exactamente.
+
+21:04 - MOVIDA TCI
+Entonces eso sí lo podemos integrar con lo que el catálogo. Podemos integrar este. Una parte donde subamos las órdenes, las órdenes de compras que hace Telare. Este también, porque cada orden que se hace que esté bien registrado y que no se maneje manual. Eso sí pudiera integrarse en ese módulo. Y este. Y una manera de ver a los proveedores también. Tener los proveedores, los proveedores chinos, todo eso.
+
+ Y una parte de consultas donde ustedes puedan rápidamente, de forma, te puedas ver todo lo que, o sea, si quieren necesiten información, ver por embarque, por el estatus o no sé si quieren ver números también ahí, de ver cuánto costó esta importación que se hizo. Hay entonces qué es lo que es necesariamente administrativo, que funcione para Formatex y que minimice esa carga manual que están haciendo hoy por hoy en hojas de Excel.
+
+
+
+22:17 - Conference Room (santiago perez) - Speaker 1
+No lo pudiera mostrar. Básicamente. Ajá.
+
+22:21 - Conference Room (santiago perez) - Speaker 1
+Perdón, no te escuché ¿Qué?
+
+22:25 - Conference Room (santiago perez) - Speaker 2
+Te decía que adelante.
+
+22:27 - MOVIDA TCI
+Básicamente sí, o sea, lo que no, no queremos hacer dos sistemas completamente diferentes.
+
+22:33 - Conference Room (santiago perez) - Speaker 2
+Queremos hacer el de Formatex que nada más puedas cambiarle la razón social hacia el área científicos, por así decirlo, para que lo podamos utilizar también de aquel lado. Dentro de Formatex, en el área de compra de los canales, básicamente por eso decía, es es como quien diría lo mismo. Es un catálogo de proveedores, es la colocación de los productos, el precio que nos cuesta.
+
+23:03 - MOVIDA TCI
+Espérate un momentito. Repite eso, pero más lento. Repite eso más lento. Entonces, lo que incluiríamos sería, incluir, lo que queremos incluir sería, porque yo lo dije, pero mejor que lo digan ustedes. Sería el catálogo de producto, luego.
+
+23:20 - Conference Room (santiago perez) - Speaker 2
+Catálogo de producto, en donde podamos agregar el nombre chino y el nombre con el que ya se va a comercializar.
+
+23:29 - MOVIDA TCI
+Y el nombre comercial. Ok.
+
+23:32 - Conference Room (santiago perez) - Speaker 1
+¿Qué otra cosa?
+
+23:33 - Conference Room (santiago perez) - Speaker 2
+El catálogo de proveedores. De proveedores.
+
+23:36 - MOVIDA TCI
+Ok.
+
+23:37 - Conference Room (santiago perez) - Speaker 2
+En los productos tenemos que colocar el costo del producto. Ya devuelve tu momentito al proveedor.
+
+23:44 - MOVIDA TCI
+Te puedes devolver al proveedor un momento. El proveedor que tiene ¿Son los datos nada más telefónico, correo?
+
+23:55 - Conference Room (santiago perez) - Speaker 1
+¿Qué datos del proveedor colocan allí?
+
+24:00 - MOVIDA TCI
+Domicilio social y domicilio.
+
+24:03 - MOVIDA TCI
+Ok. Perfecto.
+
+24:04 - Conference Room (santiago perez) - Speaker 2
+Es que importaciones tienen tanto chinos como nacionales.
+
+24:10 - MOVIDA TCI
+Ah, también tiene nacional.
+
+24:14 - Conference Room (santiago perez) - Speaker 2
+Ok.
+
+24:14 - MOVIDA TCI
+Entonces estamos enumerando 1, 2. ¿Cuál sería el tercero?
+
+24:19 - Conference Room (santiago perez) - Speaker 2
+Pues las órdenes de compra. Órdenes de compra.
+
+24:22 - MOVIDA TCI
+¿Tienen ustedes ya la, el formato de cómo, cómo la hacen? O sea, un formato ya definido. Que lo hacemos llegar.
+
+24:32 - Conference Room (santiago perez) - Speaker 2
+Sí, órdenes de compra con un formato.
+
+24:36 - Conference Room (santiago perez) - Speaker 1
+Mencionaron el costo, pero sería el costo en el que ingresa al sistema de ¿Cómo les sirve? Es que el problema es que cada costo varía por el margen. Por el margen.
+
+24:50 - Conference Room (santiago perez) - Speaker 1
+No es un costo fijo.
+
+24:52 - Conference Room (santiago perez) - Speaker 2
+Bueno, yo siento que estarían en tener el costo más en el producto en China. Sí, sí. Es lo que ustedes suelen tener manualmente.
+
+25:02 - Conference Room (santiago perez) - Speaker 2
+El costo del proveedor.
+
+25:04 - Orador no identificado
+Ajá.
+
+25:04 - MOVIDA TCI
+Pero serían dólares, ¿No?
+
+25:06 - Conference Room (santiago perez) - Speaker 1
+Sí, sí, sí.
+
+25:07 - Conference Room (santiago perez) - Speaker 2
+Sí, dólares.
+
+25:08 - MOVIDA TCI
+Sí, pero si tienen el del proveedor va a ser solamente en dólares y a la hora que quieran, o sea, a los dos meses quieran cambiar, bueno, ¿Qué tasa van a usar? ¿No? En la tasa de aquel momento o hasta la hora que quieran ver cuánto, cuánto realmente es en peso. Si se deja nada más en dólares, ¿Cómo lo manejarían? Porque yo supongo que cuando es en dólares, ya, ya si quieres ver, este, le das entrada en peso, bueno, le das una tasa, ¿No?
+
+ Del del momento. En dólares, entonces es difícil percibir cuánto, cuánto en pesos fue en ese momento, ¿No? O sea, estoy hablando a lo largo del del historial.
+
+25:49 - Conference Room (santiago perez) - Speaker 1
+Sí, el recorrido que se hace para la mercancía por embarque, se toma el tipo de cambio con el que se pagó el día de pedimento. Entonces, esta es la referencia que se toma, varía por pedimento pagado, por día, por embarque, por embarque.
+
+26:05 - MOVIDA TCI
+Entonces, hay que definir unos campos donde justamente se cargue esa información y se define ahí. Campos obligatorios. Se tienen los precios.
+
+26:13 - Conference Room (santiago perez) - Speaker 2
+Dos. O sea, por ejemplo, uno que sea el costo del producto en China en dólares y otro que sea el costo del producto puesto en México. Exacto.
+
+26:23 - MOVIDA TCI
+Pero, pero lo que, lo que quiero acotar es que vamos a, como vamos a poner campos, el número de pedimento, etcétera. También el campo de la tasa de cambio de ese momento. O sea, que sea obligatorio para que haga el cálculo, haga el cálculo automático.
+
+26:41 - Conference Room (santiago perez) - Speaker 1
+Sí, porque por ejemplo, Compact usa el tipo de cambio del diario oficial del día, del día cuando hacemos una factura en dólares y sacamos, por ejemplo, un reporte de utilidad o algo, los reportes se los convierte Compact todos los pesos.
+
+26:57 - MOVIDA TCI
+Pero te lo hace, te lo hace cualquier día. Por el tipo de cambio Sí, o sea, el sistema lo puede, o sea, los sistemas tú puedes configurar, le tomas la tasa siempre del día, porque de hecho eso está como una API abierta, una conexión abierta. Se toma el del Banco México, pero yo me refiero que a nivel histórico, o sea, si tú quieres ver el histórico de dos años para atrás, compa te hace eso también, te dice ah mira, la del día obviamente te lo va a dar el día, pero cuando quieras hacer un histórico, si no tenés como que bien guardado todas esas cosas, el cambio del pedimento, cómo llegó a México, puede traerte problemas.
+
+ O sea, si no lo definimos ahorita, no sé si lo visualizan.
+
+27:43 - Conference Room (santiago perez) - Speaker 1
+Porque tiene un costo promedio compact y trae, por ejemplo, trae un registro de todos los costos con los que se ingresó todos los últimos semanas. Y es un costo promedio.
+
+27:57 - Conference Room (santiago perez) - Speaker 2
+Lo que podríamos hacer mandarte una captura de pantalla de lo que actualmente vemos en el computador para que lo puedas visualizar.
+
+28:06 - Conference Room (santiago perez) - Speaker 1
+¿Te parece?
+
+28:07 - Conference Room (santiago perez) - Speaker 2
+Sí, por favor.
+
+28:09 - MOVIDA TCI
+Ese compa que tú usas Helva también es el mismo, es el mismo que está configurado para formate o otra cuenta diferente.
+
+28:18 - Conference Room (santiago perez) - Speaker 1
+Sí, es el compa y el comercial, que están los dos utilizados para facturación. Y ahí mismo en ese libro sistema podemos entrar a Formatex y al sistema de telares y tejidos. Donde es donde se ingresan las compras y todos los costos históricos.
+
+28:37 - Orador no identificado
+Sí.
+
+28:37 - Conference Room (santiago perez) - Speaker 2
+Es lo que te comentaba que básicamente es lo mismo de Formatex, nada más cambiamos de empresa.
+
+28:45 - Orador no identificado
+Ok.
+
+28:45 - MOVIDA TCI
+Sí, pero entiendo que también hay un, hay un este ¿Cómo hacen la conversión de? O sea, cuando Formatex le dice le compra telares, por decirlo así. Ese precio no es, o sea, telares se supone que le dio un precio, precio de compra, de venta, perdón, para telares. Fórmate. ¿Cómo sería?
+
+29:06 - Conference Room (santiago perez) - Speaker 1
+Se ingresa, primero se consta del embarque, se saca el costo de lo que nos costó traer esa mercancía y las chicas de facturación de telares y tejidos le suman un siete o doce por ciento a ese modelo y ya lo facturan, pero calculo que hacen ellas es manual. Lo hacen en una hoja de Excel donde ponen el último costo ingresado y el Excel les aumenta el porcentaje. El precio de factura. El precio de factura y es el precio que se ingresa en Formatex.
+
+ Y varía en cada embarque, o sea, no les explico. ¿Por qué? Porque muchas veces el Formatex te trae integras que llegaron en diferentes embarques, en diferentes fechas, en años, años inclusive.
+
+29:49 - MOVIDA TCI
+Sí, por eso entonces tiene que haber como un registro de cada vez que se haga ese, llega un embarque. Tiene que ser por embarque, ¿No?
+
+29:59 - Conference Room (santiago perez) - Speaker 1
+Pero ¿Cómo prorratean?
+
+30:00 - MOVIDA TCI
+Entonces si es la misma, o sea, en dos embarques diferentes llegó el mismo, el mismo modelo de a dos precios diferentes? Cómo hacen el el prorrateo del precio final para para Formatex?
+
+30:15 - Conference Room (santiago perez) - Speaker 1
+Tengo entendido que lo toma en base al precio más alto para no perder en la utilidad. En alguno de esos se toman el precio más alto que encuentran de los últimos embarques recibidos y aparte ellas generan un reporte de utilidad donde les les deja ver el porcentaje de utilidad. Vaya que está teniendo. Es decir, antes de temblarla. Antes de temblar la factura, ellas hacen un reporte de utilidad para que sea el porcentaje correcto que se le está sumando a la tela.
+
+
+
+30:48 - MOVIDA TCI
+Exactamente. Sí, es que es un proceso que es un proceso totalmente administrativo, con reglas, como usted dice, todas esas son las reglas del negocio. Pero bueno, voy a resumirlo así. Viene un, vino dos container del proveedor en tránsito. El primer container llegó a un precio. Esa tela, vamos a suponer que el container es un solo modelo de tela. Llegó a un precio, se vio el, se vio el costo de, como de importación, por decirle así.
+
+ Ustedes dijeron el nombre ahorita. Ya ahí ellos, ellos le suman el 7, el 8, el porcentaje que sea para, para el costo. Un mes después llega otro embarque con la misma tela, pero los costos son diferentes, varían. Entonces ahí le suman ahí ven lo que las reglas que acaban de decir, que ven el que sea más, más costoso, el más alto, le suben, igual les ponen el precio y ya luego hacen un cálculo de utilidad de porque si ya, ya llegó todo lo que iba a llegar, ahí hacen el cálculo de utilidad para revalidar de que están ganando ¿No?
+
+ De que hay una ganancia correcta o el margen de ganancia que se va a hacer por esa, por esa importación.
+
+31:57 - Conference Room (santiago perez) - Speaker 1
+¿Eso lo hacen semana con semana?
+
+31:59 - Conference Room (santiago perez) - Speaker 2
+Lo hacen pedido por todos los días.
+
+32:02 - Conference Room (santiago perez) - Speaker 1
+Se hace todos los días en cada factura por pedido.
+
+32:07 - Conference Room (santiago perez) - Speaker 2
+¿Cuántos pedidos hacen semanal? Pues mínimo cinco.
+
+32:10 - Orador no identificado
+Cinco.
+
+32:10 - Conference Room (santiago perez) - Speaker 1
+Uno por día. Mínimo. A proveedores. ¿Cinco pedidos por día?
+
+32:15 - MOVIDA TCI
+No, no, no.
+
+32:17 - Conference Room (santiago perez) - Speaker 2
+Cinco, mínimo cinco pedidos por semana.
+
+32:20 - Conference Room (santiago perez) - Speaker 2
+Cinco pedidos por semana.
+
+32:22 - MOVIDA TCI
+Ok, por semana. Pero pueden llegar a ser Sí, más o menos un promedio, no por 10. Y cada pedido obviamente varía. Un pedido puede ser muy grande o pequeño, varía mucho cómo, cómo va a ser la llegada y todo eso. Entonces todas estas reglas de, de, de costo, seguro, todo lo manejan ustedes, nada más Helva compañía. Solamente ustedes manejan todo eso y tienen unos Excel donde tienen todas sus reglas, o sea, todas sus fórmulas.
+
+ Vamos a necesitar nada más las dos primeras tres o las primeras tres líneas. No necesito la información completa, pero como para ver qué es lo que hacen. Me pueden hacer como una copia de ese archivo y dejar las primeras, o sea, los campos y puede ser dos líneas más de algo. Puede ser incluso ficticio. Puede solamente ver los cálculos que hacen y qué tantos archivos manejan ustedes para, para hacer el match.
+
+ De los puntos que estoy tomando en cuenta aquí, cuando me reúna con la parte técnica, hacer el match de que mira, esto es lo que estábamos hablando. Estos son los Excel que maneja Elvas y ver cómo lo vamos a integrar a la plataforma, esta parte.
+
+33:39 - Conference Room (santiago perez) - Speaker 1
+Entonces necesitaría el ejemplo de cómo calculamos los costos.
+
+33:42 - MOVIDA TCI
+El formato que ya lo viste, el pedido, cómo hacen el pedido, el que es la orden de compra. La factura la factura que tú dices, que comentas. Este ¿Dónde es el archivo? ¿Dónde están esos, esos? Como el precio total, o sea el costo total y lo citan los costos de embarcación. O sea, todos los campos que usted maneja. Este para, yo creo, para abarcar estos cinco puntos que hablamos ahorita. Repito los puntos.
+
+ El catálogo de producto vamos a integrarlo en ese, en ese módulo, catálogo de producto que tenga el nombre chino. Bueno, si usted tiene ese archivo. Pásamelo donde está el nombre chino y el nombre, nombre comercial. Este, el catálogo de proveedores hay que integrarlo. Entonces necesito también, aunque sea tres líneas, o sea, de todo lo que me manden puede ser tres líneas. No necesariamente necesitamos ya, ya el archivo completo.
+
+ Es para hacer la matización.
+
+34:37 - Conference Room (santiago perez) - Speaker 1
+Para que vayan haciendo el desarrollo ustedes, ¿No?
+
+34:40 - Orador no identificado
+Exactamente.
+
+34:40 - MOVIDA TCI
+Y después luego podemos poner ahí cargar masivo y ahí se carga tres las órdenes de compras, cómo son, el formato. Ahí sí me pueden mandar unas viejitas que tengan por ahí. Ya me dijeron que son cinco pedidos semanales aproximadamente. Ah, pero...
+
+35:01 - Conference Room (santiago perez) - Speaker 2
+Jonathan, las órdenes de compra que hace importaciones que afina es una vez a la semana.
+
+35:09 - Conference Room (santiago perez) - Speaker 1
+Esa es la que preguntaba.
+
+35:11 - MOVIDA TCI
+Pero la otra información también es importante. Entonces una china por semana y la otra son 5 o 6 pedidos a la semana a fórmata de telares. Fórmata de telares. Una por semana china. Entonces voy a necesitar la que le hacen a China el formato y de esos pedidos semanales también que hacen entre fórmata, o sea para visualizarlo. Ah mira, este ¿Cómo lo hago? Es una orden o le mandan una factura, o sea, ¿Cómo es ese proceso ahí de papeleo entre, entre fórmates y telares?
+
+ Que obviamente son ustedes mismos, ¿No entienden? O sea, ustedes mismos se hacen las, este, hacen las dos cosas. Entonces, con eso, yo creo que con esto lo podemos delimitar ahorita sí. Este, abarcaríamos esta parte y aquí esta información va, va, va a integrarse, por ejemplo, el catálogo el producto, entonces sería el mismo, digamos, catálogo que va a manejar Formatex. Lo que va a variar es obviamente las cantidades y el stock que tenga, pero entonces vamos a integrar que es el mismo.
+
+ O sea, no vamos a hacer dos, dos cosas diferentes. No, es el mismo. Exactamente. El de proveedores, bueno, es un proveedor diferente también, porque es el de China y el de nacionales que son diferentes a a los clientes finales que manejan Formatex, órdenes de compra, formatos y los costes de producto. Y eso ya va a estar en el Excel junto con números de pedimento y todos los números que manejan ustedes de la importación, al nombre de quién le importó, bla, bla, bla.
+
+ Toda esa información, si la ven necesaria, que esté en el sistema. Vamos a ir dejando el Excel por ese módulo que vamos a integrar allí.
+
+37:03 - Conference Room (santiago perez) - Speaker 1
+Ok.
+
+37:04 - Conference Room (santiago perez) - Speaker 2
+Algo importante también está dentro de Formatex, es cuando se ingresan las telas se pone el lote de cuando ingresan y ahí lo que tenemos que poner es pues de qué proveedor vino, que es lo que también compras.
+
+37:19 - Conference Room (santiago perez) - Speaker 1
+Suben las compras y las compras las llevas también. Ajá. No sé si te hagas más.
+
+37:25 - Conference Room (santiago perez) - Speaker 2
+¿Tienes el sistema aquí para enviar estas?
+
+37:28 - Conference Room (santiago perez) - Speaker 1
+No, pues no la tengo. Pero le podemos mandar el ¿Te parece así?
+
+37:35 - Conference Room (santiago perez) - Speaker 2
+Perfecto, sí, sí.
+
+37:38 - Conference Room (santiago perez) - Speaker 1
+Sí.
+
+37:39 - MOVIDA TCI
+Este yo creo que con eso es bastante material para trabajar. Igual vamos a hacer un resumen como te decía al de trabajo, ¿No?
+
+38:01 - Orador no identificado
+Bueno.
+
+38:01 - MOVIDA TCI
+Bueno, no sé si hay algo más porque yo creo que este ya tomé mis notas por aquí, ustedes también.
+
+38:17 - Conference Room (santiago perez) - Speaker 2
+Ustedes con eso.
+
+38:20 - Conference Room (santiago perez) - Speaker 1
+¿Alguna duda? ¿Alguna duda que tengan? Pues los catálogos, los productos proveedores, los costos. Hay un cálculo de costo, pues, manejamos los archivos en el campo, si el costo por parte y el costo por medio.
+
+38:40 - Conference Room (santiago perez) - Speaker 2
+Entonces, si quieren darnos los datos.
+
+38:43 - Orador no identificado
+Y ya, ¿no?
+
+38:45 - Conference Room (santiago perez) - Speaker 1
+Porque realmente el catálogo, pues, por los campos parados, ¿eh? De lo mismo, ¿verdad? Que también tenemos los catálogos.
+
+38:54 - Conference Room (santiago perez) - Speaker 2
+de los productos que ustedes ahí van a poder poner el precio y la inscripción de precios. Ajá. Ajá. Debido a una sinemosa noguro de facturación de enterales para fieles especiales, por lo tanto, ¿no?
+
+39:03 - Conference Room (santiago perez) - Speaker 1
+No, no, no, no Sí, yo creo que eso sería por la parte de cenares, de compras, lo que necesitaríamos. Y para lo del máster, no sé, para los tránsitos de los embarques por llegar. ¿Cómo ve Jonathan?
+
+39:36 - Conference Room (santiago perez) - Speaker 2
+¿Crees que sea ideal mejor hacer una segunda sesión para que veamos completamente el máster? ¿Una vez que entendamos cómo funcionan todas las áreas?
+
+39:45 - Conference Room (santiago perez) - Speaker 1
+Sí, yo creo que sí.
+
+39:47 - MOVIDA TCI
+Vamos a primero ver todas las áreas y hacemos esa segunda sesión.
+
+39:54 - Conference Room (santiago perez) - Speaker 2
+Sí, porque si ahorita te explicamos cómo funciona el máster, vas a tener muchas dudas de almacén, vas a tener dudas de servicio a clientes.
+
+40:04 - Orador no identificado
+Va, entonces sí.
+
+40:05 - Orador no identificado
+Sí, vamos trabajando esta y con esa segunda, digamos, para hacer el recap total del archivo máster que ustedes tienen.
+
+40:14 - Orador no identificado
+Ok.
+
+40:15 - Orador no identificado
+Toda esta información te la vamos a estar subiendo entre el lunes, lunes y martes, más tarde, en la misma carpeta.
+
+40:24 - Orador no identificado
+En la misma carpeta.
+
+40:26 - Orador no identificado
+Sí. Perfecto.
+
+40:27 - Orador no identificado
+Ya sé, algún punto que nos haya escapado, pues ahorita lo retomamos. Se los estoy enviando de todas maneras. Algo que no tengo ahorita, como que muy fresco, muy a diez, lo checo y te lo, te lo regalo.
+
+40:45 - Orador no identificado
+Y es más.
+
+40:46 - Orador no identificado
+Ok, no, esperemos que no.
+
+40:49 - Orador no identificado
+Ok, bueno. ¿Alguna otra duda, Inés? No, todo muy bien.
+
+40:54 - Orador no identificado
+Hasta ahora vamos por buen camino. Se le agradezco mucho el tiempo y todas las respuestas a las preguntas. Volvemos a ustedes. Luego, ¿sí?
+
+41:06 - Orador no identificado
+Nos vemos tarde.
+
+41:08 - Orador no identificado
+Sí. La de ¿Acierto?
+
+41:10 - Orador no identificado
+Sí.
+
+41:11 - Orador no identificado
+Nos vemos el lunes.
+
+41:13 - Orador no identificado
+OK. OK. Gracias. Gracias. Adiós.
+
+41:16 - Orador no identificado
+Estamos bien.
+
+41:18 - Orador no identificado
+Hasta luego.
+
+41:19 - Orador no identificado
+Bye. Saludos.
