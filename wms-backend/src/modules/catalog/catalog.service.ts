@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 
 @Injectable()
@@ -20,14 +20,33 @@ export class CatalogService {
     if (categoria) where.categoria = categoria;
 
     const [data, total] = await Promise.all([
-      this.prisma.skuMaster.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' }, include: { supplier: true } }),
+      this.prisma.skuMaster.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          supplier: true,
+          priceLists: { select: { listaCodigo: true, precio: true } },
+        },
+      }),
       this.prisma.skuMaster.count({ where }),
     ]);
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findSkuById(id: string) {
-    return this.prisma.skuMaster.findUniqueOrThrow({ where: { id }, include: { supplier: true, handlingUnits: { where: { estadoHu: 'DISPONIBLE' }, select: { id: true, codigo: true, metrajeActual: true, tipoRollo: true } } } });
+    return this.prisma.skuMaster.findUniqueOrThrow({
+      where: { id },
+      include: {
+        supplier: true,
+        priceLists: { select: { listaCodigo: true, precio: true } },
+        handlingUnits: {
+          where: { estadoHu: 'DISPONIBLE' },
+          select: { id: true, codigo: true, metrajeActual: true, tipoRollo: true },
+        },
+      },
+    });
   }
 
   async createSku(data: any) {
@@ -210,6 +229,123 @@ export class CatalogService {
       where: { clientId, skuId, activo: true },
       include: { sku: true, client: true },
     });
+  }
+
+  // ===== RESOLUCIÓN INTELIGENTE DE PRECIO (MATRIZ FORMATEX) =====
+  async resolvePrice(params: {
+    skuId: string;
+    clientId?: string;
+    metraje?: number;
+    tipoPedido?: string; // 'CORTE' | 'ROLLO_COMPLETO'
+    listaOverride?: string; // e.g. 'F5'
+  }) {
+    const { skuId, clientId, metraje = 50, tipoPedido, listaOverride } = params;
+
+    // 1. Obtener SKU y sus precios en todas las listas (F0 a F10)
+    const sku = await this.prisma.skuMaster.findUnique({
+      where: { id: skuId },
+      include: {
+        priceLists: { select: { listaCodigo: true, precio: true } },
+      },
+    });
+    if (!sku) throw new NotFoundException(`SKU no encontrado: ${skuId}`);
+
+    const priceMap: Record<string, number> = {};
+    for (const pl of sku.priceLists) {
+      priceMap[pl.listaCodigo] = Number(pl.precio);
+    }
+
+    // 2. Verificar si existe Precio Especial Pactado por Dirección
+    if (clientId) {
+      const specialPrice = await this.prisma.clientSpecialPrice.findFirst({
+        where: { clientId, skuId, activo: true },
+      });
+      if (specialPrice) {
+        return {
+          precioUnitario: Number(specialPrice.precioPactado),
+          listaCodigo: 'ESPECIAL',
+          nombreLista: 'Precio Especial Directivo',
+          esPrecioEspecial: true,
+          requiereAprobacion: false,
+          referenciaProyecto: specialPrice.referenciaProyecto,
+          autorizadoPor: specialPrice.autorizadoPor,
+          notas: specialPrice.notas,
+          todasLasListas: priceMap,
+          precioReferencia: Number(sku.precioReferencia || 0),
+        };
+      }
+    }
+
+    // 3. Determinar tipo de cliente
+    let tipoCliente = 'PG';
+    let clientNombre = '';
+    if (clientId) {
+      const client = await this.prisma.client.findUnique({
+        where: { id: clientId },
+        select: { tipoCliente: true, nombre: true },
+      });
+      if (client?.tipoCliente) {
+        tipoCliente = client.tipoCliente.toUpperCase();
+      }
+      if (client?.nombre) {
+        clientNombre = client.nombre;
+      }
+    }
+
+    // 4. Modalidad: Rollo vs Corte
+    // Si tipoPedido es 'CORTE' o metraje < 50 => CORTE, de lo contrario ROLLO
+    const esCorte = tipoPedido === 'CORTE' || (tipoPedido !== 'ROLLO_COMPLETO' && metraje < 50);
+    const modalidad = esCorte ? 'CORTE' : 'ROLLO';
+
+    // 5. Matriz Oficial Formatex (LISTAS DE PRECIOS ACTUALES.png)
+    // PG: Rollo F0, Corte F1
+    // CD: Rollo F2, Corte F3
+    // T:  Rollo F3, Corte F2 (Tienda)
+    // XT: Rollo F4, Corte F3 (Tienda Especial)
+    // F:  Rollo F5, Corte F3 (Fabricante)
+    // XF: Rollo F5, Corte F4 (Fabricante Especial)
+    // D:  Rollo F6, Corte F7 (Distribuidor)
+    // P:  Rollo F8, Corte F9 (Premium)
+    // CE: Rollo F10, Corte F10 (Cliente Especial)
+    const matrix: Record<string, { rollo: string; corte: string; nombre: string }> = {
+      PG: { rollo: 'F0', corte: 'F1', nombre: 'Público General' },
+      CD: { rollo: 'F2', corte: 'F3', nombre: 'Casa Decoradora' },
+      T:  { rollo: 'F3', corte: 'F2', nombre: 'Tienda' },
+      XT: { rollo: 'F4', corte: 'F3', nombre: 'Tienda Especial' },
+      F:  { rollo: 'F5', corte: 'F3', nombre: 'Fabricante' },
+      XF: { rollo: 'F5', corte: 'F4', nombre: 'Fabricante Especial' },
+      D:  { rollo: 'F6', corte: 'F7', nombre: 'Distribuidor' },
+      P:  { rollo: 'F8', corte: 'F9', nombre: 'Cliente Premium' },
+      CE: { rollo: 'F10', corte: 'F10', nombre: 'Cliente Especial' },
+    };
+
+    const clientRule = matrix[tipoCliente] || matrix.PG;
+    const listaSugerida = esCorte ? clientRule.corte : clientRule.rollo;
+    const listaFinal = listaOverride && listaOverride !== 'ESPECIAL' ? listaOverride : listaSugerida;
+
+    // Candados gerenciales: F3, F5, F7, F9 requieren autorización
+    const listasConCandado = ['F3', 'F5', 'F7', 'F9'];
+    const requiereAprobacion = listasConCandado.includes(listaFinal);
+
+    // Obtener precio de la lista elegida
+    let precioUnitario = priceMap[listaFinal];
+    if (precioUnitario === undefined || precioUnitario === null) {
+      precioUnitario = Number(sku.precioReferencia || 0);
+    }
+
+    return {
+      precioUnitario,
+      listaCodigo: listaFinal,
+      listaSugerida,
+      modalidad,
+      tipoCliente,
+      nombreTipoCliente: clientRule.nombre,
+      clientNombre,
+      esPrecioEspecial: false,
+      requiereAprobacion,
+      todasLasListas: priceMap,
+      precioReferencia: Number(sku.precioReferencia || 0),
+    };
   }
 
   async createSpecialPrice(data: { clientId: string; skuId: string; precioPactado: number; referenciaProyecto?: string; autorizadoPor?: string; notas?: string; vigenteHasta?: string }) {

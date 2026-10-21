@@ -6,3 +6,5 @@ dist
 /generated/prisma
 *.bak*
 scratch/
+*.zip
+Documentacion_recibida/*.zip

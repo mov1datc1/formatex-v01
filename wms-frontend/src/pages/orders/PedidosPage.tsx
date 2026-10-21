@@ -13,6 +13,7 @@ import {
 import type { FC } from 'react';
 import type { LucideProps } from 'lucide-react';
 import OrderLineSmart from '../../components/orders/OrderLineSmart';
+import PackingSlipModal from '../../components/orders/PackingSlipModal';
 import { usePermission } from '../../hooks/usePermission';
 import ExpressIngestModal from '../../components/inventory/ExpressIngestModal';
 
@@ -57,12 +58,13 @@ export default function PedidosPage() {
   const [invoiceModal, setInvoiceModal] = useState<string | null>(null); // orderId to invoice
   const [invoicing, setInvoicing] = useState(false);
   const [invoiceForm, setInvoiceForm] = useState({ formaPago: '03', metodoPago: 'PUE', usoCfdi: 'G03', condicionesPago: '' });
+  const [packingSlipOrder, setPackingSlipOrder] = useState<any>(null);
   const { canCreate, canUpdate, isAdmin, isSupervisor, user } = usePermission();
 
   const { data: resp, isLoading } = useApi<PaginatedResponse<Order>>(['orders', search, filterEstado], '/orders', { search: search || undefined, estado: filterEstado || undefined, limit: 20 });
   const { data: detail, refetch: refetchDetail } = useApi<any>(['order-detail', selectedOrder], `/orders/${selectedOrder}`, {}, !!selectedOrder);
-  const { data: clients } = useApi<PaginatedResponse<any>>(['clients'], '/catalog/clients', { limit: 100 });
-  const { data: skus } = useApi<PaginatedResponse<any>>(['skus-order'], '/catalog/skus', { limit: 100 });
+  const { data: clients } = useApi<PaginatedResponse<any>>(['clients'], '/catalog/clients', { limit: 500 });
+  const { data: skus } = useApi<PaginatedResponse<any>>(['skus-order'], '/catalog/skus', { limit: 2000 });
   const { data: vendors } = useApi<PaginatedResponse<any>>(['vendors'], '/catalog/vendors', { limit: 100 });
 
   // Tareas de confirmación de entrega (filtradas por ATC asignado o todas para Alma/Supervisora)
@@ -914,6 +916,16 @@ export default function PedidosPage() {
                   </button>
                 );
               })()}
+
+              {/* Generar Packing List Oficial Formatex */}
+              <button
+                type="button"
+                onClick={() => setPackingSlipOrder(detail)}
+                className="w-full px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+              >
+                <Package size={15} className="text-amber-400" />
+                <span>Generar Packing List Oficial (PDF / Impresión)</span>
+              </button>
 
               {/* Backorder en Tránsito Marítimo si aplica */}
               {detail.esBackorder && (
@@ -2057,6 +2069,14 @@ export default function PedidosPage() {
           refetchDetail();
         }}
       />
+
+      {/* Packing List Oficial Formatex Modal */}
+      {packingSlipOrder && (
+        <PackingSlipModal
+          order={packingSlipOrder}
+          onClose={() => setPackingSlipOrder(null)}
+        />
+      )}
     </div>
   );
 }

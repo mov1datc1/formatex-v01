@@ -3,7 +3,7 @@ import { api } from '../../config/api';
 import {
   Scroll, Scissors, Search, TrendingDown, Truck,
   MapPin, AlertTriangle, Check, ChevronDown, X, Sparkles, CalendarClock,
-  Package, Layers, Target,
+  Package, Layers, Target, ShieldAlert,
 } from 'lucide-react';
 
 interface OrderLineSmartProps {
@@ -23,37 +23,67 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
   const [loadingSugg, setLoadingSugg] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [viewMode, setViewMode] = useState<'plan' | 'individual'>('plan');
-  const [specialPriceInfo, setSpecialPriceInfo] = useState<any>(null);
+  const [pricingInfo, setPricingInfo] = useState<any>(null);
+  const [loadingPrice, setLoadingPrice] = useState(false);
   const skuRef = useRef<HTMLDivElement>(null);
   const suggRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<any>(null);
+  const priceDebounceRef = useRef<any>(null);
 
   const selectedSku = skus.find((s: any) => s.id === line.skuId);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
-  // Auto-lookup de precio especial acordado por Dirección para Cliente + SKU
-  useEffect(() => {
-    let isMounted = true;
-    if (clientId && line.skuId) {
-      api.get('/catalog/special-prices/lookup', { params: { clientId, skuId: line.skuId } })
-        .then(res => {
-          if (!isMounted) return;
-          if (res.data?.precioPactado) {
-            setSpecialPriceInfo(res.data);
-            onChange(index, 'precioUnitario', Number(res.data.precioPactado));
-            onChange(index, 'descuentoPct', 0);
-            onChange(index, 'listaPrecios', 'ESPECIAL');
-          } else {
-            setSpecialPriceInfo(null);
-          }
-        })
-        .catch(() => {
-          if (isMounted) setSpecialPriceInfo(null);
-        });
-    } else {
-      setSpecialPriceInfo(null);
+  // Auto-resolución de lista y precio exacto según Matriz Oficial Formatex (Rollo vs Corte y Tipo de Cliente)
+  const fetchPricing = useCallback((overrideLista?: string) => {
+    if (!line.skuId) {
+      setPricingInfo(null);
+      return;
     }
-    return () => { isMounted = false; };
-  }, [clientId, line.skuId]);
+    setLoadingPrice(true);
+    api.get('/catalog/pricing/resolve', {
+      params: {
+        skuId: line.skuId,
+        clientId,
+        metraje: line.metrajeRequerido || 50,
+        lista: overrideLista !== undefined ? overrideLista : line.listaPrecios,
+      },
+    })
+      .then(res => {
+        const data = res.data;
+        setPricingInfo(data);
+        if (data?.esPrecioEspecial) {
+          onChangeRef.current(index, 'precioUnitario', Number(data.precioUnitario));
+          onChangeRef.current(index, 'listaPrecios', 'ESPECIAL');
+          onChangeRef.current(index, 'descuentoPct', 0);
+        } else if (!overrideLista && (!line.listaPrecios || line.listaPrecios === 'ESPECIAL')) {
+          onChangeRef.current(index, 'listaPrecios', data.listaCodigo);
+          onChangeRef.current(index, 'precioUnitario', Number(data.precioUnitario));
+          onChangeRef.current(index, 'descuentoPct', 0);
+        } else if (overrideLista) {
+          onChangeRef.current(index, 'listaPrecios', data.listaCodigo);
+          onChangeRef.current(index, 'precioUnitario', Number(data.precioUnitario));
+        }
+      })
+      .catch(() => {
+        setPricingInfo(null);
+      })
+      .finally(() => {
+        setLoadingPrice(false);
+      });
+  }, [index, clientId, line.skuId, line.metrajeRequerido, line.listaPrecios]);
+
+  useEffect(() => {
+    if (priceDebounceRef.current) clearTimeout(priceDebounceRef.current);
+    if (line.skuId) {
+      priceDebounceRef.current = setTimeout(() => {
+        fetchPricing();
+      }, 250);
+    } else {
+      setPricingInfo(null);
+    }
+    return () => clearTimeout(priceDebounceRef.current);
+  }, [clientId, line.skuId, line.metrajeRequerido, fetchPricing]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -69,8 +99,6 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
     return s.nombre?.toLowerCase().includes(q) || s.codigo?.toLowerCase().includes(q) || s.color?.toLowerCase().includes(q);
   });
 
-  const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
   const lastFetchedRef = useRef('');
 
   const fetchSuggestions = useCallback(async (skuId: string, metraje: number) => {
@@ -193,47 +221,66 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
             className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400" />
         </div>
 
-        {/* Lista de Precios Oficial (Comisiones ocultas para ATC) */}
+        {/* Lista de Precios Oficial Formatex */}
         <div className="col-span-2">
-          <label className="block text-xs font-semibold text-violet-600 mb-1 uppercase tracking-wide">
-            Lista Asignada
+          <label className="block text-xs font-semibold text-violet-600 mb-1 uppercase tracking-wide flex items-center justify-between">
+            <span>Lista Asignada</span>
+            {loadingPrice && <span className="text-[10px] text-gray-400 animate-pulse">Calculando...</span>}
           </label>
           <select
-            value={specialPriceInfo ? 'ESPECIAL' : (line.listaPrecios || '')}
-            disabled={!!specialPriceInfo}
+            value={pricingInfo?.esPrecioEspecial ? 'ESPECIAL' : (line.listaPrecios || '')}
+            disabled={pricingInfo?.esPrecioEspecial}
             onChange={(e) => {
-              const lista = e.target.value;
-              onChange(index, 'listaPrecios', lista);
-              const discountMap: Record<string, number> = {
-                F1: 0, F2: 0, F3: 2.0, F4: 3.0, F5: 5.0,
-                F6: 7.0, F7: 10.0, F8: 12.0, F9: 15.0, F10: 0
-              };
-              onChange(index, 'descuentoPct', discountMap[lista] ?? 0);
+              const nuevaLista = e.target.value;
+              if (nuevaLista === 'ESPECIAL') {
+                onChange(index, 'listaPrecios', 'ESPECIAL');
+                onChange(index, 'precioUnitario', Number(pricingInfo?.precioUnitario || 0));
+                onChange(index, 'descuentoPct', 0);
+              } else {
+                fetchPricing(nuevaLista);
+              }
             }}
-            className={`w-full px-3 py-2 bg-white border rounded-lg text-sm focus:ring-2 focus:ring-violet-400 ${
-              specialPriceInfo ? 'border-violet-300 bg-violet-50/50 text-violet-800 font-medium' : 'border-violet-200'
+            className={`w-full px-2.5 py-2 bg-white border rounded-lg text-xs focus:ring-2 focus:ring-violet-400 font-medium ${
+              pricingInfo?.esPrecioEspecial ? 'border-violet-300 bg-violet-50/50 text-violet-800' :
+              pricingInfo?.requiereAprobacion ? 'border-amber-300 bg-amber-50/30 text-amber-900' : 'border-violet-200'
             }`}
           >
-            <option value="">Sin lista fija</option>
-            {specialPriceInfo && <option value="ESPECIAL">Convenio Especial Directivo</option>}
-            <option value="F1">F1 — Casa Decoradora</option>
-            <option value="F2">F2 — Tienda</option>
-            <option value="F3">F3 — Tienda Especial (Req. Autorización)</option>
-            <option value="F4">F4 — Fabricante</option>
-            <option value="F5">F5 — Fabricante Especial (Req. Autorización)</option>
-            <option value="F6">F6 — Distribuidor</option>
-            <option value="F7">F7 — Distribuidor Especial (Req. Autorización)</option>
-            <option value="F8">F8 — Cliente Premium</option>
-            <option value="F9">F9 — Precio Dirección (Req. Autorización)</option>
-            <option value="F10">F10 — Venta Web / Público Externo</option>
+            <option value="">Auto (Matriz Rollo/Corte)</option>
+            {pricingInfo?.esPrecioEspecial && (
+              <option value="ESPECIAL">
+                Convenio Especial Directivo — ${Number(pricingInfo.precioUnitario).toFixed(2)}/m
+              </option>
+            )}
+            {[
+              { code: 'F0', name: 'Público General Rollo', req: false },
+              { code: 'F1', name: 'Público General Corte', req: false },
+              { code: 'F2', name: 'Casa Decoradora Rollo', req: false },
+              { code: 'F3', name: 'Tienda Rollo / Casa Dec Corte', req: true },
+              { code: 'F4', name: 'Tienda Especial Rollo', req: false },
+              { code: 'F5', name: 'Fabricante Rollo', req: true },
+              { code: 'F6', name: 'Distribuidor Rollo', req: false },
+              { code: 'F7', name: 'Distribuidor Corte', req: true },
+              { code: 'F8', name: 'Cliente Premium Rollo', req: false },
+              { code: 'F9', name: 'Precio Dirección / Mayorista', req: true },
+              { code: 'F10', name: 'Venta Web / Catálogo Especial', req: false },
+            ].map(l => {
+              const price = pricingInfo?.todasLasListas?.[l.code];
+              const priceLabel = price !== undefined ? ` ($${Number(price).toFixed(2)}/m)` : '';
+              const lockLabel = l.req ? ' 🔒' : '';
+              return (
+                <option key={l.code} value={l.code}>
+                  {l.code} — {l.name}{priceLabel}{lockLabel}
+                </option>
+              );
+            })}
           </select>
         </div>
 
-        {/* Descuento % */}
+        {/* Descuento Adicional % */}
         <div className="col-span-1">
           <label className="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Desc %</label>
           <input type="number" step={0.5} min={0} max={50}
-            disabled={!!specialPriceInfo}
+            disabled={pricingInfo?.esPrecioEspecial}
             value={line.descuentoPct || 0}
             onChange={(e) => onChange(index, 'descuentoPct', +e.target.value)}
             className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-100 disabled:opacity-60" />
@@ -243,13 +290,18 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
         <div className="col-span-2">
           <label className="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide flex items-center justify-between">
             <span>$/m</span>
-            {specialPriceInfo && <span className="text-[10px] text-violet-600 font-semibold">Pactado</span>}
+            {pricingInfo?.esPrecioEspecial ? (
+              <span className="text-[10px] text-violet-600 font-semibold">Pactado</span>
+            ) : line.listaPrecios ? (
+              <span className="text-[10px] text-indigo-600 font-semibold">{line.listaPrecios}</span>
+            ) : null}
           </label>
           <input type="number" step={0.01} value={line.precioUnitario}
-            disabled={!!specialPriceInfo}
+            disabled={pricingInfo?.esPrecioEspecial}
             onChange={(e) => onChange(index, 'precioUnitario', +e.target.value)}
             className={`w-full px-3 py-2 bg-white border rounded-lg text-sm focus:ring-2 focus:ring-indigo-400 ${
-              specialPriceInfo ? 'border-violet-300 bg-violet-50 text-violet-900 font-bold' : 'border-gray-200'
+              pricingInfo?.esPrecioEspecial ? 'border-violet-300 bg-violet-50 text-violet-900 font-bold' :
+              pricingInfo?.requiereAprobacion ? 'border-amber-300 bg-amber-50/20 text-amber-900 font-semibold' : 'border-gray-200'
             }`} />
         </div>
 
@@ -272,22 +324,52 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
         </div>
       </div>
 
-      {/* Banner de Precio Especial Pactado si aplica */}
-      {specialPriceInfo && (
+      {/* Banners Inteligentes de Precios Formatex */}
+      {pricingInfo?.esPrecioEspecial && (
         <div className="flex items-center justify-between px-3 py-2 bg-violet-50/90 border border-violet-200 rounded-lg text-xs text-violet-900">
           <div className="flex items-center gap-2">
             <span className="font-semibold">Precio Especial Autorizado por Dirección:</span>
-            <span className="font-bold text-violet-950 font-mono">${Number(specialPriceInfo.precioPactado).toFixed(2)}/m</span>
-            {specialPriceInfo.referenciaProyecto && (
-              <span className="text-violet-600">· {specialPriceInfo.referenciaProyecto}</span>
+            <span className="font-bold text-violet-950 font-mono">${Number(pricingInfo.precioUnitario).toFixed(2)}/m</span>
+            {pricingInfo.referenciaProyecto && (
+              <span className="text-violet-600">· {pricingInfo.referenciaProyecto}</span>
             )}
-            {specialPriceInfo.autorizadoPor && (
-              <span className="text-violet-500 text-[11px]">({specialPriceInfo.autorizadoPor})</span>
+            {pricingInfo.autorizadoPor && (
+              <span className="text-violet-500 text-[11px]">({pricingInfo.autorizadoPor})</span>
             )}
           </div>
           <span className="text-[10px] bg-violet-200/80 text-violet-800 px-2 py-0.5 rounded font-medium">
-            Tarifa Bloqueada
+            Tarifa Protegida
           </span>
+        </div>
+      )}
+
+      {!pricingInfo?.esPrecioEspecial && pricingInfo?.requiereAprobacion && (
+        <div className="flex items-center justify-between px-3 py-2 bg-amber-50/90 border border-amber-200 rounded-lg text-xs text-amber-900">
+          <div className="flex items-center gap-2">
+            <ShieldAlert size={14} className="text-amber-600 shrink-0" />
+            <span>
+              <strong>Candado Gerencial:</strong> La lista <strong>{line.listaPrecios}</strong> requiere autorización de Dirección General antes de surtir.
+            </span>
+          </div>
+          <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded font-semibold">
+            Requiere Aprobación
+          </span>
+        </div>
+      )}
+
+      {!pricingInfo?.esPrecioEspecial && pricingInfo?.modalidad && (
+        <div className="flex items-center justify-between px-2.5 py-1 bg-gray-100/70 rounded-md text-[11px] text-gray-600">
+          <div className="flex items-center gap-1.5">
+            <span className="font-medium text-gray-800">Matriz Oficial Formatex:</span>
+            <span>Cliente <strong>{pricingInfo.nombreTipoCliente || pricingInfo.tipoCliente}</strong></span>
+            <span>· Modalidad <strong>{pricingInfo.modalidad === 'CORTE' ? 'Corte (<50m)' : 'Rollo Completo (≥50m)'}</strong></span>
+            <span>· Sugerida: <strong>{pricingInfo.listaSugerida}</strong></span>
+          </div>
+          {line.listaPrecios && line.listaPrecios !== pricingInfo.listaSugerida && (
+            <span className="text-indigo-600 font-semibold text-[10px]">
+              (Modificada a {line.listaPrecios})
+            </span>
+          )}
         </div>
       )}
 

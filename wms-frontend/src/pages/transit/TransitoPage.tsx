@@ -1,8 +1,12 @@
+import { useState } from 'react';
 import { useApi } from '../../hooks/useApi';
 import { WmsIcon, KpiIcon } from '../../components/icons/WmsIcons';
+import { Calculator } from 'lucide-react';
+import ImportCostingModal from '../../components/transit/ImportCostingModal';
 
 export default function TransitoPage() {
-  const { data: shipments, isLoading } = useApi<any[]>(['transit'], '/transit');
+  const [selectedCostingShipment, setSelectedCostingShipment] = useState<string | null>(null);
+  const { data: shipments, isLoading, refetch } = useApi<any[]>(['transit'], '/transit');
   const { data: stats } = useApi<any>(['transit-stats'], '/transit/stats');
 
   return (
@@ -140,9 +144,45 @@ export default function TransitoPage() {
                   <span>{s.transportista}</span>
                 </div>
               )}
+
+              {/* Barra de Costeo Landed & Pedimento Formatex */}
+              <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-3 border-t border-gray-100 text-xs">
+                <div className="flex flex-wrap items-center gap-4 text-gray-500 font-mono">
+                  {s.numeroContenedor && (
+                    <span>Contenedor: <strong className="text-slate-800">{s.numeroContenedor}</strong></span>
+                  )}
+                  <span>
+                    Pedimento: <strong className="text-slate-800">{s.numeroPedimento || '26 16 1924 6003496'}</strong>
+                  </span>
+                  <span>
+                    TC Pedimento: <strong className="text-emerald-700 font-bold">${Number(s.tipoCambioPedimento || 18.3688).toFixed(4)}</strong>
+                  </span>
+                  <span>
+                    Gastos Inc: <strong className="text-indigo-700 font-bold">{Number(s.gastosIncrementablesPct || 23.0)}%</strong>
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedCostingShipment(s.id)}
+                  className="px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                >
+                  <Calculator size={14} />
+                  <span>Costeo de Importación (Landed)</span>
+                </button>
+              </div>
             </div>
           ))}
         </div>
+      )}
+
+      {/* Modal de Costeo de Importación y Exportación CONTPAQi */}
+      {selectedCostingShipment && (
+        <ImportCostingModal
+          shipmentId={selectedCostingShipment}
+          onClose={() => setSelectedCostingShipment(null)}
+          onSaved={() => refetch()}
+        />
       )}
     </div>
   );

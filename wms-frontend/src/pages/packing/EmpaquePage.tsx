@@ -4,10 +4,12 @@ import type { PaginatedResponse } from '../../hooks/useApi';
 import { api } from '../../config/api';
 import toast from 'react-hot-toast';
 import { WmsIcon, KpiIcon, StatusBadge } from '../../components/icons/WmsIcons';
-import { CheckCircle2, Scale, Ruler, ArrowRight, X } from 'lucide-react';
+import { CheckCircle2, Scale, Ruler, ArrowRight, X, Printer } from 'lucide-react';
+import PackingSlipModal from '../../components/orders/PackingSlipModal';
 
 export default function EmpaquePage() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [showPackingSlip, setShowPackingSlip] = useState(false);
   const [peso, setPeso] = useState<number>(0);
   const [dimensiones, setDimensiones] = useState({ largo: 0, ancho: 0, alto: 0 });
   const [notas, setNotas] = useState('');
@@ -90,10 +92,19 @@ export default function EmpaquePage() {
 
               {/* Packing List */}
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <WmsIcon.Quote size={16} className="text-gray-400" />
-                  Lista de Empaque (Packing Slip)
-                </h3>
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <WmsIcon.Quote size={16} className="text-gray-400" />
+                    Lista de Empaque (Packing Slip)
+                  </h3>
+                  <button
+                    onClick={() => setShowPackingSlip(true)}
+                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                  >
+                    <Printer size={13} className="text-amber-400" />
+                    <span>Imprimir Packing List Oficial</span>
+                  </button>
+                </div>
                 <div className="border rounded-xl overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
@@ -168,6 +179,14 @@ export default function EmpaquePage() {
           )}
         </div>
       </div>
+
+      {/* Packing List Oficial Formatex Modal */}
+      {showPackingSlip && selectedOrder && (
+        <PackingSlipModal
+          order={selectedOrder}
+          onClose={() => setShowPackingSlip(false)}
+        />
+      )}
     </div>
   );
 }

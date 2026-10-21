@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-10-21
+
+### Added
+- **Ingesta Masiva de Datos Oficiales Formatex (`Documentacion_recibida`):**
+  - Carga y sincronización de **1,499 SKUs de tela** en `SkuMaster` con especificaciones técnicas, metrajes estándar y códigos comerciales.
+  - Registro de **12,386 precios oficiales** en el nuevo modelo `SkuPriceList` cubriendo las 11 listas de precios (`F0` a `F10`).
+  - Padrón activo de **27 clientes corporativos** con RFC verificado, domicilios fiscales y clasificación `tipoCliente` (`PG`, `CD`, `T`, `XT`, `F`, `XF`, `D`, `P`, `CE`).
+  - Alta de **306 convenios de Precios Especiales Directivos** (`ClientSpecialPrice`) con tarifas fijas protegidas para cuentas clave (7 Days Muebles, Almacenes Camarena, red Muebles Plasencia / In and Out).
+- **Motor Inteligente de Precios y Matriz Oficial Rollo vs. Corte (`LISTAS DE PRECIOS ACTUALES.png`):**
+  - Implementación en `CatalogService.resolvePrice` y endpoint `/catalog/pricing/resolve`:
+    - *Jerarquía de Precios:* Precio Especial Directivo (`ClientSpecialPrice`) > Matriz Oficial Rollo/Corte > Fallback precio referencia.
+    - *Regla Rollo vs Corte:* Pedidos $\ge 50$m o rollo completo asignan lista de Rollo; pedidos $< 50$m asignan lista de Corte.
+    - *Mapeo por Tipo de Cliente:* PG (F0/F1), CD (F2/F3), T (F3/F2), XT (F4/F3), F (F5/F3), XF (F5/F4), D (F6/F7), P (F8/F9), CE (F10).
+    - *Candados Gerenciales:* Detección automática de listas que requieren autorización de Dirección General (`F3`, `F5`, `F7`, `F9`).
+  - Rediseño de `OrderLineSmart.tsx`: visualización de precios reales en moneda nacional para cada lista, badges de "Tarifa Protegida por Dirección" y alertas preventivas de candado gerencial.
+- **Generador de Packing List Oficial Formatex (`PackingSlipModal.tsx`):**
+  - Estandarización idéntica al layout corporativo de Formatex (`FORMATO DE PAKING CLIENTE HAUS / ARMONY`):
+    - Membrete legal: FORMA TEXTIL S. DE R.L. DE C.V., RFC `FTE140429FP3`, Rio La Barca 1680, CP 44870, Guadalajara, Jalisco, Tel: (33) 3650-5447.
+    - Desacoplamiento de Destinatario Fiscal vs. Domicilio de Entrega / Receptor en Destino.
+    - Parámetros logísticos: Fletera (Travisa, Castores, Tres Guerras), Seguro de Carga (Asegurado vs Sin Seguro), Tipo de Entrega (Domicilio por Cobrar) y Valor Declarado.
+    - Desglose individual de rollos asignados (HUs con metraje individual por rollo) y clave SAT `11161800` (Tejidos Sintéticos).
+    - Bloque de 3 firmas de control: Almacén Formatex (Preparó), Transportista/Fletera (Placas) y Recibido Conforme Cliente.
+    - Estilos nativos para impresión y guardado como PDF (`@media print`) integrados en `PedidosPage` y `EmpaquePage`.
+- **Módulo de Costeo de Importación & Exportador a CONTPAQi (Fórmula Oficial Elba):**
+  - Implementación en `TransitService`, `TransitController` y `TransitoPage`:
+    - Algoritmo de Landed Cost: $\text{Costo TT} = (\text{FOB USD} \times \text{TC Pedimento}) \times (1 + \% \text{Gastos } 23\%)$.
+    - Factor de transferencia inter-empresa: $\text{Costo FM} = \text{Costo TT} / 0.88$ (12% de margen protegido Telares $\to$ Formatex).
+    - Persistencia en base de datos (`IncomingShipment`) y actualización automática en cascada de `costoPuestoMexicoMXN` en `SkuMaster`.
+    - Modal interactivo con recálculo dinámico de Tipo de Cambio, Número de Pedimento y % de Gastos Incrementables.
+    - Exportación con un solo clic al formato de **Hoja Electrónica de CONTPAQi Comercial** en formato CSV (Producto, Lote, Metros, Costo Unitario, Pedimento SAT `26 16 1924 6003496`, fechas de fabricación y caducidad).
+
 ## [1.3.0] - 2026-10-21
 
 ### Added

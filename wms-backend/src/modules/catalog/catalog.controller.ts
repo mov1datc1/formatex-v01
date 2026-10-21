@@ -137,6 +137,26 @@ export class CatalogController {
     return this.catalogService.deleteClientAddress(addressId);
   }
 
+  // ===== PRICING RESOLUTION (MATRIZ FORMATEX) =====
+  @Get('pricing/resolve')
+  @ApiOperation({ summary: 'Resolver precio oficial según matriz Rollo vs Corte y tipo de cliente' })
+  resolvePrice(
+    @Query('skuId') skuId: string,
+    @Query('clientId') clientId?: string,
+    @Query('metraje') metraje?: number,
+    @Query('tipoPedido') tipoPedido?: string,
+    @Query('lista') lista?: string,
+  ) {
+    if (!skuId) throw new BadRequestException('skuId es requerido');
+    return this.catalogService.resolvePrice({
+      skuId,
+      clientId,
+      metraje: metraje ? Number(metraje) : undefined,
+      tipoPedido,
+      listaOverride: lista,
+    });
+  }
+
   // ===== CLIENT SPECIAL PRICES =====
   @Get('special-prices')
   @ApiOperation({ summary: 'Listar precios especiales por cliente y SKU' })
