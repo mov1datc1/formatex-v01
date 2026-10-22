@@ -7,24 +7,25 @@ export class CatalogService {
 
   // ===== SKUs =====
   async findAllSkus(params: { search?: string; categoria?: string; page?: number; limit?: number }) {
-    const { search, categoria, page = 1, limit = 20 } = params;
+    const page = Math.max(1, +(params.page || 1));
+    const limit = Math.min(5000, Math.max(1, +(params.limit || 50)));
     const skip = (page - 1) * limit;
     const where: any = { activo: true };
-    if (search) {
+    if (params.search) {
       where.OR = [
-        { nombre: { contains: search, mode: 'insensitive' } },
-        { codigo: { contains: search, mode: 'insensitive' } },
-        { color: { contains: search, mode: 'insensitive' } },
+        { nombre: { contains: params.search, mode: 'insensitive' } },
+        { codigo: { contains: params.search, mode: 'insensitive' } },
+        { color: { contains: params.search, mode: 'insensitive' } },
       ];
     }
-    if (categoria) where.categoria = categoria;
+    if (params.categoria) where.categoria = params.categoria;
 
     const [data, total] = await Promise.all([
       this.prisma.skuMaster.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { nombre: 'asc' },
         include: {
           supplier: true,
           priceLists: { select: { listaCodigo: true, precio: true } },

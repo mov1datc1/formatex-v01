@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { api } from '../../config/api';
 import {
   Scroll, Scissors, Search, TrendingDown, Truck,
   MapPin, AlertTriangle, Check, ChevronDown, X, Sparkles, CalendarClock,
-  Package, Layers, Target, ShieldAlert, Lock,
+  Package, Layers, Target, ShieldAlert, Lock, Loader2,
 } from 'lucide-react';
 
 interface OrderLineSmartProps {
@@ -110,11 +110,42 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const filteredSkus = skus.filter((s: any) => {
-    if (!skuSearch) return true;
-    const q = skuSearch.toLowerCase();
-    return s.nombre?.toLowerCase().includes(q) || s.codigo?.toLowerCase().includes(q) || s.color?.toLowerCase().includes(q);
-  });
+  const [remoteSkus, setRemoteSkus] = useState<any[]>([]);
+  const [isSearchingRemote, setIsSearchingRemote] = useState(false);
+
+  useEffect(() => {
+    if (!skuSearch || skuSearch.trim().length < 2) {
+      setRemoteSkus([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setIsSearchingRemote(true);
+      api.get('/catalog/skus', { params: { search: skuSearch.trim(), limit: 40 } })
+        .then(res => {
+          setRemoteSkus(res.data?.data || []);
+        })
+        .catch(() => setRemoteSkus([]))
+        .finally(() => setIsSearchingRemote(false));
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [skuSearch]);
+
+  const filteredSkus = useMemo(() => {
+    const q = (skuSearch || '').toLowerCase().trim();
+    const inMemory = (skus || []).filter((s: any) => {
+      if (!q) return true;
+      return s.nombre?.toLowerCase().includes(q) || s.codigo?.toLowerCase().includes(q) || s.color?.toLowerCase().includes(q);
+    });
+
+    if (remoteSkus.length === 0) return inMemory;
+
+    const map = new Map<string, any>();
+    inMemory.forEach((s: any) => map.set(s.id, s));
+    remoteSkus.forEach((s: any) => {
+      if (!map.has(s.id)) map.set(s.id, s);
+    });
+    return Array.from(map.values());
+  }, [skus, skuSearch, remoteSkus]);
 
   const lastFetchedRef = useRef('');
 

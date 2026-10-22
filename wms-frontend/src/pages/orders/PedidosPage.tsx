@@ -64,7 +64,7 @@ export default function PedidosPage() {
   const { data: resp, isLoading } = useApi<PaginatedResponse<Order>>(['orders', search, filterEstado], '/orders', { search: search || undefined, estado: filterEstado || undefined, limit: 20 });
   const { data: detail, refetch: refetchDetail } = useApi<any>(['order-detail', selectedOrder], `/orders/${selectedOrder}`, {}, !!selectedOrder);
   const { data: clients } = useApi<PaginatedResponse<any>>(['clients'], '/catalog/clients', { limit: 500 });
-  const { data: skus } = useApi<PaginatedResponse<any>>(['skus-order'], '/catalog/skus', { limit: 2000 });
+  const { data: skus } = useApi<PaginatedResponse<any>>(['skus-order'], '/catalog/skus', { limit: 5000 });
   const { data: vendors } = useApi<PaginatedResponse<any>>(['vendors'], '/catalog/vendors', { limit: 100 });
 
   // Tareas de confirmación de entrega (filtradas por ATC asignado o todas para Alma/Supervisora)
@@ -145,6 +145,7 @@ export default function PedidosPage() {
     }
     const clientObj = clients?.data?.find((c: any) => c.id === cId);
     if (clientObj) {
+      if (clientObj.vendorId) setVendorId(clientObj.vendorId);
       if (clientObj.listaPrecioDefault) {
         setLineas(prev => prev.map(l => ({ ...l, listaPrecios: l.listaPrecios || clientObj.listaPrecioDefault })));
       }
