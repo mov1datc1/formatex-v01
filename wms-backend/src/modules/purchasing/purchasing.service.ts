@@ -774,4 +774,176 @@ export class PurchasingService {
       empresa,
     };
   }
+
+  // ===== REQUISICIONES INTER-COMPAÑÍA (FORMATEX ➔ TELARES) =====
+
+  async getOrCreateTelaresSupplier() {
+    let supplier = await this.prisma.supplier.findFirst({
+      where: {
+        OR: [
+          { codigo: 'PROV-TNT' },
+          { nombre: { contains: 'Telares', mode: 'insensitive' } },
+        ],
+      },
+    });
+
+    if (!supplier) {
+      supplier = await this.prisma.supplier.create({
+        data: {
+          codigo: 'PROV-TNT',
+          nombre: 'Telares y Tejidos / Rensselaer (Empresa Hermana)',
+          contacto: 'Bodega Río Tototlán',
+          telefono: '33-3333-0001',
+          direccion: 'Río Tototlán, Jalisco',
+        },
+      });
+    }
+
+    return supplier;
+  }
+
+  async findRequisicionesTelares(params: { search?: string; estado?: string }) {
+    const telaresSupplier = await this.getOrCreateTelaresSupplier();
+    const where: any = {
+      supplierId: telaresSupplier.id,
+    };
+
+    if (params.estado) {
+      where.estado = params.estado;
+    }
+
+    if (params.search) {
+      where.OR = [
+        { codigo: { contains: params.search, mode: 'insensitive' } },
+        { notas: { contains: params.search, mode: 'insensitive' } },
+        { notasInternas: { contains: params.search, mode: 'insensitive' } },
+        {
+          lineas: {
+            some: {
+              sku: {
+                OR: [
+                  { nombre: { contains: params.search, mode: 'insensitive' } },
+                  { codigo: { contains: params.search, mode: 'insensitive' } },
+                ],
+              },
+            },
+          },
+        },
+      ];
+    }
+
+    const data = await this.prisma.purchaseOrder.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        supplier: { select: { id: true, nombre: true, codigo: true } },
+        lineas: {
+          include: {
+            sku: {
+              select: {
+                id: true,
+                codigo: true,
+                nombre: true,
+                color: true,
+                metrajeEstandar: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return data.map(order => {
+      let parsedMeta: any = {};
+      try {
+        if (order.notasInternas && order.notasInternas.startsWith('{')) {
+          parsedMeta = JSON.parse(order.notasInternas);
+        }
+      } catch {}
+
+      const totalRollos = order.lineas.reduce((sum, l) => sum + (l.cantidadRollos || Math.round(l.metrajeTotal / 50)), 0);
+      const totalMetros = order.lineas.reduce((sum, l) => sum + l.metrajeTotal, 0);
+
+      return {
+        ...order,
+        totalRollos,
+        totalMetros,
+        solicitante: parsedMeta.solicitante || 'Almacén / Compras',
+        ruta: parsedMeta.ruta || 'Camioneta Tototlán ➔ Zapopan',
+        horaEstimada: parsedMeta.horaEstimada || 'Vuelta regular',
+      };
+    });
+  }
+
+  async createRequisicionTelares(data: {
+    solicitante: string;
+    prioridad?: number;
+    ruta?: string;
+    horaEstimada?: string;
+    notas?: string;
+    creadoPor: string;
+    lineas: Array<{
+      skuId: string;
+      cantidadRollos: number;
+    }>;
+  }) {
+    const telaresSupplier = await this.getOrCreateTelaresSupplier();
+    const count = await this.prisma.purchaseOrder.count({
+      where: { supplierId: telaresSupplier.id },
+    });
+    const year = new Date().getFullYear();
+    const codigo = `REQ-TNT-${year}-${String(count + 1).padStart(4, '0')}`;
+
+    const lineasData = data.lineas.map(l => {
+      const metrajeTotal = l.cantidadRollos * 50;
+      return {
+        skuId: l.skuId,
+        cantidadRollos: l.cantidadRollos,
+        metrajePorRollo: 50,
+        metrajeTotal,
+        precioUnitario: 0,
+        importe: 0,
+        precioFuente: 'INTERCOMPANIA_TELARES',
+      };
+    });
+
+    const meta = {
+      tipo: 'REQUISICION_TELARES',
+      solicitante: data.solicitante || 'Israel (Jefe de Almacén)',
+      ruta: data.ruta || 'Camioneta Tototlán ➔ Zapopan',
+      horaEstimada: data.horaEstimada || 'Vuelta de la tarde',
+    };
+
+    return this.prisma.purchaseOrder.create({
+      data: {
+        codigo,
+        supplierId: telaresSupplier.id,
+        estado: 'CONFIRMADA',
+        prioridad: data.prioridad || 3,
+        notas: data.notas,
+        notasInternas: JSON.stringify(meta),
+        creadoPor: data.creadoPor,
+        subtotal: 0,
+        iva: 0,
+        total: 0,
+        lineas: {
+          create: lineasData,
+        },
+      },
+      include: {
+        supplier: true,
+        lineas: { include: { sku: true } },
+      },
+    });
+  }
+
+  async updateRequisicionStatus(id: string, nuevoEstado: 'EN_TRANSITO' | 'COMPLETADA') {
+    return this.prisma.purchaseOrder.update({
+      where: { id },
+      data: {
+        estado: nuevoEstado,
+        fechaRealEntrega: nuevoEstado === 'COMPLETADA' ? new Date() : undefined,
+      },
+    });
+  }
 }

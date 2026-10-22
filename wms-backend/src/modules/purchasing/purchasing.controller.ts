@@ -80,6 +80,29 @@ export class PurchasingController {
     return this.purchasingService.cancelOrder(id, body.motivo);
   }
 
+  // ===== REQUISICIONES INTER-COMPAÑÍA (FORMATEX ➔ TELARES) =====
+
+  @Get('requisiciones-telares')
+  @ApiOperation({ summary: 'Listar requisiciones de resurtido a Telares' })
+  findRequisicionesTelares(@Query('search') search?: string, @Query('estado') estado?: string) {
+    return this.purchasingService.findRequisicionesTelares({ search, estado });
+  }
+
+  @Post('requisiciones-telares')
+  @ApiOperation({ summary: 'Crear requisición de resurtido a Telares' })
+  createRequisicionTelares(@Body() body: any, @Req() req: any) {
+    return this.purchasingService.createRequisicionTelares({
+      ...body,
+      creadoPor: req.user.sub,
+    });
+  }
+
+  @Put('requisiciones-telares/:id/status')
+  @ApiOperation({ summary: 'Actualizar estatus de requisición a Telares' })
+  updateRequisicionStatus(@Param('id') id: string, @Body('estado') estado: 'EN_TRANSITO' | 'COMPLETADA') {
+    return this.purchasingService.updateRequisicionStatus(id, estado);
+  }
+
   // ===== RECEPCIÓN =====
 
   @Get('reception-queue')

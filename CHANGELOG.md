@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.5] - 2026-10-21
+
+### Added
+- **Módulo de Compras & Abastecimiento con Flujo Dual Corporativo (`ComprasPage.tsx`):**
+  - **Doble Sombrero de Compras (Telares vs. Formatex):**
+    - Selector corporativo que bifurca la operación en dos modos de abastecimiento:
+      - 🇨🇳 **Modo Telares y Tejidos (Importaciones Internacionales / China):** Gestión de compras masivas a molinos chinos en USD, fletes marítimos a Manzanillo, contenedores en tránsito e ingreso directo a la bodega hermana `BOD-TNT` (Río Tototlán). Sub-pestañas: *Órdenes de Compra (China)*, *Cola de Recepción en Telares* e *Historial de Importaciones*.
+      - 🏢 **Modo Forma Textil (Requisiciones & Traspasos a Telares):** Digitalización formal del formato de WhatsApp para solicitar rollos de tela entre bodegas hermanas (Tototlán ➔ Zapopan).
+  - **Componente de Requisiciones Inter-Compañía (`RequisicionesTelaresTab.tsx`):**
+    - Listado con tarjetas ejecutivas que incluyen folio oficial (`REQ-TNT-2026-XXXX`), solicitante (Israel - Jefe de Almacén / Elba Vázquez - Compras), prioridad y ruta de camioneta asignada.
+    - Stepper de seguimiento operativo en 3 etapas: *1. Requisición Solicitada* ➔ *2. En Ruta de Camioneta* ➔ *3. Recibida en Zapopan*.
+    - Botón **"Copiar Ficha WhatsApp"** con mensaje enriquecido listo para compartir con el personal de bodega de Tototlán y choferes de camioneta.
+    - Modal de **Vale de Carga de Camioneta** con desglose de partidas y firmas de entrega/recepción listo para imprimir.
+    - Botones de acción directa: *Marcar en Ruta (Salió Camioneta)* y *Confirmar Entrada en Zapopan*.
+  - **Modal de Creación de Requisiciones (`NuevaRequisicionTelaresModal.tsx`):**
+    - Selector de solicitante (Israel, Elba, Andrea, Nayeli), turno de camioneta y prioridad de carga.
+    - Buscador reactivo de SKUs con selección rápida e ingreso de rollos enteros (regla operativa de 50 metros estándar por rollo cerrado sin servicio de corte en Telares).
+  - **Backend de Requisiciones Inter-Compañía (`purchasing.service.ts` & `purchasing.controller.ts`):**
+    - Endpoints dedicados: `GET /purchasing/requisiciones-telares`, `POST /purchasing/requisiciones-telares` y `PUT /purchasing/requisiciones-telares/:id/status`.
+    - Auto-creación y vinculación del proveedor interno `PROV-TNT` (*Telares y Tejidos / Rensselaer*).
+
 ## [1.4.4] - 2026-10-21
 
 ### Added
