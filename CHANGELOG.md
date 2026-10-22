@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.6] - 2026-10-21
+
+### Added
+- **Consolidación Oficial de Reglas de Negocio de Compras e Importaciones (v1.2):**
+  - Publicación y compilación de [`REGLAS_DE_NEGOCIO_COMPRAS_IMPORTACIONES_FORMATEX.docx`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/requerimientos/compras_importaciones/REGLAS_DE_NEGOCIO_COMPRAS_IMPORTACIONES_FORMATEX.docx) y especificación [`REGLAS_DE_NEGOCIO_COMPRAS_IMPORTACIONES_FORMATEX.md`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/requerimientos/compras_importaciones/REGLAS_DE_NEGOCIO_COMPRAS_IMPORTACIONES_FORMATEX.md).
+  - Arquitectura Inter-Compañía formalizada: *Telares y Tejidos S.A. de C.V.* (Importadora / Bodega Río Tototlán `BOD-TNT`, rollos enteros de 50m sin mesa de corte) vs. *Forma Textil S. de R.L. de C.V.* (Comercializadora / Bodega Zapopan `BOD-PRI`, venta, corte, retazos y muestrarios).
+  - "Doble Cachucha de Elba Vázquez": Compras Internacionales China en USD vs. Requisiciones Inter-Compañía de resurtido diario.
+  - Fórmula oficial de Costeo Landed de Elba vinculada al Tipo de Cambio Histórico del Pedimento SAT (`PEDIMENTO.pdf`: 18.3688) con factor de gastos incrementables (~23.00%) y prohibición de tasas flotantes.
+  - Digitalización formal del formato de WhatsApp: creación de folios oficiales (`REQ-TNT-2026-XXXX`), botón "Copiar p/ WhatsApp", Vale de Carga oficial para chofer y seguimiento en 3 estados (`SOLICITADA` ➔ `EN_RUTA_CAMIONETA` ➔ `RECIBIDA_FORMATEX`).
+  - Regla del Costo Más Alto ante múltiples embarques para protección del margen inter-compañía (FM = 0.88 o 7-12%).
+  - Preparación de Fase 2 para Don Ricardo Pérez: WMS Slim en Telares y Tejidos (pallets FCL, racks de alta densidad y traspasos ágiles a Formatex).
+  - 6 recuadros de firma formal de conformidad (Elba Vázquez, Mane Gómez, Andrea Ramírez, Israel, Ricardo Pérez, Jonathan Palacios).
+  - Redacción del correo formal de envío matutino con acuse de documentos recibidos: [`CORREO_RESUMEN_ELBA_COMPRAS_IMPORTACIONES.md`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/requerimientos/compras_importaciones/CORREO_RESUMEN_ELBA_COMPRAS_IMPORTACIONES.md).
+
+- **Consolidación Oficial de Reglas de Negocio de Atención al Cliente (ATC) & Ventas (v1.1 Consolidada):**
+  - Compilación y verificación de [`REGLAS_DE_NEGOCIO_ATC_FORMATEX.docx`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/requerimientos/atencion_al_cliente/REGLAS_DE_NEGOCIO_ATC_FORMATEX.docx) y especificación [`REGLAS_DE_NEGOCIO_ATC_FORMATEX.md`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/requerimientos/atencion_al_cliente/REGLAS_DE_NEGOCIO_ATC_FORMATEX.md).
+  - Cobertura de las 13 reglas operativas derivadas de Sesión #1 y Sesión #2:
+    1. Expediente digital y multi-domicilios de entrega.
+    2. Las 10 listas de precios oficiales con candados en F3, F5, F7 y F9.
+    3. Confidencialidad de márgenes y comisiones para personal operativo.
+    4. Matriz centralizada de precios especiales cliente+SKU (306 convenios directivos).
+    5. Políticas de apartado (24h comercial vs. 72h interna en almacén).
+    6. Tarea preventiva de validación logística al pasar a `EN_SURTIDO`.
+    7. Motor de backorders FIFO marítimo con semáforos preventivos a 15 y 5 días.
+    8. Matriz de días y horarios de entrega por cliente y retención en bodega en espera de ruta.
+    9. Flota propia de 8 camionetas con Drivin y rutas programadas (Ruta Ocotlán martes y jueves).
+    10. Canal e-commerce Shopify con lista F10.
+    11. Tratamiento de muestras y libros de telas como producto terminado por pieza (`PZA`).
+    12. Traspasos inter-compañía digitales con Telares.
+    13. Bloqueo estricto de precios en pantalla de captura de pedidos.
+  - Redacción del correo formal de envío matutino: [`CORREO_RESUMEN_ALMA_Y_ANDREA.md`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/requerimientos/atencion_al_cliente/CORREO_RESUMEN_ALMA_Y_ANDREA.md).
+
+- **Reorganización, Depuración y Catálogo Maestro del Proyecto:**
+  - Creación de [`INDICE_DE_DOCUMENTACION.md`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/INDICE_DE_DOCUMENTACION.md) en la raíz del repositorio, enlazando ordenadamente documentos de levantamiento, transcripciones, datos recibidos, SOW, presentaciones y código fuente.
+  - Eliminación de archivos de respaldo obsoletos en la raíz (`SOW_...docx.bak`).
+  - Reubicación de scripts de apoyo a la carpeta `scratch/` (`actualizar_html_desde_excel.py`, `generate_atc_docx.py`, etc.).
+  - Centralización del archivo `CAPACITACION MASTER.xlsx` dentro de `Documentacion_recibida/01_Documentos SC/` y eliminación de carpetas temporales.
+  - Actualización de Knowledge Items corporativos (`formatex-wms-purchasing-reception-workflow`, `formatex-wms-sales-atc-backorder-engine`).
+
 ## [1.4.5] - 2026-10-21
 
 ### Added
