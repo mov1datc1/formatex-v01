@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Package, Scissors, PackageCheck, Truck,
   Warehouse, MapPin, ClipboardList, Bell, Users, Settings,
   ChevronLeft, ChevronRight, LogOut, ScrollText, ScanBarcode, Tag,
-  Ship, Search, ArrowRightLeft, CalendarRange, FileText, BadgeDollarSign, ShoppingCart
+  Ship, Search, ArrowRightLeft, CalendarRange, FileText, BadgeDollarSign, ShoppingCart, Calculator
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
@@ -37,7 +37,7 @@ const menuSections: MenuSection[] = [
     items: [
       { label: 'Pedidos', path: '/pedidos', icon: ClipboardList, permission: 'orders' },
       { label: 'Disponibilidad', path: '/disponibilidad', icon: Search, permission: 'availability' },
-      { label: 'En Tránsito', path: '/transito', icon: Ship, permission: 'transit' },
+      { label: 'En Tránsito (ATC)', path: '/transito?view=atc', icon: Ship, permission: 'transit' },
     ],
   },
   {
@@ -50,7 +50,7 @@ const menuSections: MenuSection[] = [
     title: 'Compras & Importaciones',
     items: [
       { label: 'Órdenes de Compra', path: '/compras', icon: ShoppingCart, permission: 'compras' },
-      { label: 'Tránsito & Costeo', path: '/transito', icon: Ship, permission: 'transit' },
+      { label: 'Tránsito & Costeo', path: '/transito?view=costeo', icon: Calculator, permission: 'transit' },
       { label: 'Plan de Resurtido', path: '/planificacion', icon: CalendarRange, permission: 'supply-planning' },
     ],
   },
@@ -151,7 +151,10 @@ export const Sidebar = () => {
               )}
               <div className="space-y-0.5">
                 {visibleItems.map((item) => {
-                  const isActive = location.pathname === item.path;
+                  const currentFull = location.pathname + location.search;
+                  const isActive = item.path.includes('?')
+                    ? (currentFull === item.path || (location.pathname === item.path.split('?')[0] && !location.search && item.path.includes('view=atc')))
+                    : location.pathname === item.path;
                   const Icon = item.icon;
                   return (
                     <Link

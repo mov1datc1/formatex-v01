@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.4] - 2026-10-21
+
+### Added
+- **Rediseño Integral UX/UI de Tránsito Marítimo & Costeo (`TransitoPage.tsx`):**
+  - **Diferenciación de Perfiles (ATC vs. Compras/Costeo):**
+    - Enlace independiente en barra lateral (`Sidebar.tsx`): *En Tránsito (ATC)* (`/transito?view=atc`) con icono de barco, y *Tránsito & Costeo* (`/transito?view=costeo`) con icono de calculadora.
+    - Soporte de conmutación reactiva de vistas con preservación de estado mediante `useSearchParams`.
+    - Pestañas superiores de enfoque: *Vista Operativa ATC (Disponibilidad)*, *Vista Aduana & Costeo (Compras / Mane)*, y *Explorador por Tela en Tránsito*.
+  - **Búsqueda Universal & Filtros Inteligentes:**
+    - Barra de búsqueda unificada en tiempo real capaz de filtrar por código de embarque (`EMB-2026-0002`), contenedor SAT (`MSCU-...`), pedimento aduanal (`26 16...`), proveedor, transportista, y **telas/SKU o colores dentro del embarque** (`ENIGMA`, `LINO`, `NEGRO`, etc.).
+    - Chips de filtrado rápido: *Todos*, *Arribo Inminente (< 5 días)*, *En Mar (5-14 días)*, *Alta Mar (> 14 días)*, *Con Metraje Libre*, y *100% Comprometidos*.
+    - Selector de ordenamiento: por fecha estimada de arribo (ETA), mayor metraje total, mayor disponibilidad libre, o código alfabético.
+  - **Inspección Profunda de Mercancía ("Qué hay dentro del embarque"):**
+    - Desglose enriquecido de telas dentro de cada tarjeta con rollos, metraje total, metraje disponible p/ venta y metros reservados por clientes en backorder.
+    - Enlace directo por partida: botón "Cotizar" (`/pedidos?newSku=...&shipmentId=...`) y botón "Ver en Disponibilidad 360°".
+    - Acordeón inteligente para expandir/colapsar partidas cuando el contenedor tiene múltiples telas.
+    - Modal ejecutivo de inspección profunda (*Packing List Oficial SAT 2026*) con tabla completa de partidas, rollos, clientes asignados y exportación/copia al portapapeles.
+    - Botón de un solo clic para generar y copiar la ficha formateada para WhatsApp/Email de ATC.
+- **Backend Enriquecido (`transit.service.ts`):**
+  - Ampliación de la consulta `findAll` en `TransitService` para incluir datos técnicos completos del SKU (composición, ancho, peso, precio) y genealogía de reservas activas vinculadas a pedidos y clientes corporativos.
+
 ## [1.4.3] - 2026-10-21
 
 ### Added

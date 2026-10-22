@@ -13,11 +13,37 @@ export class TransitService {
     const shipments = await this.prisma.incomingShipment.findMany({
       where,
       include: {
-        supplier: { select: { nombre: true, codigo: true } },
+        supplier: { select: { id: true, nombre: true, codigo: true } },
         lineas: {
           include: {
-            sku: { select: { nombre: true, codigo: true, color: true } },
-            reservations: { where: { estado: 'ACTIVA' }, select: { id: true, metrajeReservado: true, tipo: true } },
+            sku: {
+              select: {
+                id: true,
+                nombre: true,
+                codigo: true,
+                color: true,
+                composicion: true,
+                ancho: true,
+                peso: true,
+                precioReferencia: true,
+              },
+            },
+            reservations: {
+              where: { estado: 'ACTIVA' },
+              select: {
+                id: true,
+                metrajeReservado: true,
+                tipo: true,
+                expiresAt: true,
+                order: {
+                  select: {
+                    id: true,
+                    codigo: true,
+                    client: { select: { id: true, nombre: true, codigo: true } },
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -28,7 +54,8 @@ export class TransitService {
       ...s,
       metrajeTotal: s.lineas.reduce((a, l) => a + l.metrajeTotal, 0),
       metrajeReservado: s.lineas.reduce((a, l) => a + l.metrajeReservado, 0),
-      metrajeDisponible: s.lineas.reduce((a, l) => a + l.metrajeTotal - l.metrajeReservado, 0),
+      metrajeDisponible: Math.max(0, s.lineas.reduce((a, l) => a + (l.metrajeTotal - l.metrajeReservado), 0)),
+      totalRollos: s.lineas.reduce((a, l) => a + (l.cantidadRollos || 0), 0),
       diasParaLlegar: Math.ceil((new Date(s.fechaEstimada).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
     }));
   }
