@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] - 2026-10-21
+
+### Added
+- **Módulo de Disponibilidad Unificada 360° para ATC y Ventas (`DisponibilidadPage.tsx`):**
+  - **Buscador en Vivo Debounced:** Filtrado dinámico a través de los 2,122+ SKUs del catálogo Formatex por código, nombre de tela y color (`mode: 'insensitive'`).
+  - **Chips de Acceso Rápido:** Categorías top (`LENIGIRO`, `LINO`, `TERCIOPELO`, `BLACKOUT`, `JACQUARD`) para consulta ágil de telas insignia en mostrador y teléfono.
+  - **Ficha Maestra Técnica de Tela:** Despliegue de especificaciones técnicas (ancho, peso, composición, proveedor) con acciones directas:
+    - *Cotizar / Crear Pedido:* Redirección inmediata a `/pedidos?newSku=${skuId}` con apertura automática del modal de cotización pre-llenado.
+    - *Copiar Ficha ATC:* Generador de texto corporativo formateado con stock físico, tránsito marítimo y precios para envío rápido por WhatsApp o correo.
+  - **4 KPIs Ejecutivos con Barras Proporcionales:**
+    - *Total Global Disponible:* Métricas consolidadas de stock físico libre y metros en tránsito marítimo, con barra visual comparativa física vs tránsito.
+    - *Stock Físico Inmediato:* Rollos físicos en almacén, metros libres, apartados blandos 24h y apartados firmes.
+    - *Contenedores en Tránsito:* Metros totales en tránsito, metros comprometidos en backorder y disponibilidad remanente.
+    - *Precio Referencia & Listas:* Rango comercial F1-F10 y costo unitario.
+  - **3 Pestañas Interactivas de Detalle Operativo:**
+    - *Rollos Físicos en Almacén:* Lista de Handling Units (HUs) con códigos de rollo, racks de ubicación, metraje exacto, grado de calidad (Primera/Segunda/Merma), estatus comercial y lote de proveedor.
+    - *Contenedores en Tránsito:* Tarjetas de embarques con número de contenedor oficial SAT, pedimento aduanal, naviera/transportista, cuenta regresiva de días para arribo (ETA) y semáforo preventivo.
+    - *Matriz Oficial de Precios:* Despliegue de las 10 listas oficiales Formatex (F1 a F10) con calculadora interactiva de cotización en tiempo real según volumen (Rollo $\ge 50$m vs Corte $< 50$m) y desglose de IVA.
+- **Backend Enriquecido (`reservations.service.ts`):**
+  - Enriquecimiento del método `getAvailability(skuId)` en `ReservationsService` para devolver la entidad completa del SKU con sus listas de precios asociadas, metadatos del proveedor, detalle de HUs con tipo de ubicación y calidad, y datos aduanales del embarque (contenedor, pedimento, OC).
+- **Integración Fluida de Creación de Pedidos (`PedidosPage.tsx`):**
+  - Integración del hook `useSearchParams` para detectar `?newSku=...`, pre-poblando la línea de partida con la tela consultada y abriendo el modal de cotización de forma instantánea.
+
 ## [1.4.2] - 2026-10-21
 
 ### Added

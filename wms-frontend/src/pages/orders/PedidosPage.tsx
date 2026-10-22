@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useApi, useMutationApi } from '../../hooks/useApi';
 import type { PaginatedResponse, Order } from '../../hooks/useApi';
 import { api } from '../../config/api';
@@ -50,6 +51,7 @@ const PRIORITY_MAP: Record<number, { label: string; color: string }> = {
 };
 
 export default function PedidosPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showForm, setShowForm] = useState(false);
   const [filterEstado, setFilterEstado] = useState('');
   const [search, setSearch] = useState('');
@@ -82,6 +84,15 @@ export default function PedidosPage() {
   const [modoEntrega, setModoEntrega] = useState('COMPLETA');
   const [lineas, setLineas] = useState<any[]>([{ skuId: '', metrajeRequerido: 50, precioUnitario: 0, listaPrecios: '', descuentoPct: 0, selectedHUs: [] }]);
   const [expressIngestTarget, setExpressIngestTarget] = useState<any>(null);
+
+  useEffect(() => {
+    const newSku = searchParams.get('newSku');
+    if (newSku) {
+      setLineas([{ skuId: newSku, metrajeRequerido: 50, precioUnitario: 0, listaPrecios: '', descuentoPct: 0, selectedHUs: [] }]);
+      setShowForm(true);
+      setActiveMainTab('pipeline');
+    }
+  }, [searchParams]);
 
   // Domicilio y logística para creación de cotización
   const [clientAddresses, setClientAddresses] = useState<any[]>([]);

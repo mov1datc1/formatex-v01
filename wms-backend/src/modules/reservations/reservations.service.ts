@@ -145,10 +145,18 @@ export class ReservationsService {
    * Disponibilidad unificada de un SKU (stock + tránsito)
    */
   async getAvailability(skuId: string) {
+    const sku = await this.prisma.skuMaster.findUnique({
+      where: { id: skuId },
+      include: {
+        priceLists: { orderBy: { listaCodigo: 'asc' } },
+        supplier: true,
+      },
+    });
+
     // Stock físico disponible
     const hus = await this.prisma.handlingUnit.findMany({
       where: { skuId, estadoHu: { in: ['DISPONIBLE', 'RESERVADO_BLANDO', 'RESERVADO'] }, metrajeActual: { gt: 0 } },
-      include: { ubicacion: { select: { codigo: true } } },
+      include: { ubicacion: { select: { codigo: true, tipo: true } } },
       orderBy: { fechaIngreso: 'asc' }, // FIFO
     });
 
@@ -159,34 +167,64 @@ export class ReservationsService {
     // Stock en tránsito
     const transitLines = await this.prisma.incomingShipmentLine.findMany({
       where: { skuId, shipment: { estado: 'EN_TRANSITO' } },
-      include: { shipment: { select: { codigo: true, fechaEstimada: true, transportista: true } } },
+      include: {
+        shipment: {
+          select: {
+            id: true,
+            codigo: true,
+            numeroContenedor: true,
+            numeroPedimento: true,
+            ordenCompra: true,
+            fechaEstimada: true,
+            transportista: true,
+          },
+        },
+      },
     });
 
     const transitTotal = transitLines.reduce((a, l) => a + l.metrajeTotal, 0);
     const transitReservado = transitLines.reduce((a, l) => a + l.metrajeReservado, 0);
-    const transitDisponible = transitTotal - transitReservado;
+    const transitDisponible = Math.max(0, transitTotal - transitReservado);
 
     return {
       skuId,
+      sku,
       fisico: {
         disponible: stockDisponible,
         reservadoBlando: stockReservadoBlando,
         reservadoFirme: stockReservadoFirme,
         total: stockDisponible + stockReservadoBlando + stockReservadoFirme,
         rollos: hus.length,
-        detalle: hus.map(h => ({ id: h.id, codigo: h.codigo, metraje: h.metrajeActual, estado: h.estadoHu, ubicacion: h.ubicacion?.codigo })),
+        detalle: hus.map(h => ({
+          id: h.id,
+          codigo: h.codigo,
+          metraje: h.metrajeActual,
+          estado: h.estadoHu,
+          ubicacion: h.ubicacion?.codigo,
+          tipoUbicacion: h.ubicacion?.tipo,
+          gradoCalidad: h.gradoCalidad || 'PRIMERA',
+          calidadRestringida: h.calidadRestringida || false,
+          loteProveedor: h.loteProveedor,
+          fechaIngreso: h.fechaIngreso,
+        })),
       },
       transito: {
         total: transitTotal,
         reservado: transitReservado,
         disponible: transitDisponible,
         embarques: transitLines.map(l => ({
+          id: l.id,
+          shipmentId: l.shipment.id,
           embarque: l.shipment.codigo,
+          numeroContenedor: l.shipment.numeroContenedor,
+          numeroPedimento: l.shipment.numeroPedimento,
+          ordenCompra: l.shipment.ordenCompra,
           eta: l.shipment.fechaEstimada,
           transportista: l.shipment.transportista,
           rollos: l.cantidadRollos,
           metrajeTotal: l.metrajeTotal,
-          metrajeDisponible: l.metrajeTotal - l.metrajeReservado,
+          metrajeReservado: l.metrajeReservado,
+          metrajeDisponible: Math.max(0, l.metrajeTotal - l.metrajeReservado),
         })),
       },
       totalGlobal: stockDisponible + transitDisponible,
