@@ -23,8 +23,8 @@ export class TransitService {
                 codigo: true,
                 color: true,
                 composicion: true,
-                ancho: true,
-                peso: true,
+                anchoMetros: true,
+                pesoKgPorMetro: true,
                 precioReferencia: true,
               },
             },
@@ -184,7 +184,7 @@ export class TransitService {
 
     const lineasCosteo = shipment.lineas.map((line) => {
       const sku = line.sku;
-      const costoFobUSD = Number(sku.costoOrigenUSD || sku.costoEstimado || 0);
+      const costoFobUSD = Number(sku.costoOrigenUSD || (sku as any).costoEstimado || 0);
       const metraje = Number(line.metrajeTotal);
       const rollos = Number(line.cantidadRollos);
 

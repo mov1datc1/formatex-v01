@@ -830,13 +830,7 @@ export class OrdersService {
           },
         },
         deliveryAddress: true,
-        lineas: {
-          include: {
-            sku: {
-              select: { id: true, codigo: true, nombre: true, color: true, precioReferencia: true },
-            },
-          },
-        },
+        lineas: true,
         incomingShipment: {
           select: {
             id: true,
@@ -848,6 +842,13 @@ export class OrdersService {
         },
       },
     });
+
+    const allSkuIds = [...new Set(orders.flatMap((o) => o.lineas.map((l: any) => l.skuId)).filter(Boolean))];
+    const skus = allSkuIds.length > 0 ? await this.prisma.skuMaster.findMany({
+      where: { id: { in: allSkuIds } },
+      select: { id: true, codigo: true, nombre: true, color: true, precioReferencia: true },
+    }) : [];
+    const skuMap = new Map(skus.map((s) => [s.id, s]));
 
     const now = new Date();
 
@@ -873,6 +874,10 @@ export class OrdersService {
 
       return {
         ...o,
+        lineas: o.lineas.map((l: any) => ({
+          ...l,
+          sku: skuMap.get(l.skuId) || null,
+        })),
         diasParaArribo,
         semaforoAlerta,
         requiereNotificarVigencia:
