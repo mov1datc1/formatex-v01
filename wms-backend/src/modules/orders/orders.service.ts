@@ -101,6 +101,23 @@ export class OrdersService {
     return { ...order, lineas: enrichedLineas };
   }
 
+  /**
+   * Calcula fecha de promesa de entrega en días hábiles (Lunes a Sábado, omitiendo Domingo)
+   * Base levantamiento operativo Almacén Formatex (Israel)
+   */
+  private calculatePromisedDeliveryDate(slaHours: number, startDate: Date = new Date()): Date {
+    const targetDate = new Date(startDate);
+    let remainingHours = slaHours;
+    while (remainingHours > 0) {
+      targetDate.setHours(targetDate.getHours() + 1);
+      // Omitir domingos (día 0)
+      if (targetDate.getDay() !== 0) {
+        remainingHours--;
+      }
+    }
+    return targetDate;
+  }
+
   // =========================================================================
   // CREAR COTIZACIÓN — Auto-amarra HUs si existen o permite cotizar en frío
   // =========================================================================
@@ -168,16 +185,75 @@ export class OrdersService {
 
     // Calcular totales financieros considerando descuentos aplicados
     let subtotal = 0;
+    let cortesActuales = 0;
+    let rollosEnteros = 0;
     for (const l of data.lineas) {
       const desc = (Number(l.descuentoPct) || 0) / 100;
       const basePrice = Number(l.precioUnitario) || 0;
       const precioEfectivo = basePrice * (1 - desc);
       subtotal += l.metrajeRequerido * precioEfectivo;
+      if (l.metrajeRequerido < 50) {
+        cortesActuales++;
+      } else {
+        rollosEnteros += Math.max(1, Math.round(l.metrajeRequerido / 50));
+      }
     }
     const iva = subtotal * 0.16;
     const total = subtotal + iva;
 
-    // Expiration for soft reservations (Apartado)
+    // Regla Anti-Trampa (Levantamiento Israel / Almacén Oct 2026):
+    // Clientes que dividen pedidos en el mismo día se consolidan para el SLA de entrega
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const existingOrdersToday = await this.prisma.order.findMany({
+      where: {
+        clientId: data.clientId,
+        fechaPedido: { gte: todayStart },
+        estado: { notIn: ['CANCELADO'] },
+      },
+      include: { lineas: true },
+    });
+
+    let cortesAcumulados = cortesActuales;
+    for (const ord of existingOrdersToday) {
+      for (const lin of ord.lineas) {
+        if (lin.metrajeRequerido < 50 || lin.requiereCorte) {
+          cortesAcumulados++;
+        }
+      }
+    }
+
+    // Matriz de Promesa de Entrega Formatex (SLA en horas hábiles)
+    let tiempoPromesaSlaHoras = 48; // Base rollo cerrado (<10 rollos): 24-48h
+    if (cortesAcumulados >= 5) {
+      tiempoPromesaSlaHoras = 96; // 5 a 9 cortes o consolidado anti-trampa: 96h
+    } else if (cortesAcumulados >= 1) {
+      tiempoPromesaSlaHoras = 72; // 1 a 4 cortes: 72h
+    } else if (rollosEnteros >= 10) {
+      tiempoPromesaSlaHoras = 96; // 10 o más rollos: 96h+
+    }
+    const fechaPromesaEntrega = this.calculatePromisedDeliveryDate(tiempoPromesaSlaHoras);
+
+    // Protocolo de Validación Física en Almacén (<100m)
+    let validacionFisicaRequerida = false;
+    let validacionFisicaEstatus: string | null = null;
+    for (const l of data.lineas) {
+      const stockDisponible = await this.prisma.handlingUnit.aggregate({
+        where: {
+          skuId: l.skuId,
+          estadoHu: 'DISPONIBLE',
+          metrajeActual: { gt: 0 },
+        },
+        _sum: { metrajeActual: true },
+      });
+      const totalMetros = stockDisponible._sum.metrajeActual || 0;
+      if (totalMetros < 100 || l.metrajeRequerido < 20) {
+        validacionFisicaRequerida = true;
+        validacionFisicaEstatus = 'PENDIENTE';
+      }
+    }
+
+    // Expiration for soft reservations (Apartado: 72h almacén / 48h cliente)
     const expiresAt = new Date(Date.now() + reservaHoras * 60 * 60 * 1000);
 
     return this.prisma.$transaction(async (tx: any) => {
@@ -204,11 +280,15 @@ export class OrdersService {
           prioridad: data.prioridad || 3,
           reservaHoras,
           modoEntrega,
+          tiempoPromesaSlaHoras,
+          fechaPromesaEntrega,
+          validacionFisicaRequerida,
+          validacionFisicaEstatus,
           fechaRequerida: data.fechaRequerida ? new Date(data.fechaRequerida) : undefined,
           fechaCotizacion: new Date(),
           notas: data.notas,
           creadoPor: data.creadoPor,
-          requiereCorte: true,
+          requiereCorte: cortesActuales > 0,
           estado: 'COTIZADO',
           approvalStatus: requiresApproval ? 'PENDIENTE' : 'NO_REQUIERE',
           approvalReason: requiresApproval ? approvalReason : null,
@@ -228,7 +308,7 @@ export class OrdersService {
                 listaPrecios: l.listaPrecios || null,
                 descuentoPct: Number(l.descuentoPct) || 0,
                 importe: l.metrajeRequerido * precioEfectivo,
-                requiereCorte: true,
+                requiereCorte: l.metrajeRequerido < 50,
                 notas: l.notas,
               };
             }),
@@ -238,6 +318,7 @@ export class OrdersService {
       });
 
       // 2. For each line, auto-assign HUs and create reservations
+      const assignedLots = new Set<string>();
       for (let i = 0; i < order.lineas.length; i++) {
         const orderLine = order.lineas[i];
         const lineData = data.lineas[i];
@@ -253,6 +334,8 @@ export class OrdersService {
           // Validate HU exists and is available
           const hu = await tx.handlingUnit.findUnique({ where: { id: huSelection.huId } });
           if (!hu || !['DISPONIBLE'].includes(hu.estadoHu)) continue;
+
+          if (hu.lote) assignedLots.add(hu.lote);
 
           const metrajeTomar = Math.min(huSelection.metrajeTomar, hu.metrajeActual);
 
@@ -288,6 +371,14 @@ export class OrdersService {
             data: { estadoHu: 'RESERVADO_BLANDO' },
           });
         }
+      }
+
+      // Si se combinan lotes diferentes para el pedido, encender bandera de variación de tono
+      if (assignedLots.size > 1) {
+        await tx.order.update({
+          where: { id: order.id },
+          data: { alertaVariacionTono: true },
+        });
       }
 
       return order;
@@ -980,4 +1071,65 @@ export class OrdersService {
       };
     });
   }
+
+  // =========================================================================
+  // MÓDULO ALMACÉN & SURTIDO (Israel / Oct 2026)
+  // =========================================================================
+
+  /**
+   * Almacén confirma metraje físico en rack o mesa para pedidos con stock <100m
+   */
+  async confirmarValidacionFisica(
+    orderId: string,
+    data: { estatus: 'CONFIRMADO_VISUAL' | 'CONFIRMADO_MESA' | 'RECHAZADO'; metrajeConfirmado?: number; notas?: string },
+    userId: string,
+  ) {
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        validacionFisicaEstatus: data.estatus,
+        metrajeConfirmadoFisico: data.metrajeConfirmado || null,
+        validacionFisicaNotas: data.notas ? `${data.notas} (Validado por user: ${userId})` : `Validado por user: ${userId}`,
+      },
+      include: { client: true, lineas: true },
+    });
+  }
+
+  /**
+   * ATC registra autorización del cliente para mezclar lotes de tela diferentes
+   */
+  async aceptarVariacionTono(orderId: string, data: { aceptadoPor: string; notas?: string }) {
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        variacionTonoAceptada: true,
+        variacionTonoAceptadaPor: data.aceptadoPor,
+        notas: data.notas ? `${data.notas} [Variación de tono autorizada por cliente]` : undefined,
+      },
+      include: { client: true, lineas: true },
+    });
+  }
+
+  /**
+   * Almacén asigna Carrito de Corte y Nivel (A1, A2, A3)
+   */
+  async asignarCarritoCorte(orderId: string, carritoCorte: string) {
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: { carritoCorte },
+      include: { client: true, lineas: true },
+    });
+  }
+
+  /**
+   * Asignar Tipo de Etiqueta Oficial de Embarque
+   */
+  async asignarTipoEtiqueta(orderId: string, tipoEtiqueta: string) {
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: { tipoEtiquetaEmbarque: tipoEtiqueta },
+      include: { client: true, lineas: true },
+    });
+  }
 }
+

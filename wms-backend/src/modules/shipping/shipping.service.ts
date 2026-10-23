@@ -47,7 +47,7 @@ export class ShippingService {
   }
 
   /**
-   * Crear registro de envío (shipment)
+   * Crear registro de envío (shipment) con soporte para 4 etiquetas oficiales y evidencia
    */
   async createShipment(data: {
     orderId: string;
@@ -57,6 +57,12 @@ export class ShippingService {
     chofer?: string;
     notas?: string;
     enviadoPor: string;
+    labelType?: string; // "LOCAL_INFERIOR" | "FORANEO_SUPERIOR" | "OCOTLAN" | "PAQUETERIA"
+    evidenciaFotoUrl?: string;
+    pesoKg?: number;
+    largoCm?: number;
+    anchoCm?: number;
+    altoCm?: number;
   }) {
     const order = await this.prisma.order.findUniqueOrThrow({
       where: { id: data.orderId },
@@ -86,6 +92,12 @@ export class ShippingService {
           guiaEnvio: data.guiaEnvio,
           placas: data.placas,
           chofer: data.chofer,
+          labelType: data.labelType || null,
+          evidenciaFotoUrl: data.evidenciaFotoUrl || null,
+          pesoKg: data.pesoKg != null ? Number(data.pesoKg) : null,
+          largoCm: data.largoCm != null ? Number(data.largoCm) : null,
+          anchoCm: data.anchoCm != null ? Number(data.anchoCm) : null,
+          altoCm: data.altoCm != null ? Number(data.altoCm) : null,
           estado: 'EN_TRANSITO',
           fechaEnvio: new Date(),
           enviadoPor: data.enviadoPor,
@@ -100,13 +112,14 @@ export class ShippingService {
         },
       });
 
-      // Actualizar orden a DESPACHADO
+      // Actualizar orden a DESPACHADO y registrar etiqueta
       await tx.order.update({
         where: { id: data.orderId },
         data: {
           estado: 'DESPACHADO',
           transportista: data.transportista,
           guiaEnvio: data.guiaEnvio,
+          tipoEtiquetaEmbarque: data.labelType || undefined,
         },
       });
 
@@ -215,6 +228,43 @@ export class ShippingService {
         fechaEntrega: new Date(),
       },
     });
+  }
+
+  /**
+   * Subir fotografía del acuse de recibo / guía sellada por la fletera
+   */
+  async uploadShippingEvidence(
+    shipmentId: string,
+    data: { evidenciaFotoUrl: string; guiaEnvio?: string; transportista?: string },
+  ) {
+    const shipment = await this.prisma.shipment.update({
+      where: { id: shipmentId },
+      data: {
+        evidenciaFotoUrl: data.evidenciaFotoUrl,
+        ...(data.guiaEnvio ? { guiaEnvio: data.guiaEnvio } : {}),
+        ...(data.transportista ? { transportista: data.transportista } : {}),
+        estado: 'EN_TRANSITO',
+      },
+      include: {
+        order: {
+          include: {
+            client: { select: { nombre: true, codigo: true } },
+          },
+        },
+      },
+    });
+
+    if (data.guiaEnvio || data.transportista) {
+      await this.prisma.order.update({
+        where: { id: shipment.orderId },
+        data: {
+          ...(data.guiaEnvio ? { guiaEnvio: data.guiaEnvio } : {}),
+          ...(data.transportista ? { transportista: data.transportista } : {}),
+        },
+      });
+    }
+
+    return shipment;
   }
 
   /**

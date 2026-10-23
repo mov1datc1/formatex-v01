@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   Building2, Truck, Clock, CheckCircle2, Search, Copy, Check,
   FileText, Plus, AlertTriangle, Layers, Calendar, User, ArrowRight,
-  PackageCheck, RefreshCw, X
+  PackageCheck, RefreshCw, X, Sparkles
 } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
 import { api } from '../../config/api';
@@ -15,6 +15,12 @@ export default function RequisicionesTelaresTab({ onRefresh }: { onRefresh?: () 
   const [showNuevaReq, setShowNuevaReq] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedVale, setSelectedVale] = useState<any | null>(null);
+
+  // Sugerencia 8 Meses (Levantamiento Israel / Almacén)
+  const [showSugerenciaModal, setShowSugerenciaModal] = useState(false);
+  const [sugerenciaData, setSugerenciaData] = useState<any | null>(null);
+  const [loadingSugerencia, setLoadingSugerencia] = useState(false);
+  const [initialLineasForNewReq, setInitialLineasForNewReq] = useState<any[]>([]);
 
   const { data: requisiciones, isLoading, refetch, isFetching } = useApi<any[]>(
     ['requisiciones-telares', search, filterEstado],
@@ -81,6 +87,35 @@ export default function RequisicionesTelaresTab({ onRefresh }: { onRefresh?: () 
     return true;
   });
 
+  const handleLoadSugerencia = async () => {
+    setLoadingSugerencia(true);
+    setShowSugerenciaModal(true);
+    try {
+      const res = await api.get('/purchasing/requisiciones-telares/sugerencia-8-meses');
+      setSugerenciaData(res.data);
+    } catch {
+      toast.error('Error al calcular la sugerencia de 8 meses');
+    } finally {
+      setLoadingSugerencia(false);
+    }
+  };
+
+  const handleCreateFromSugerencia = () => {
+    if (!sugerenciaData?.sugerencias?.length) return;
+    const initialLines = sugerenciaData.sugerencias.slice(0, 15).map((s: any) => ({
+      skuId: s.skuId,
+      skuLabel: `${s.skuCodigo} — ${s.skuNombre}`,
+      skuColor: s.color,
+      cantidadRollos: s.rollosSugeridos,
+      metrajeTotal: s.rollosSugeridos * s.metrajePorRollo,
+    }));
+    setInitialLineasForNewReq(initialLines);
+    setShowSugerenciaModal(false);
+    setShowNuevaReq(true);
+  };
+
+  const isBefore13Hours = new Date().getHours() < 13;
+
   return (
     <div className="space-y-5 animate-fade-in text-xs">
       {/* Banner Explicativo del Flujo Inter-Compañía */}
@@ -106,14 +141,62 @@ export default function RequisicionesTelaresTab({ onRefresh }: { onRefresh?: () 
             </div>
           </div>
 
-          <button
-            onClick={() => setShowNuevaReq(true)}
-            className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 rounded-xl font-bold shadow-md flex items-center gap-2 transition-all cursor-pointer shrink-0 active:scale-95"
-          >
-            <Plus size={16} />
-            <span>Nueva Requisición a Telares</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleLoadSugerencia}
+              className="px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-amber-300 border border-amber-300/30 rounded-xl font-bold flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-xs"
+            >
+              <Sparkles size={15} />
+              <span>Sugerencia 8 Meses</span>
+            </button>
+            <button
+              onClick={() => {
+                setInitialLineasForNewReq([]);
+                setShowNuevaReq(true);
+              }}
+              className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 rounded-xl font-bold shadow-md flex items-center gap-2 transition-all cursor-pointer shrink-0 active:scale-95"
+            >
+              <Plus size={16} />
+              <span>Nueva Requisición</span>
+            </button>
+          </div>
         </div>
+      </div>
+
+      {/* Regla Operativa de Almacén: Horario de Corte 13:00 / 14:00 hrs & Meta de 8 Meses */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+            isBefore13Hours ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'
+          }`}>
+            <Clock size={20} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-black text-slate-900 text-xs">
+                Corte Diario de Almacén Formatex: 13:00 hrs (Envío Telares 14:00 hrs)
+              </span>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                isBefore13Hours
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                  : 'bg-amber-100 text-amber-800 border border-amber-300'
+              }`}>
+                {isBefore13Hours ? '🟢 En Horario (Surtido Mañana)' : '⏱️ Fuera de Corte (Pasa a Mañana)'}
+              </span>
+            </div>
+            <p className="text-slate-500 text-[11px] mt-0.5">
+              Israel consolida pedidos a las 14:00 hrs para surtido matutino en Tototlán. Política de Almacén: Cobertura de <strong>8 meses de inventario</strong> (doble de los 4 meses máster comercial).
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={handleLoadSugerencia}
+          className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl font-bold flex items-center gap-1.5 cursor-pointer text-[11px] self-end md:self-auto"
+        >
+          <Sparkles size={13} />
+          <span>Ver Cálculo 8 Meses</span>
+        </button>
       </div>
 
       {/* Barra de Filtros y Búsqueda */}
@@ -368,13 +451,146 @@ export default function RequisicionesTelaresTab({ onRefresh }: { onRefresh?: () 
       {/* MODAL NUEVA REQUISICIÓN */}
       {showNuevaReq && (
         <NuevaRequisicionTelaresModal
-          onClose={() => setShowNuevaReq(false)}
+          onClose={() => {
+            setShowNuevaReq(false);
+            setInitialLineasForNewReq([]);
+          }}
+          initialLineas={initialLineasForNewReq}
           onCreated={() => {
             setShowNuevaReq(false);
+            setInitialLineasForNewReq([]);
             refetch();
             if (onRefresh) onRefresh();
           }}
         />
+      )}
+
+      {/* MODAL SUGERENCIA DE RESURTIDO (META 8 MESES ISRAEL) */}
+      {showSugerenciaModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-3xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-start justify-between pb-3 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-700 shrink-0">
+                  <Sparkles size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 tracking-tight">
+                    Sugerencia de Resurtido a Telares — Meta de 8 Meses
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Levantamiento oficial con Israel (Almacén). Cobertura calculada para amortiguar demoras marítimas.
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setShowSugerenciaModal(false)} className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400">
+                <X size={18} />
+              </button>
+            </div>
+
+            {loadingSugerencia ? (
+              <div className="text-center py-12 text-slate-400">
+                <RefreshCw size={28} className="animate-spin mx-auto mb-2 text-indigo-600" />
+                <p className="font-bold text-slate-700">Calculando proyección de 8 meses de stock...</p>
+              </div>
+            ) : !sugerenciaData ? (
+              <div className="text-center py-8 text-slate-400">
+                <p>No se encontraron datos de proyección.</p>
+              </div>
+            ) : (
+              <div className="space-y-4 overflow-y-auto pr-1 flex-1">
+                {/* Banner de corte informativo */}
+                <div className="bg-gradient-to-r from-slate-900 to-indigo-950 rounded-2xl p-4 text-white text-[11px] space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-amber-300">
+                      ⏰ Horario de Corte: {sugerenciaData.corteInfo?.horaCorteDiario} | Envío Telares: {sugerenciaData.corteInfo?.horaEnvioTelares}
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-white/20">
+                      Hora actual: {sugerenciaData.corteInfo?.horaActual}
+                    </span>
+                  </div>
+                  <p className="text-white/80">{sugerenciaData.corteInfo?.mensajeCorte}</p>
+                  <p className="text-emerald-300 font-bold">Entrega estimada: {sugerenciaData.corteInfo?.proximoSurtidoEstimado}</p>
+                </div>
+
+                {/* Resumen numérico */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase">Telas con Déficit vs 8 Meses</p>
+                    <p className="text-lg font-black text-slate-900">{sugerenciaData.totalSkusSugeridos || 0} SKUs</p>
+                  </div>
+                  <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+                    <p className="text-[10px] font-bold text-indigo-700 uppercase">Rollos Totales Sugeridos (50m c/u)</p>
+                    <p className="text-lg font-black text-indigo-950">{sugerenciaData.totalRollosSugeridos || 0} Rollos</p>
+                  </div>
+                </div>
+
+                {/* Tabla de SKUs */}
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-100 text-slate-600 font-bold text-[10px]">
+                      <tr>
+                        <th className="py-2 px-3">SKU / Tela</th>
+                        <th className="py-2 px-2 text-center">Stock Actual</th>
+                        <th className="py-2 px-2 text-center">Meta 8 Meses</th>
+                        <th className="py-2 px-2 text-center">Faltante</th>
+                        <th className="py-2 px-3 text-right">Rollos a Pedir</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-[11px]">
+                      {sugerenciaData.sugerencias?.map((s: any) => (
+                        <tr key={s.skuId} className="hover:bg-slate-50/80">
+                          <td className="py-2.5 px-3">
+                            <span className="font-bold text-slate-900">{s.skuNombre}</span>
+                            <div className="text-[10px] text-slate-400 font-mono">{s.skuCodigo} {s.color ? `· ${s.color}` : ''}</div>
+                          </td>
+                          <td className="py-2.5 px-2 text-center font-semibold text-slate-700">
+                            {s.stockFisicoMetros}m <span className="text-slate-400">({s.stockFisicoRollos}r)</span>
+                          </td>
+                          <td className="py-2.5 px-2 text-center text-indigo-700 font-bold">
+                            {s.meta8MesesMetros}m <span className="text-indigo-400">({s.meta8MesesRollos}r)</span>
+                          </td>
+                          <td className="py-2.5 px-2 text-center text-amber-700 font-bold">
+                            {s.faltanteMetros}m
+                          </td>
+                          <td className="py-2.5 px-3 text-right">
+                            <span className="px-2 py-0.5 rounded-full font-black text-xs bg-amber-100 text-amber-900 border border-amber-300">
+                              +{s.rollosSugeridos} rollos
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-between items-center pt-3 border-t border-slate-100 shrink-0">
+              <span className="text-[11px] text-slate-400 font-medium">
+                Se cargará una orden hacia Telares con corte a las 14:00 hrs
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSugerenciaModal(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs"
+                >
+                  Cerrar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateFromSugerencia}
+                  disabled={!sugerenciaData?.sugerencias?.length}
+                  className="px-4 py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 rounded-xl font-black text-xs shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                >
+                  <Plus size={14} />
+                  <span>Crear Requisición con estos SKUs</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* MODAL VALE DE CARGA PARA CAMIONETA */}

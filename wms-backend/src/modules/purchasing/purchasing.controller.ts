@@ -82,6 +82,12 @@ export class PurchasingController {
 
   // ===== REQUISICIONES INTER-COMPAÑÍA (FORMATEX ➔ TELARES) =====
 
+  @Get('requisiciones-telares/sugerencia-8-meses')
+  @ApiOperation({ summary: 'Sugerencia automática de resurtido a Telares con meta de 8 meses de stock y horario de corte 13:00 / 14:00 hrs' })
+  getRequisicionTelaresSugerida8Meses() {
+    return this.purchasingService.getRequisicionTelaresSugerida8Meses();
+  }
+
   @Get('requisiciones-telares')
   @ApiOperation({ summary: 'Listar requisiciones de resurtido a Telares' })
   findRequisicionesTelares(@Query('search') search?: string, @Query('estado') estado?: string) {

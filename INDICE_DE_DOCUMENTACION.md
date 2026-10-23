@@ -15,6 +15,7 @@ Estos documentos constituyen la especificación operativa y técnica oficial res
 | :--- | :--- | :--- | :--- | :---: |
 | **Atención al Cliente (ATC), Ventas & Conexión Logística** | [`REGLAS_DE_NEGOCIO_ATC_FORMATEX.docx`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/requerimientos/atencion_al_cliente/REGLAS_DE_NEGOCIO_ATC_FORMATEX.docx) | [`REGLAS_DE_NEGOCIO_ATC_FORMATEX.md`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/requerimientos/atencion_al_cliente/REGLAS_DE_NEGOCIO_ATC_FORMATEX.md) | [`CORREO_RESUMEN_ALMA_Y_ANDREA.md`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/requerimientos/atencion_al_cliente/CORREO_RESUMEN_ALMA_Y_ANDREA.md) | **Listo para Envío (v1.1 Consolidada)** |
 | **Compras Internacionales (China), Costeo & Telares** | [`REGLAS_DE_NEGOCIO_COMPRAS_IMPORTACIONES_FORMATEX.docx`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/requerimientos/compras_importaciones/REGLAS_DE_NEGOCIO_COMPRAS_IMPORTACIONES_FORMATEX.docx) | [`REGLAS_DE_NEGOCIO_COMPRAS_IMPORTACIONES_FORMATEX.md`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/requerimientos/compras_importaciones/REGLAS_DE_NEGOCIO_COMPRAS_IMPORTACIONES_FORMATEX.md) | [`CORREO_RESUMEN_ELBA_COMPRAS_IMPORTACIONES.md`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/requerimientos/compras_importaciones/CORREO_RESUMEN_ELBA_COMPRAS_IMPORTACIONES.md) | **Listo para Envío (v1.2 Consolidada)** |
+| **Almacén, Surtido, Corte, Empaque & Embarques** | [`REGLAS_DE_NEGOCIO_ALMACEN_FORMATEX.docx`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/requerimientos/almacen/REGLAS_DE_NEGOCIO_ALMACEN_FORMATEX.docx) | [`REGLAS_DE_NEGOCIO_ALMACEN_FORMATEX.md`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/requerimientos/almacen/REGLAS_DE_NEGOCIO_ALMACEN_FORMATEX.md) | [`CORREO_RESUMEN_ISRAEL_ALMACEN.md`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/requerimientos/almacen/CORREO_RESUMEN_ISRAEL_ALMACEN.md) | **Listo para Envío (v1.0 Consolidada)** |
 | **Funcionamiento Integral Formatex** | [`FUNCIONAMIENTO_DE_FORMATEX.docx`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/FUNCIONAMIENTO_DE_FORMATEX.docx) | [`FUNCIONAMIENTO_DE_FORMATEX.md`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/FUNCIONAMIENTO_DE_FORMATEX.md) | — | **Aprobado** |
 
 ---
@@ -22,6 +23,11 @@ Estos documentos constituyen la especificación operativa y técnica oficial res
 ## 2. Archivos de Entrevistas, Transcripciones y Minutas Originales
 
 Carpeta: [`entrevistas/`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/entrevistas)
+
+### Almacén, Surtido, Corte, Empaque y Embarques (Israel, Andrea):
+- **Sesión de Operaciones de Bodega (23/Oct/2026):**
+  - [`Entrevista - Israel - Proyecto Formatex Resumen.txt`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/entrevistas/Almacen/Entrevista%20-%20Israel%20-%20Proyecto%20Formatex%20Resumen.txt)
+  - [`Entrevista - Israel - Proyecto Formatex Transcripción.txt`](file:///Users/jonathanpalacios/Downloads/wms-formatex-v2/entrevistas/Almacen/Entrevista%20-%20Israel%20-%20Proyecto%20Formatex%20Transcripci%C3%B3n.txt)
 
 ### Atención al Cliente y Ventas (Alma, Andrea, Santiago, Nayeli):
 - **Sesión #1 (14/Oct/2026):**

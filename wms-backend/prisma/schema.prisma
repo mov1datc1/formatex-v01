@@ -662,6 +662,19 @@ model Order {
   vigenciaConfirmadaAt         DateTime?      // Fecha en que el cliente confirmó vigencia de su orden de compra
   vigenciaConfirmadaPor        String?        // Ejecutivo ATC o Supervisora que confirmó vigencia
 
+  // === OPERATIVO & ALMACÉN (Entrevista Israel / Oct 2026) ===
+  tiempoPromesaSlaHoras        Int?           @default(72) // 48 (rollo cerrado <10), 72 (1-4 cortes), 96 (5-9 cortes o acumulado)
+  fechaPromesaEntrega          DateTime?      // Fecha límite calculada en días hábiles
+  validacionFisicaRequerida    Boolean        @default(false) // Stock <100m en almacén dispara revisión física
+  validacionFisicaEstatus      String?        // "PENDIENTE" | "CONFIRMADO_VISUAL" | "CONFIRMADO_MESA" | "RECHAZADO"
+  metrajeConfirmadoFisico      Float?         // Metraje verificado en rollo o medido en mesa
+  validacionFisicaNotas        String?
+  alertaVariacionTono          Boolean        @default(false) // Mezcla de lotes detectada en surtido
+  variacionTonoAceptada        Boolean        @default(false) // Autorización del cliente para mezclar lotes
+  variacionTonoAceptadaPor     String?        // Nombre de quien autorizó en ATC
+  carritoCorte                 String?        // Ej: "Carrito 01 - A1", "Carrito 02 - A3" (3 niveles A1, A2, A3)
+  tipoEtiquetaEmbarque         String?        // "LOCAL_INFERIOR" | "FORANEO_SUPERIOR" | "OCOTLAN" | "PAQUETERIA"
+
   creadoPor            String
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
@@ -824,6 +837,15 @@ model Shipment {
   fechaEntrega  DateTime?
   enviadoPor    String         // userId
   notas         String?
+
+  // === EMBARQUES & FLETERAS (Entrevista Israel / Oct 2026) ===
+  labelType           String?        // "LOCAL_INFERIOR" | "FORANEO_SUPERIOR" | "OCOTLAN" | "PAQUETERIA"
+  evidenciaFotoUrl    String?        // Fotografía del acuse de recibo / guía sellada por fletera
+  pesoKg              Decimal?       @db.Decimal(8, 2) // Requerido para Paquetexpress
+  largoCm             Decimal?       @db.Decimal(8, 2)
+  anchoCm             Decimal?       @db.Decimal(8, 2)
+  altoCm              Decimal?       @db.Decimal(8, 2)
+
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 

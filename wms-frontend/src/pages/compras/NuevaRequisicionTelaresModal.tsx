@@ -14,13 +14,15 @@ interface RequisicionLine {
 export default function NuevaRequisicionTelaresModal({
   onClose,
   onCreated,
+  initialLineas,
 }: {
   onClose: () => void;
   onCreated: () => void;
+  initialLineas?: RequisicionLine[];
 }) {
   const [skus, setSkus] = useState<any[]>([]);
   const [skuSearch, setSkuSearch] = useState('');
-  const [lineas, setLineas] = useState<RequisicionLine[]>([]);
+  const [lineas, setLineas] = useState<RequisicionLine[]>(initialLineas || []);
   const [solicitante, setSolicitante] = useState('Israel (Jefe de Almacén)');
   const [prioridad, setPrioridad] = useState(3);
   const [ruta, setRuta] = useState('Camioneta Flota Propia (Tototlán ➔ Zapopan)');

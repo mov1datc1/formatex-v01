@@ -1,0 +1,90 @@
+Entrevista - Israel - Proyecto Formatex
+vie, 23 oct 2026
+
+Resumen:
+
+Se documentaron los procesos de cotización, surtido, embarque y reposición de inventario.
+• Cotizaciones requieren validar existencias cuando el sistema muestra menos de 100 metros.
+• Reservas manuales duran tres días internos; el cliente tiene dos días hábiles para pagar.
+• Surtidores procesan 55–60 cortes diarios; los plazos varían según el pedido.
+• Reposición busca mantener ocho meses de inventario.
+• Notificaciones de rastreo y reservas automáticas siguen pendientes de definición.
+
+
+Elementos de acción:
+
+* MOVIDA TCI: Incorpora al algoritmo reglas que prioricen sugerencias del mismo lote y ordenen las alternativas disponibles
+* Participante de la sala: Envía la guía de embarque de bitácora
+* MOVIDA TCI: Evalúen cómo permitir que los choferes carguen fotografías de las guías y las vinculen con los pedidos.
+* MOVIDA TCI: Revisen cómo resolver los problemas de entrega de las notificaciones o guías por correo a los clientes.
+* MOVIDA TCI: Completen los documentos y canalicen el proceso de recepción en el prototipo para el miércoles.
+* MOVIDA TCI: Coordinen una entrevista con César para revisar el circuito y los temas administrativos, de cobranzas y facturación.
+* Participante de la sala de conferencias: Confirmen si pueden reunirse el lunes a la 1 o a las 2 de la tarde.
+* Participante de la sala de conferencias: Envíen una foto de la etiqueta que llega desde Telares.
+* MOVIDA TCI: Entreguen el flujo actual del proceso de recepción.
+* Participante de la sala de conferencias: Envíen la guía interna de embarque.
+
+
+Puntos clave de la discusión:
+
+Contexto de la entrevista y procesos de almacén
+Se coordinaron la conexión de Andrea y el inicio de la entrevista, cuyo objetivo era comprender el trabajo de Israel en almacén. MOVIDA TCI pidió detalles sobre cotizaciones, pedidos, faltantes y asignación del surtido.
+
+Cotizaciones y validación de existencias
+El equipo describió cuándo se solicitan cotizaciones, cómo se comprueba el metraje y cómo se informa la disponibilidad a ATC. También explicó las diferencias entre consultas de existencia y cotizaciones en firme, además de las variaciones posibles en los tramos y metrajes de los rollos.
+
+Espera de pago y reserva de tela
+Se definió la espera de pago como una reserva identificada con etiqueta física, con plazos de dos días hábiles para el cliente y tres días hábiles internos. La gestión actual es manual; MOVIDA TCI explicó que se contempla una reserva blanda en el sistema, con liberación automática y opción de ampliar el plazo.
+
+Inicio del proceso de pedido
+Se indicó que, tras la validación del pago, el pedido vuelve a almacén, cambia de estado y pasa a surtido. La tela se mueve al área de embarques, y la conversación continúa con una solicitud de más detalles sobre la asignación de pedidos a los surtidores.
+
+Asignación y capacidad de surtido
+La asignación de pedidos se adapta a la carga de trabajo y a las capacidades del personal, especialmente para acceder a rollos en racks. Se indicó una productividad aproximada de 55 a 60 cortes diarios por surtidor y que los pedidos mixtos se asignan a personal con dominio integral del almacén.
+
+Rastreo de pedidos y flujo de corte a empaque
+Se explicó que el rastreo se basa en registrar las ubicaciones de los rollos y los carritos y niveles a los que se trasladan. Tras el surtido, corte completa el trabajo y el material pasa a empaque, que solo agrega cierta identificación cuando la solicita el cliente o la paquetería.
+
+Prioridades de embarque y plazos de entrega
+Se describieron las prioridades de paquetería y las rutas foráneas, así como los horarios de preparación de los envíos. Los plazos de entrega dependen del tipo y la cantidad de cortes, y ATC genera el pedido según las necesidades indicadas por el cliente.
+
+Disponibilidad, cotización y sugerencias por lote
+Se exploró cómo incorporar al sistema la disponibilidad real para orientar las cotizaciones y las opciones de corte. Cuando hay poca existencia, se validan los metrajes y se consulta al cliente; para las sugerencias, se planteó priorizar el mismo lote y alertar sobre posibles variaciones de tono.
+
+Introducción al tema de importaciones
+Se planteó una pregunta sobre cómo participa Israel y dónde interviene su función en el proceso de importación. El fragmento termina antes de que se desarrolle una respuesta.
+
+Contenedores, backorders y preórdenes
+El equipo describió cómo los pedidos de telas en backorder esperan la llegada de los contenedores y cómo los cambios en las fechas estimadas pueden generar retrasos. Se propusieron notificaciones asociadas a los pedidos y una preorden consolidada por tela, además de confirmar con los clientes si mantienen sus pedidos antes de la llegada.
+
+Flujo operativo de los pedidos
+Se reconstruyó el recorrido de la hoja del pedido entre atención al cliente, bitácora, almacén, surtido y corte. También se aclaró cómo se actualiza la información y cómo se deriva el rollo a embarques para su preparación.
+
+Etiquetas, embarques y guías
+El equipo revisó la identificación y ubicación de los rollos según su destino, incluidas las entregas locales, foráneas, Ocotlán y distintas paqueterías. Se explicó que bitácora genera guías a partir de la información de rutas y se examinó cómo se manejan las guías de entrega.
+
+Rastreo y comunicación con clientes
+Se identificó que compartir fotografías de las guías en WhatsApp para transcribir manualmente los números de rastreo puede demorar la comunicación con los clientes. Se planteó almacenar en el sistema las fotografías vinculadas a los pedidos y evaluar el envío por correo, con la salvedad de que existen problemas de entrega de mensajes que requieren revisión.
+
+Compras y recepción de mercancía
+Se describió cómo se calculan las requisiciones según ventas promedio y existencias, y cómo se gestionan las compras especiales. El equipo explicó la recepción, el acomodo de los rollos y la dependencia de los horarios de entrega de Telares.
+
+Etiquetado y control de inventario
+Se aclaró que el etiquetado inicial se realiza en Telares y que Formatex requeriría una etiqueta adicional con su código y ubicación. También se revisó qué controles se realizan al recibir rollos y cómo se atienden necesidades de materiales disponibles en Telares.
+
+Automatización de reposición
+MOVIDA TCI propuso dos alternativas para automatizar las solicitudes de reposición, y el equipo expresó preferencia por una opción automatizada con validación de Israel. Se discutieron el horario límite de la 1 p. m. y la generación de órdenes recurrentes basadas en la meta de inventario.
+
+Entrevistas y coordinación de próximas reuniones
+Se revisaron las fechas posibles para continuar el levantamiento y se acordó una entrevista adicional la semana siguiente, además de una reunión presencial el 2 de noviembre para recorrer el circuito. También se señalaron temas pendientes de administración, cobranzas, facturación y asociación de clientes.
+
+Documentación y diseño de la bodega
+Se solicitaron documentos y referencias para completar el análisis de los procesos, incluida una guía interna de embarque. La revisión del almacén deberá considerar la redistribución prevista para la nueva bodega y la definición de zonas y nombres.
+
+Próximos pasos y cierre
+MOVIDA TCI indicó que revisará los materiales compartidos y determinará cómo representar los procesos en la plataforma. La reunión concluyó con el compromiso de retomar el trabajo en una sesión posterior.
+
+
+Bloc de notas:
+
+* No hay notas

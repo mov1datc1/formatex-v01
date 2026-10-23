@@ -139,4 +139,41 @@ export class OrdersController {
   assignHU(@Param('lineId') lineId: string, @Body() body: { huId: string; metrajeTomado: number }) {
     return this.ordersService.assignHUToOrderLine(lineId, body.huId, body.metrajeTomado);
   }
+
+  @Put(':id/confirm-physical-validation')
+  @ApiOperation({ summary: 'Almacén confirma metraje medido en rack o mesa para stock <100m' })
+  confirmPhysicalValidation(
+    @Param('id') id: string,
+    @Body() body: { estatus: 'CONFIRMADO_VISUAL' | 'CONFIRMADO_MESA' | 'RECHAZADO'; metrajeConfirmado?: number; notas?: string },
+    @Req() req: any,
+  ) {
+    return this.ordersService.confirmarValidacionFisica(id, body, req.user.sub);
+  }
+
+  @Put(':id/accept-lot-variation')
+  @ApiOperation({ summary: 'ATC confirma autorización del cliente para mezclar lotes de tela' })
+  acceptLotVariation(
+    @Param('id') id: string,
+    @Body() body: { aceptadoPor: string; notas?: string },
+  ) {
+    return this.ordersService.aceptarVariacionTono(id, body);
+  }
+
+  @Put(':id/assign-cart')
+  @ApiOperation({ summary: 'Almacén asigna carrito de corte y nivel (A1, A2, A3)' })
+  assignCart(
+    @Param('id') id: string,
+    @Body('carritoCorte') carritoCorte: string,
+  ) {
+    return this.ordersService.asignarCarritoCorte(id, carritoCorte);
+  }
+
+  @Put(':id/assign-shipping-label')
+  @ApiOperation({ summary: 'Asignar tipo oficial de etiqueta de embarque (LOCAL_INFERIOR, FORANEO_SUPERIOR, OCOTLAN, PAQUETERIA)' })
+  assignShippingLabel(
+    @Param('id') id: string,
+    @Body('tipoEtiqueta') tipoEtiqueta: string,
+  ) {
+    return this.ordersService.asignarTipoEtiqueta(id, tipoEtiqueta);
+  }
 }

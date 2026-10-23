@@ -220,6 +220,55 @@ export default function PedidosPage() {
     }
   };
 
+  // Handlers para Control Operativo de Almacén (Levantamiento Israel / Oct 2026)
+  const handleConfirmPhysicalValidation = async (orderId: string, estatus: 'CONFIRMADO_VISUAL' | 'CONFIRMADO_MESA') => {
+    try {
+      await api.put(`/orders/${orderId}/confirm-physical-validation`, {
+        estatus,
+        metrajeConfirmado: estatus === 'CONFIRMADO_MESA' ? 100 : undefined,
+        notas: `Verificado en bodega según protocolo Israel (${estatus})`,
+      });
+      toast.success(estatus === 'CONFIRMADO_MESA' ? 'Medición física en mesa confirmada' : 'Verificación visual en rack confirmada');
+      refetchDetail();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Error al validar metraje físico');
+    }
+  };
+
+  const handleAcceptToneVariation = async (orderId: string) => {
+    const contact = window.prompt('Ingresa el nombre del cliente o contacto que autorizó la posible variación de tono por mezcla de lotes:');
+    if (!contact) return;
+    try {
+      await api.put(`/orders/${orderId}/accept-lot-variation`, {
+        aceptadoPor: contact,
+      });
+      toast.success('Variación de tono autorizada correctamente');
+      refetchDetail();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Error al autorizar variación');
+    }
+  };
+
+  const handleAssignCart = async (orderId: string, carritoCorte: string) => {
+    try {
+      await api.put(`/orders/${orderId}/assign-cart`, { carritoCorte });
+      toast.success(`Carrito de corte asignado: ${carritoCorte}`);
+      refetchDetail();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Error al asignar carrito');
+    }
+  };
+
+  const handleAssignShippingLabel = async (orderId: string, tipoEtiqueta: string) => {
+    try {
+      await api.put(`/orders/${orderId}/assign-shipping-label`, { tipoEtiqueta });
+      toast.success(`Etiqueta de embarque actualizada: ${tipoEtiqueta}`);
+      refetchDetail();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Error al asignar etiqueta');
+    }
+  };
+
   const addLinea = () => setLineas([...lineas, { skuId: '', metrajeRequerido: 50, precioUnitario: 0, listaPrecios: '', descuentoPct: 0, selectedHUs: [] }]);
 
   const handleCreate = async () => {
@@ -1038,6 +1087,145 @@ export default function PedidosPage() {
                     <MapPin size={13} /> {detail.deliveryConfirmed ? 'Modificar Datos de Entrega' : 'Validar Datos de Entrega'}
                   </button>
                 )}
+              </div>
+
+              {/* === CONTROL OPERATIVO DE ALMACÉN (Entrevista Israel / Oct 2026) === */}
+              <div className="bg-slate-900 text-white rounded-2xl p-4 text-xs space-y-3 shadow-md border border-slate-800">
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-amber-300 flex items-center gap-1.5 uppercase tracking-wider text-[10px]">
+                    <Layers size={13} /> Control Operativo Almacén & Tiempos
+                  </span>
+                  <span className="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-white/10 text-white">
+                    SLA: {detail.tiempoPromesaSlaHoras || 72}h
+                  </span>
+                </div>
+
+                {/* Fecha Promesa de Entrega */}
+                <div className="bg-white/5 rounded-xl p-2.5 border border-white/10 space-y-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-white/70 flex items-center gap-1">
+                      <Clock size={12} className="text-amber-400" /> Promesa de Entrega:
+                    </span>
+                    <strong className="text-amber-300">
+                      {detail.fechaPromesaEntrega
+                        ? new Date(detail.fechaPromesaEntrega).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })
+                        : `${detail.tiempoPromesaSlaHoras || 72}h hábiles`}
+                    </strong>
+                  </div>
+                  <p className="text-[10px] text-white/50 leading-tight">
+                    {detail.tiempoPromesaSlaHoras === 48
+                      ? 'Rollo cerrado estándar (24-48h). Puesta en fletera o domicilio.'
+                      : detail.tiempoPromesaSlaHoras === 72
+                      ? '1 a 4 cortes estándar (72h hábiles).'
+                      : '5 a 9 cortes o acumulado anti-trampa (96h hábiles).'}
+                  </p>
+                </div>
+
+                {/* Validación Física <100m */}
+                {detail.validacionFisicaRequerida && (
+                  <div className={`p-2.5 rounded-xl border ${
+                    detail.validacionFisicaEstatus === 'CONFIRMADO_VISUAL' || detail.validacionFisicaEstatus === 'CONFIRMADO_MESA'
+                      ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
+                      : 'bg-amber-950/50 border-amber-500/50 text-amber-300'
+                  }`}>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-bold flex items-center gap-1">
+                        <AlertTriangle size={12} /> Stock &lt; 100m (Revisión Física)
+                      </span>
+                      <span className="text-[10px] uppercase font-bold">
+                        {detail.validacionFisicaEstatus || 'PENDIENTE'}
+                      </span>
+                    </div>
+                    {detail.metrajeConfirmadoFisico ? (
+                      <p className="text-[10px] text-emerald-400 mt-0.5">
+                        Metraje medido en almacén: <strong>{detail.metrajeConfirmadoFisico}m</strong>
+                      </p>
+                    ) : (
+                      <div className="pt-1.5 flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleConfirmPhysicalValidation(detail.id, 'CONFIRMADO_VISUAL')}
+                          className="flex-1 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-lg font-bold text-[10px] transition-all cursor-pointer"
+                        >
+                          👁️ Confirmar Visual (Rack)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleConfirmPhysicalValidation(detail.id, 'CONFIRMADO_MESA')}
+                          className="flex-1 py-1 bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-lg font-bold text-[10px] transition-all cursor-pointer"
+                        >
+                          📏 Medido en Mesa
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Variación de Tono por Lotes */}
+                {detail.alertaVariacionTono && (
+                  <div className={`p-2.5 rounded-xl border ${
+                    detail.variacionTonoAceptada
+                      ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
+                      : 'bg-red-950/50 border-red-500/50 text-red-300'
+                  }`}>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-bold flex items-center gap-1">
+                        <Sparkles size={12} /> Variación de Tono (Lotes Mixtos)
+                      </span>
+                      <span className="text-[10px] font-bold">
+                        {detail.variacionTonoAceptada ? '✅ AUTORIZADO' : '⚠️ REQUIERE ATC'}
+                      </span>
+                    </div>
+                    {detail.variacionTonoAceptada ? (
+                      <p className="text-[10px] text-emerald-400 mt-0.5">
+                        Autorizado por cliente. Registrado por: <strong>{detail.variacionTonoAceptadaPor || 'ATC'}</strong>
+                      </p>
+                    ) : (
+                      <div className="pt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleAcceptToneVariation(detail.id)}
+                          className="w-full py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-[10px] transition-all cursor-pointer shadow-xs"
+                        >
+                          Autorizar Variación de Tono (Confirmado con Cliente)
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Carrito de Corte (A1, A2, A3) */}
+                <div className="pt-1 border-t border-white/10 flex items-center justify-between">
+                  <span className="text-white/70 text-[11px]">Carrito de Corte:</span>
+                  <select
+                    value={detail.carritoCorte || ''}
+                    onChange={(e) => handleAssignCart(detail.id, e.target.value)}
+                    className="bg-slate-800 text-amber-300 border border-slate-700 rounded-lg px-2 py-1 text-[11px] font-bold focus:ring-1 focus:ring-amber-400"
+                  >
+                    <option value="">Sin asignar</option>
+                    <option value="Carrito 01 - A1 (Nivel 1)">Carrito 01 - A1 (Nivel 1)</option>
+                    <option value="Carrito 01 - A2 (Nivel 2)">Carrito 01 - A2 (Nivel 2)</option>
+                    <option value="Carrito 01 - A3 (Nivel 3)">Carrito 01 - A3 (Nivel 3)</option>
+                    <option value="Carrito 02 - A1 (Nivel 1)">Carrito 02 - A1 (Nivel 1)</option>
+                    <option value="Carrito 02 - A2 (Nivel 2)">Carrito 02 - A2 (Nivel 2)</option>
+                    <option value="Carrito 02 - A3 (Nivel 3)">Carrito 02 - A3 (Nivel 3)</option>
+                  </select>
+                </div>
+
+                {/* Etiqueta de Embarque */}
+                <div className="flex items-center justify-between">
+                  <span className="text-white/70 text-[11px]">Etiqueta Embarque:</span>
+                  <select
+                    value={detail.tipoEtiquetaEmbarque || 'LOCAL_INFERIOR'}
+                    onChange={(e) => handleAssignShippingLabel(detail.id, e.target.value)}
+                    className="bg-slate-800 text-indigo-300 border border-slate-700 rounded-lg px-2 py-1 text-[11px] font-bold focus:ring-1 focus:ring-indigo-400"
+                  >
+                    <option value="LOCAL_INFERIOR">1. Local (Nivel Inferior)</option>
+                    <option value="FORANEO_SUPERIOR">2. Foráneo (Nivel Superior)</option>
+                    <option value="OCOTLAN">3. Ruta Ocotlán (Mar/Jue)</option>
+                    <option value="PAQUETERIA">4. Paqueterías (Paquetexpress)</option>
+                  </select>
+                </div>
               </div>
 
               {/* Financial summary */}

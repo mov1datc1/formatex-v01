@@ -57,4 +57,13 @@ export class ShippingController {
   confirmDelivery(@Param('id') id: string) {
     return this.shippingService.confirmDelivery(id);
   }
+
+  @Put('shipments/:id/upload-evidence')
+  @ApiOperation({ summary: 'Subir fotografía del acuse de recibo y guía sellada por fletera' })
+  uploadEvidence(
+    @Param('id') id: string,
+    @Body() body: { evidenciaFotoUrl: string; guiaEnvio?: string; transportista?: string },
+  ) {
+    return this.shippingService.uploadShippingEvidence(id, body);
+  }
 }

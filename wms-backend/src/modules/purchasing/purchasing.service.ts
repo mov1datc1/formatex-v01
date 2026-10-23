@@ -946,4 +946,69 @@ export class PurchasingService {
       },
     });
   }
+
+  /**
+   * Cálculo de Requisición Sugerida Formatex ➔ Telares (Meta de 8 Meses de Stock)
+   * Base levantamiento operativo Israel (Jefe de Almacén)
+   * Horario de corte: 13:00 hrs para envío a Telares a las 14:00 hrs (surtido al día siguiente).
+   */
+  async getRequisicionTelaresSugerida8Meses() {
+    const skus = await this.prisma.skuMaster.findMany({
+      where: { activo: true },
+      take: 60,
+      orderBy: { nombre: 'asc' },
+      include: {
+        handlingUnits: {
+          where: { estadoHu: { in: ['DISPONIBLE', 'RESERVADO_BLANDO', 'RESERVADO'] } },
+          select: { metrajeActual: true, estadoHu: true },
+        },
+      },
+    });
+
+    const now = new Date();
+    const currentHour = now.getHours();
+    const esAntesDeCorte = currentHour < 13;
+
+    const sugerencias = skus.map((sku: any) => {
+      const stockFisico = sku.handlingUnits.reduce((acc: number, hu: any) => acc + (hu.metrajeActual || 0), 0);
+      const ventaMensualEstimada = sku.consumoPromedioMensual || 200; // 200m/mes base
+      const meta8Meses = ventaMensualEstimada * 8; // Meta de 8 meses establecida por Israel
+      const faltanteMetros = Math.max(0, meta8Meses - stockFisico);
+      const metrajeRollo = sku.metrajeEstandar || 50;
+      const rollosSugeridos = Math.ceil(faltanteMetros / metrajeRollo);
+
+      return {
+        skuId: sku.id,
+        skuCodigo: sku.codigo,
+        skuNombre: sku.nombre,
+        color: sku.color,
+        metrajePorRollo: metrajeRollo,
+        stockFisicoMetros: stockFisico,
+        stockFisicoRollos: Math.round(stockFisico / metrajeRollo),
+        ventaMensualEstimada,
+        meta8MesesMetros: meta8Meses,
+        meta8MesesRollos: Math.round(meta8Meses / metrajeRollo),
+        faltanteMetros,
+        rollosSugeridos,
+        prioridad: stockFisico < ventaMensualEstimada ? 'URGENTE' : stockFisico < meta8Meses / 2 ? 'MEDIA' : 'OPTIMO',
+      };
+    }).filter((s: any) => s.rollosSugeridos > 0);
+
+    return {
+      corteInfo: {
+        horaActual: now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+        horaCorteDiario: '13:00 hrs',
+        horaEnvioTelares: '14:00 hrs',
+        esAntesDeCorte,
+        mensajeCorte: esAntesDeCorte
+          ? 'En horario: Pedidos capturados antes de las 13:00 hrs se consolidan a las 14:00 hrs y Telares surte MAÑANA.'
+          : 'Fuera de corte: Pedidos ingresados después de las 13:00 hrs se programan para el siguiente ciclo de 14:00 hrs.',
+        proximoSurtidoEstimado: esAntesDeCorte ? 'Mañana en la mañana' : 'Pasado mañana en la mañana',
+      },
+      politica: 'Meta Oficial Almacén Formatex: 8 Meses de Cobertura (Doble del máster comercial de 4 meses)',
+      totalSkusSugeridos: sugerencias.length,
+      totalRollosSugeridos: sugerencias.reduce((acc: number, s: any) => acc + s.rollosSugeridos, 0),
+      sugerencias,
+    };
+  }
 }
