@@ -47,6 +47,7 @@ export class InvoicingController {
     @Query('search') search?: string,
     @Query('status') status?: string,
     @Query('metodoPago') metodoPago?: string,
+    @Query('clientId') clientId?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
@@ -54,6 +55,7 @@ export class InvoicingController {
       search,
       status,
       metodoPago,
+      clientId,
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 20,
     });
@@ -120,8 +122,20 @@ export class InvoicingController {
 
   // List all complements
   @Get('complements')
-  async listComplements(@Query('search') search?: string) {
-    return this.invoicingService.listComplements(search);
+  async listComplements(
+    @Query('search') search?: string,
+    @Query('clientId') clientId?: string,
+  ) {
+    return this.invoicingService.listComplements(search, clientId);
+  }
+
+  // =======================================================================
+  // CARTERA DE CLIENTES DISGREGADA (Cobranza)
+  // =======================================================================
+
+  @Get('cartera-clientes')
+  async getCarteraPorCliente() {
+    return this.invoicingService.getCarteraPorCliente();
   }
 
   // =======================================================================

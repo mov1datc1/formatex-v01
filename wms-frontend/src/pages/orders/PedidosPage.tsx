@@ -686,19 +686,19 @@ export default function PedidosPage() {
         )}
       </div>
 
-      {/* Modal de Facturas Pendientes (César / Cobranza) */}
+      {/* Modal de Estado del Cliente y Facturas Pendientes (César / Cobranza / ATC) */}
       {showPendingInvoicesModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between border-b pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-red-100 text-red-700 rounded-xl">
-                  <CreditCard size={18} />
+                <div className="p-2.5 bg-blue-100 text-blue-700 rounded-xl">
+                  <CreditCard size={20} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-gray-900">Facturas Pendientes de Cobranza (César)</h3>
+                  <h3 className="text-base font-bold text-gray-900">Estado de Cuenta y Facturas del Cliente</h3>
                   <p className="text-xs text-gray-500">
-                    Cliente: <strong>{clients?.data?.find((c: any) => c.id === clientId)?.nombre}</strong>
+                    Cliente: <strong>{clients?.data?.find((c: any) => c.id === clientId)?.nombre}</strong> ({clients?.data?.find((c: any) => c.id === clientId)?.codigo}) · RFC: {clients?.data?.find((c: any) => c.id === clientId)?.rfc || '—'}
                   </p>
                 </div>
               </div>
@@ -707,29 +707,90 @@ export default function PedidosPage() {
               </button>
             </div>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 flex items-start gap-2">
-              <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <strong>Criterio de Negociación (César):</strong> Si el cliente tiene varias facturas vencidas, puede acordar abonar 1 o 2 facturas pendientes hoy para autorizar la liberación del nuevo pedido a crédito.
+            {/* Alerta si el cliente está bloqueado */}
+            {clientCreditStatus?.creditConfig?.bloqueado && (
+              <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3.5 text-xs text-red-900 flex items-start gap-2.5 shadow-xs">
+                <Ban size={18} className="text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-sm block">⛔ CLIENTE BLOQUEADO PARA NUEVOS PEDIDOS (Cobranza)</strong>
+                  <p className="mt-0.5 font-medium">Motivo: {clientCreditStatus.creditConfig.motivoBloqueo || 'Bloqueado administrativamente por César.'}</p>
+                  <p className="text-[11px] text-red-700 mt-1">Para liberar pedidos a este cliente, se requiere que César retire el bloqueo o autorice la excepción.</p>
+                </div>
+              </div>
+            )}
+
+            {/* Métricas de Crédito */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
+                <p className="text-[11px] text-gray-500 font-medium">Línea de Crédito</p>
+                <p className="text-base font-bold text-gray-900 mt-0.5">
+                  {clientCreditStatus?.creditConfig?.creditoHabilitado
+                    ? `$${Number(clientCreditStatus.creditConfig.montoMaximo || 0).toLocaleString('es-MX')} MXN`
+                    : 'Sin Crédito (Contado)'}
+                </p>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  {clientCreditStatus?.creditConfig?.creditoHabilitado
+                    ? `Plazo: ${clientCreditStatus.creditConfig.plazoDefault} días · Desc. máx: ${clientCreditStatus.creditConfig.descuentoMaximo}%`
+                    : 'CFDI PUE Inmediato'}
+                </p>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
+                <p className="text-[11px] text-gray-500 font-medium">Saldo Total Pendiente</p>
+                <p className="text-base font-bold text-gray-900 mt-0.5">
+                  ${clientPendingInvoices.reduce((sum: number, inv: any) => sum + Number(inv.saldoPendiente || inv.total || 0), 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                </p>
+                <p className="text-[10px] text-gray-500 mt-0.5">{clientPendingInvoices.length} factura(s) por liquidar</p>
+              </div>
+
+              <div className={`border rounded-xl p-3 ${
+                clientPendingInvoices.some((i: any) => i.fechaVencimiento && new Date(i.fechaVencimiento) < new Date())
+                  ? 'bg-red-50/80 border-red-200 text-red-900'
+                  : 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+              }`}>
+                <p className="text-[11px] font-medium">Saldo Vencido Fuera de Plazo</p>
+                <p className="text-base font-bold mt-0.5">
+                  ${clientPendingInvoices
+                    .filter((i: any) => i.fechaVencimiento && new Date(i.fechaVencimiento) < new Date())
+                    .reduce((sum: number, inv: any) => sum + Number(inv.saldoPendiente || inv.total || 0), 0)
+                    .toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                </p>
+                <p className="text-[10px] mt-0.5 font-semibold">
+                  {clientPendingInvoices.filter((i: any) => i.fechaVencimiento && new Date(i.fechaVencimiento) < new Date()).length > 0
+                    ? `🔴 ${clientPendingInvoices.filter((i: any) => i.fechaVencimiento && new Date(i.fechaVencimiento) < new Date()).length} factura(s) vencida(s)`
+                    : '🟢 Al corriente (0 vencidas)'}
+                </p>
               </div>
             </div>
 
-            <div className="overflow-y-auto flex-1 border border-gray-100 rounded-xl">
+            {/* Criterio de Negociación César */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 flex items-start gap-2.5">
+              <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <strong>Criterio de Negociación y Desbloqueo (César):</strong> Si el cliente tiene facturas vencidas o adeudo elevado, se puede acordar liquidar o abonar 1 o 2 facturas pendientes hoy para que César libere la orden a corte en el WMS.
+              </div>
+            </div>
+
+            {/* Tabla de Facturas */}
+            <div className="overflow-y-auto flex-1 border border-gray-100 rounded-xl min-h-[160px]">
               {loadingPendingInvoices ? (
                 <div className="p-8 text-center text-xs text-gray-400 flex items-center justify-center gap-2">
-                  <Loader2 size={16} className="animate-spin" /> Consultando facturas en Facturapi...
+                  <Loader2 size={16} className="animate-spin text-primary-500" /> Consultando facturas en Facturapi...
                 </div>
               ) : clientPendingInvoices.length === 0 ? (
                 <div className="p-8 text-center text-xs text-gray-400">
-                  No hay facturas pendientes para este cliente.
+                  <CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-400" />
+                  <p className="font-semibold text-gray-700">Sin facturas pendientes</p>
+                  <p className="text-gray-400 text-[11px] mt-0.5">Este cliente se encuentra al 100% al corriente en cobranza.</p>
                 </div>
               ) : (
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-gray-50 text-gray-600 font-semibold border-b">
+                  <thead className="bg-gray-50 text-gray-600 font-semibold border-b sticky top-0">
                     <tr>
-                      <th className="p-2.5">Pedido / Factura</th>
+                      <th className="p-2.5">Pedido / Folio</th>
                       <th className="p-2.5">Emisión</th>
                       <th className="p-2.5">Vencimiento</th>
+                      <th className="p-2.5 text-right">Total Factura</th>
                       <th className="p-2.5 text-right">Saldo Insoluto</th>
                       <th className="p-2.5 text-center">Estatus</th>
                     </tr>
@@ -738,10 +799,13 @@ export default function PedidosPage() {
                     {clientPendingInvoices.map((inv: any) => {
                       const isVencida = inv.fechaVencimiento && new Date(inv.fechaVencimiento) < new Date();
                       return (
-                        <tr key={inv.id} className="hover:bg-gray-50/80">
+                        <tr key={inv.id} className="hover:bg-gray-50/80 transition-colors">
                           <td className="p-2.5 font-mono font-bold text-gray-800">{inv.codigo}</td>
                           <td className="p-2.5 text-gray-500">{inv.facturadaAt ? new Date(inv.facturadaAt).toLocaleDateString('es-MX') : '—'}</td>
                           <td className="p-2.5 text-gray-500">{inv.fechaVencimiento ? new Date(inv.fechaVencimiento).toLocaleDateString('es-MX') : '—'}</td>
+                          <td className="p-2.5 text-right font-mono text-gray-600">
+                            ${Number(inv.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                          </td>
                           <td className="p-2.5 text-right font-mono font-bold text-red-600">
                             ${Number(inv.saldoPendiente || inv.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                           </td>
@@ -760,9 +824,16 @@ export default function PedidosPage() {
               )}
             </div>
 
-            <div className="flex justify-end pt-2 border-t">
-              <button onClick={() => setShowPendingInvoicesModal(false)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold">
-                Cerrar y Regresar al Wizard
+            <div className="flex items-center justify-between pt-3 border-t">
+              <span className="text-xs text-gray-400">
+                Total Facturas: <strong>{clientPendingInvoices.length}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowPendingInvoicesModal(false)}
+                className="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold transition-colors"
+              >
+                Entendido / Continuar con Pedido
               </button>
             </div>
           </div>
@@ -813,7 +884,18 @@ export default function PedidosPage() {
             <div className="space-y-5 animate-fade-in">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Cliente *</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-gray-700">Cliente *</label>
+                    {clientId && (
+                      <button
+                        type="button"
+                        onClick={openPendingInvoicesModal}
+                        className="text-[11px] text-primary-600 hover:text-primary-800 font-bold flex items-center gap-1 transition-colors bg-primary-50 hover:bg-primary-100 px-2.5 py-0.5 rounded-lg"
+                      >
+                        <Eye size={12} /> Ver Estado del Cliente
+                      </button>
+                    )}
+                  </div>
                   <select value={clientId} onChange={e => handleClientChange(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary-500">
                     <option value="">Seleccionar cliente...</option>
                     {clients?.data?.map((c: any) => <option key={c.id} value={c.id}>{c.nombre} ({c.codigo})</option>)}
@@ -858,25 +940,43 @@ export default function PedidosPage() {
                         onClick={openPendingInvoicesModal}
                         className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-xs transition-colors shrink-0 flex items-center gap-1.5"
                       >
-                        <Eye size={13} /> Ver Facturas Pendientes
+                        <Eye size={13} /> Ver Estado del Cliente & Facturas
                       </button>
                     </div>
                   ) : clientCreditStatus?.creditConfig?.creditoHabilitado ? (
-                    <div className="p-3.5 bg-emerald-50/90 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs text-emerald-900">
+                    <div className="p-3.5 bg-emerald-50/90 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-emerald-900">
                       <div className="flex items-center gap-2">
                         <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
                         <span>
                           <strong>Crédito Comercial Activo:</strong> Plazo {clientCreditStatus.creditConfig.plazoDefault} días · Límite: ${Number(clientCreditStatus.creditConfig.montoMaximo || 0).toLocaleString('es-MX')} · <strong>Al corriente (Sin adeudo vencido)</strong>
                         </span>
                       </div>
-                      <span className="text-[10px] bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded font-bold uppercase">
-                        Autorizado PPD
-                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded font-bold uppercase">
+                          Autorizado PPD
+                        </span>
+                        <button
+                          type="button"
+                          onClick={openPendingInvoicesModal}
+                          className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] shadow-xs transition-colors flex items-center gap-1"
+                        >
+                          <Eye size={12} /> Ver Estado
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-2xl flex items-center gap-2 text-xs text-blue-900">
-                      <CreditCard size={15} className="text-blue-600 shrink-0" />
-                      <span><strong>Cliente de Contado:</strong> Se liquidará de contado (Transferencia SPEI / PUE). No requiere autorización de crédito.</span>
+                    <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-2xl flex items-center justify-between gap-2 text-xs text-blue-900">
+                      <div className="flex items-center gap-2">
+                        <CreditCard size={15} className="text-blue-600 shrink-0" />
+                        <span><strong>Cliente de Contado:</strong> Se liquidará de contado (Transferencia SPEI / PUE). No requiere autorización de crédito.</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={openPendingInvoicesModal}
+                        className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-[11px] shadow-xs transition-colors shrink-0 flex items-center gap-1"
+                      >
+                        <Eye size={12} /> Ver Historial
+                      </button>
                     </div>
                   )}
                 </div>

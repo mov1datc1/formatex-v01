@@ -11,12 +11,23 @@ export default function HistorialTab() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [metodoFilter, setMetodoFilter] = useState('');
+  const [clientIdFilter, setClientIdFilter] = useState('');
   const [page, setPage] = useState(1);
 
+  const { data: clientsResp } = useApi<any>(['clients-catalog-historial'], '/catalog/clients', { limit: 250 });
+  const clientsList = clientsResp?.data || clientsResp || [];
+
   const { data: resp, isLoading } = useApi<any>(
-    ['invoice-history', search, statusFilter, metodoFilter, page],
+    ['invoice-history', search, statusFilter, metodoFilter, clientIdFilter, page],
     '/invoicing/history',
-    { search: search || undefined, status: statusFilter || undefined, metodoPago: metodoFilter || undefined, page, limit: 15 },
+    {
+      search: search || undefined,
+      status: statusFilter || undefined,
+      metodoPago: metodoFilter || undefined,
+      clientId: clientIdFilter || undefined,
+      page,
+      limit: 15,
+    },
   );
 
   const invoices = resp?.data || [];
@@ -99,6 +110,16 @@ export default function HistorialTab() {
             </button>
           ))}
         </div>
+        <select
+          value={clientIdFilter}
+          onChange={(e) => { setClientIdFilter(e.target.value); setPage(1); }}
+          className="px-3 py-2 rounded-xl text-xs font-medium bg-white border border-gray-200 max-w-xs"
+        >
+          <option value="">Todos los clientes</option>
+          {clientsList.map((c: any) => (
+            <option key={c.id} value={c.id}>{c.nombre} ({c.codigo})</option>
+          ))}
+        </select>
         <select value={metodoFilter} onChange={(e) => { setMetodoFilter(e.target.value); setPage(1); }}
           className="px-3 py-2 rounded-xl text-xs font-medium bg-white border border-gray-200">
           <option value="">Todos los métodos</option>

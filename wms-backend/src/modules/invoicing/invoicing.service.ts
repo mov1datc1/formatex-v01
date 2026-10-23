@@ -428,10 +428,13 @@ export class InvoicingService {
   // -----------------------------------------------------------------------
   // LISTAR COMPLEMENTOS EMITIDOS
   // -----------------------------------------------------------------------
-  async listComplements(search?: string) {
+  async listComplements(search?: string, clientId?: string) {
     const where: any = {
       complementoFacturapiId: { not: null },
     };
+    if (clientId) {
+      where.order = { clientId };
+    }
     if (search) {
       where.OR = [
         { complementoUuid: { contains: search, mode: 'insensitive' } },
@@ -534,15 +537,20 @@ export class InvoicingService {
     search?: string;
     status?: string;
     metodoPago?: string;
+    clientId?: string;
     page?: number;
     limit?: number;
   }) {
-    const { search, status, metodoPago, page = 1, limit = 20 } = params;
+    const { search, status, metodoPago, clientId, page = 1, limit = 20 } = params;
     const skip = (page - 1) * limit;
 
     const where: any = {
       facturapiId: { not: null },
     };
+
+    if (clientId) {
+      where.clientId = clientId;
+    }
 
     if (status === 'valid') {
       where.facturaStatus = 'valid';
@@ -1045,6 +1053,70 @@ export class InvoicingService {
         monto: Number(cobradoMes._sum.montoAplicado || 0),
       },
     };
+  }
+
+  // -----------------------------------------------------------------------
+  // CARTERA DE CLIENTES DISGREGADA (Agrupación de saldos por cliente)
+  // -----------------------------------------------------------------------
+  async getCarteraPorCliente() {
+    const orders = await this.prisma.order.findMany({
+      where: {
+        facturapiId: { not: null },
+        estadoPago: { in: ['PENDIENTE', 'PARCIAL'] },
+      },
+      include: {
+        client: {
+          select: {
+            id: true,
+            codigo: true,
+            nombre: true,
+            rfc: true,
+            telefono: true,
+            creditConfig: true,
+          },
+        },
+      },
+      orderBy: { fechaVencimiento: 'asc' },
+    });
+
+    const clientMap = new Map<string, any>();
+    const now = new Date();
+
+    for (const o of orders) {
+      if (!o.client) continue;
+      const cId = o.clientId!;
+      if (!clientMap.has(cId)) {
+        clientMap.set(cId, {
+          client: o.client,
+          totalPendiente: 0,
+          facturasCount: 0,
+          vencidasCount: 0,
+          montoVencido: 0,
+          facturas: [],
+        });
+      }
+      const entry = clientMap.get(cId);
+      const saldo = Number(o.saldoPendiente || 0);
+      const isVencida = o.fechaVencimiento ? new Date(o.fechaVencimiento) < now : false;
+
+      entry.totalPendiente += saldo;
+      entry.facturasCount += 1;
+      if (isVencida) {
+        entry.vencidasCount += 1;
+        entry.montoVencido += saldo;
+      }
+      entry.facturas.push({
+        id: o.id,
+        codigo: o.codigo,
+        total: Number(o.total || 0),
+        saldoPendiente: saldo,
+        fechaVencimiento: o.fechaVencimiento,
+        facturadaAt: o.facturadaAt,
+        isVencida,
+      });
+    }
+
+    return Array.from(clientMap.values()).sort((a, b) => b.totalPendiente - a.totalPendiente);
   }
 
   // -----------------------------------------------------------------------
