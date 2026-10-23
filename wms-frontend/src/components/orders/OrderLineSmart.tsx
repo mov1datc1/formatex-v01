@@ -9,7 +9,16 @@ import {
 interface OrderLineSmartProps {
   index: number;
   clientId?: string;
-  line: { skuId: string; metrajeRequerido: number; precioUnitario: number; selectedHuId?: string; listaPrecios?: string; descuentoPct?: number };
+  line: {
+    skuId: string;
+    metrajeRequerido: number;
+    precioUnitario: number;
+    selectedHuId?: string;
+    listaPrecios?: string;
+    descuentoPct?: number;
+    fulfillmentPlan?: any;
+    selectedHUs?: Array<{ huId: string; metrajeTomar: number }>;
+  };
   skus: any[];
   onChange: (index: number, field: string, value: any) => void;
   onRemove: (index: number) => void;
@@ -165,6 +174,7 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
 
       // Auto-select fulfillment plan HUs for the order
       const plan = resp.data?.fulfillmentPlan;
+      onChangeRef.current(index, 'fulfillmentPlan', plan || null);
       if (plan?.items?.length > 0) {
         const selectedHUs = plan.items
           .filter((item: any) => item.source === 'FISICO')
@@ -173,7 +183,10 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
       } else {
         onChangeRef.current(index, 'selectedHUs', []);
       }
-    } catch { setSuggestions(null); }
+    } catch {
+      setSuggestions(null);
+      onChangeRef.current(index, 'fulfillmentPlan', null);
+    }
     setLoadingSugg(false);
   }, [index, isMuestrario]);
 
@@ -181,16 +194,19 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (line.skuId && line.metrajeRequerido > 0 && !isMuestrario) {
       debounceRef.current = setTimeout(() => fetchSuggestions(line.skuId, line.metrajeRequerido), 400);
+    } else {
+      onChangeRef.current(index, 'fulfillmentPlan', null);
     }
     return () => clearTimeout(debounceRef.current);
   }, [line.skuId, line.metrajeRequerido, isMuestrario, fetchSuggestions]);
 
   const selectSku = (sku: any) => {
     onChange(index, 'skuId', sku.id);
-    if (!specialPriceInfo) {
+    if (!pricingInfo?.esPrecioEspecial) {
       onChange(index, 'precioUnitario', Number(sku.precioReferencia) || 0);
     }
     onChange(index, 'selectedHUs', []);
+    onChange(index, 'fulfillmentPlan', null);
     setSkuSearch(''); setShowSkuDropdown(false);
   };
 

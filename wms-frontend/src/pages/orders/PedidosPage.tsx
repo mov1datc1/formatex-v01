@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useApi, useMutationApi } from '../../hooks/useApi';
 import type { PaginatedResponse, Order } from '../../hooks/useApi';
@@ -10,6 +10,7 @@ import {
   Printer, Loader2, Info, Zap, MapPin, Truck, Clock, Shield,
   CheckCircle2, Check, Lock, Building2, Package, Layers, Calendar,
   ArrowUpDown, ChevronRight, Filter, Sparkles, RefreshCw, AlertTriangle,
+  CreditCard, Split, PackageCheck, Ship, ArrowRight, ArrowLeft, Ban, Eye,
 } from 'lucide-react';
 import type { FC } from 'react';
 import type { LucideProps } from 'lucide-react';
@@ -113,12 +114,56 @@ export default function PedidosPage() {
   const [backorderNotes, setBackorderNotes] = useState('');
   const [backorderActionLoading, setBackorderActionLoading] = useState(false);
 
-  // Estados para creación de Backorder en cotización
+  // Estados para creación guiada (Wizard 3 Pasos) y Backorder en cotización
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
+  const [clientCreditStatus, setClientCreditStatus] = useState<any>(null);
+  const [loadingCreditCheck, setLoadingCreditCheck] = useState(false);
+  const [showPendingInvoicesModal, setShowPendingInvoicesModal] = useState(false);
+  const [clientPendingInvoices, setClientPendingInvoices] = useState<any[]>([]);
+  const [loadingPendingInvoices, setLoadingPendingInvoices] = useState(false);
+
+  // Decisión Logística y Comercial
+  const [deliveryDecision, setDeliveryDecision] = useState<'DIVIDIR' | 'TODO_JUNTO'>('DIVIDIR');
+  const [condicionPagoInmediato, setCondicionPagoInmediato] = useState<'CONTADO' | 'CREDITO'>('CONTADO');
+  const [condicionPagoBackorder, setCondicionPagoBackorder] = useState<'CONTADO_AL_ARRIBO' | 'CONTADO_ANTICIPO' | 'CREDITO'>('CONTADO_AL_ARRIBO');
+
   const [esBackorder, setEsBackorder] = useState(false);
   const [condicionBackorder, setCondicionBackorder] = useState<'CONTADO_ANTICIPO' | 'CONTADO_AL_ARRIBO' | 'CREDITO'>('CONTADO_ANTICIPO');
   const [selectedShipmentId, setSelectedShipmentId] = useState('');
   const [contenedorNumero, setContenedorNumero] = useState('');
   const [fechaEstimadaArriboContenedor, setFechaEstimadaArriboContenedor] = useState('');
+
+  // Diagnóstico Inteligente de Demanda: Físico Formatex vs Tránsito a Telares
+  const demandDiagnostic = useMemo(() => {
+    let metrajeTotal = 0;
+    let metrajeFisico = 0;
+    let metrajeTransito = 0;
+    let transitItem: any = null;
+
+    lineas.forEach(l => {
+      const req = Number(l.metrajeRequerido) || 0;
+      metrajeTotal += req;
+      if (l.fulfillmentPlan) {
+        metrajeFisico += Number(l.fulfillmentPlan.metrajeFisico) || 0;
+        metrajeTransito += Number(l.fulfillmentPlan.metrajeTransito) || 0;
+        if (!transitItem) {
+          const t = l.fulfillmentPlan.items?.find((it: any) => it.source === 'TRANSITO');
+          if (t) transitItem = t;
+        }
+      } else {
+        metrajeFisico += req;
+      }
+    });
+
+    const hasTransit = metrajeTransito > 0;
+    return {
+      metrajeTotal,
+      metrajeFisico: Math.min(metrajeFisico, metrajeTotal),
+      metrajeTransito,
+      hasTransit,
+      transitItem,
+    };
+  }, [lineas]);
 
   // Cola de Backorders con semáforo de arribo de contenedores (15 días / 5 días)
   const { data: backorderQueue, refetch: refetchBackorderQueue, isLoading: loadingBackorders } = useApi<any[]>(
@@ -163,6 +208,23 @@ export default function PedidosPage() {
       if (clientObj.cartaFletera) setFletera(clientObj.cartaFletera);
       if (clientObj.seguroEnvioDefault !== undefined) setEnvioAsegurado(clientObj.seguroEnvioDefault);
     }
+
+    // Consulta en vivo del estatus de crédito y cobranza con César
+    setLoadingCreditCheck(true);
+    api.get(`/invoicing/credit/${cId}/check`)
+      .then(res => {
+        setClientCreditStatus(res.data);
+        if (res.data?.creditConfig?.creditoHabilitado && !res.data?.creditConfig?.bloqueado) {
+          setCondicionPagoInmediato('CREDITO');
+          setCondicionPagoBackorder('CREDITO');
+        } else {
+          setCondicionPagoInmediato('CONTADO');
+          setCondicionPagoBackorder('CONTADO_AL_ARRIBO');
+        }
+      })
+      .catch(() => setClientCreditStatus(null))
+      .finally(() => setLoadingCreditCheck(false));
+
     try {
       const res = await api.get(`/catalog/clients/${cId}/addresses`);
       const addrs = res.data || [];
@@ -180,6 +242,20 @@ export default function PedidosPage() {
       }
     } catch {
       setClientAddresses([]);
+    }
+  };
+
+  const openPendingInvoicesModal = async () => {
+    if (!clientId) return;
+    setLoadingPendingInvoices(true);
+    setShowPendingInvoicesModal(true);
+    try {
+      const res = await api.get(`/invoicing/client/${clientId}/pending`);
+      setClientPendingInvoices(res.data || []);
+    } catch {
+      setClientPendingInvoices([]);
+    } finally {
+      setLoadingPendingInvoices(false);
     }
   };
 
@@ -275,41 +351,125 @@ export default function PedidosPage() {
     if (!clientId) return toast.error('Selecciona un cliente');
     if (lineas.some(l => !l.skuId || !l.metrajeRequerido)) return toast.error('Completa todas las líneas');
     try {
-      const hasAnyHUs = lineas.some(l => l.selectedHUs && l.selectedHUs.length > 0);
-      await createMut.mutateAsync({
-        clientId,
-        vendorId: vendorId || undefined,
-        prioridad,
-        reservaHoras,
-        modoEntrega,
-        deliveryAddressId: deliveryAddressId || undefined,
-        deliveryContactName: deliveryContactName || undefined,
-        deliveryContactPhone: deliveryContactPhone || undefined,
-        deliverySchedule: deliverySchedule || undefined,
-        fletera: fletera || undefined,
-        envioAsegurado,
-        esBackorder,
-        condicionBackorder: esBackorder ? condicionBackorder : undefined,
-        contenedorNumero: esBackorder ? contenedorNumero : undefined,
-        fechaEstimadaArriboContenedor: (esBackorder && fechaEstimadaArriboContenedor) ? fechaEstimadaArriboContenedor : undefined,
-        incomingShipmentId: (esBackorder && selectedShipmentId) ? selectedShipmentId : undefined,
-        lineas: lineas.map(l => ({
-          skuId: l.skuId,
-          metrajeRequerido: l.metrajeRequerido,
-          precioUnitario: l.precioUnitario,
-          listaPrecios: l.listaPrecios || undefined,
-          descuentoPct: l.descuentoPct || 0,
-          selectedHUs: l.selectedHUs?.length ? l.selectedHUs : undefined,
-        })),
-      });
-      if (esBackorder) {
-        toast.success(`Pedido creado en Backorder — Formado en cola FIFO para contenedor ${contenedorNumero || 'en tránsito'}`);
-      } else if (hasAnyHUs) {
-        toast.success(`Cotización creada — Apartado activo por ${reservaHoras}h · Entrega: ${modoEntrega}`);
+      // CASO 1: Demanda Mixta y el usuario eligió DIVIDIR en 2 pedidos
+      if (demandDiagnostic.hasTransit && deliveryDecision === 'DIVIDIR') {
+        const lineasFisicas = lineas.map(l => {
+          const physicalHUs = (l.selectedHUs || []).filter((h: any) => h.source !== 'TRANSITO');
+          const metrajeFis = l.fulfillmentPlan?.metrajeFisico !== undefined
+            ? Math.min(l.fulfillmentPlan.metrajeFisico, l.metrajeRequerido)
+            : l.metrajeRequerido;
+          return {
+            skuId: l.skuId,
+            metrajeRequerido: metrajeFis,
+            precioUnitario: l.precioUnitario,
+            listaPrecios: l.listaPrecios || undefined,
+            descuentoPct: l.descuentoPct || 0,
+            selectedHUs: physicalHUs.length ? physicalHUs : undefined,
+          };
+        }).filter(l => l.metrajeRequerido > 0);
+
+        const lineasTransito = lineas.map(l => {
+          const metrajeTrans = l.fulfillmentPlan?.metrajeTransito || 0;
+          return {
+            skuId: l.skuId,
+            metrajeRequerido: metrajeTrans,
+            precioUnitario: l.precioUnitario,
+            listaPrecios: l.listaPrecios || undefined,
+            descuentoPct: l.descuentoPct || 0,
+          };
+        }).filter(l => l.metrajeRequerido > 0);
+
+        const tItem = demandDiagnostic.transitItem;
+
+        // 1. Pedido Inmediato Bodega Formatex
+        const res1 = await api.post('/orders', {
+          clientId,
+          vendorId: vendorId || undefined,
+          prioridad,
+          reservaHoras,
+          modoEntrega: 'PARCIAL',
+          deliveryAddressId: deliveryAddressId || undefined,
+          deliveryContactName: deliveryContactName || undefined,
+          deliveryContactPhone: deliveryContactPhone || undefined,
+          deliverySchedule: deliverySchedule || undefined,
+          fletera: fletera || undefined,
+          envioAsegurado,
+          condicionesPago: condicionPagoInmediato === 'CREDITO' ? `Crédito ${clientCreditStatus?.creditConfig?.plazoDefault || 30} días` : 'Contado Inmediato',
+          metodoPagoCfdi: condicionPagoInmediato === 'CREDITO' ? 'PPD' : 'PUE',
+          notas: `[Entrega Dividida 1/2 - Stock Bodega Formatex] Condición: ${condicionPagoInmediato}`,
+          creadoPor: user?.name || user?.email || 'ATC',
+          lineas: lineasFisicas,
+        });
+
+        // 2. Pedido Backorder Barco hacia Telares
+        const res2 = await api.post('/orders', {
+          clientId,
+          vendorId: vendorId || undefined,
+          prioridad,
+          reservaHoras: 168,
+          modoEntrega: 'PARCIAL',
+          esBackorder: true,
+          condicionBackorder: condicionPagoBackorder,
+          contenedorNumero: tItem?.embarqueCodigo || contenedorNumero || 'EN_TRANSITO',
+          fechaEstimadaArriboContenedor: tItem?.eta ? new Date(tItem.eta).toISOString().split('T')[0] : (fechaEstimadaArriboContenedor || undefined),
+          incomingShipmentId: tItem?.shipmentLineId || selectedShipmentId || undefined,
+          deliveryAddressId: deliveryAddressId || undefined,
+          deliveryContactName: deliveryContactName || undefined,
+          deliveryContactPhone: deliveryContactPhone || undefined,
+          deliverySchedule: deliverySchedule || undefined,
+          fletera: fletera || undefined,
+          envioAsegurado,
+          condicionesPago: condicionPagoBackorder === 'CREDITO' ? `Crédito ${clientCreditStatus?.creditConfig?.plazoDefault || 30} días` : 'Contado al Arribo',
+          metodoPagoCfdi: condicionPagoBackorder === 'CREDITO' ? 'PPD' : 'PUE',
+          notas: `[Entrega Dividida 2/2 - Backorder Barco a Telares] Condición: ${condicionPagoBackorder}. Turno en cola FIFO agendado con alertas de 15d y 5d.`,
+          creadoPor: user?.name || user?.email || 'ATC',
+          lineas: lineasTransito,
+        });
+
+        toast.success(`🎉 Entrega Dividida Creada:\n• ${res1.data.codigo}: ${demandDiagnostic.metrajeFisico}m (Bodega Formatex)\n• ${res2.data.codigo}: ${demandDiagnostic.metrajeTransito}m (Turno #${res2.data.posicionCola || 1} Barco Telares)`, { duration: 6000 });
       } else {
-        toast.success(`Cotización creada exitosamente — Mercancía en piso/transición lista para cotizar y vincular en surtido`);
+        // CASO 2: Pedido Regular o Todo Junto
+        const isBackorderSingle = demandDiagnostic.hasTransit && deliveryDecision === 'TODO_JUNTO';
+        const tItem = demandDiagnostic.transitItem;
+        const res = await api.post('/orders', {
+          clientId,
+          vendorId: vendorId || undefined,
+          prioridad,
+          reservaHoras: isBackorderSingle ? 168 : reservaHoras,
+          modoEntrega: isBackorderSingle ? 'COMPLETA' : modoEntrega,
+          deliveryAddressId: deliveryAddressId || undefined,
+          deliveryContactName: deliveryContactName || undefined,
+          deliveryContactPhone: deliveryContactPhone || undefined,
+          deliverySchedule: deliverySchedule || undefined,
+          fletera: fletera || undefined,
+          envioAsegurado,
+          esBackorder: isBackorderSingle || esBackorder,
+          condicionBackorder: isBackorderSingle ? condicionPagoBackorder : (esBackorder ? condicionBackorder : undefined),
+          contenedorNumero: isBackorderSingle ? (tItem?.embarqueCodigo || 'EN_TRANSITO') : (esBackorder ? contenedorNumero : undefined),
+          fechaEstimadaArriboContenedor: isBackorderSingle ? (tItem?.eta ? new Date(tItem.eta).toISOString().split('T')[0] : undefined) : (esBackorder ? fechaEstimadaArriboContenedor : undefined),
+          incomingShipmentId: isBackorderSingle ? tItem?.shipmentLineId : (esBackorder ? selectedShipmentId : undefined),
+          condicionesPago: condicionPagoInmediato === 'CREDITO' ? `Crédito ${clientCreditStatus?.creditConfig?.plazoDefault || 30} días` : 'Contado Inmediato',
+          metodoPagoCfdi: condicionPagoInmediato === 'CREDITO' ? 'PPD' : 'PUE',
+          creadoPor: user?.name || user?.email || 'ATC',
+          lineas: lineas.map(l => ({
+            skuId: l.skuId,
+            metrajeRequerido: l.metrajeRequerido,
+            precioUnitario: l.precioUnitario,
+            listaPrecios: l.listaPrecios || undefined,
+            descuentoPct: l.descuentoPct || 0,
+            selectedHUs: l.selectedHUs?.length ? l.selectedHUs : undefined,
+          })),
+        });
+
+        if (isBackorderSingle) {
+          toast.success(`Pedido creado en Backorder Completo (${res.data.codigo}) — Formado en cola FIFO Turno #${res.data.posicionCola || 1}`);
+        } else {
+          toast.success(`Cotización creada exitosamente (${res.data.codigo}) — Apartado activo por ${reservaHoras}h`);
+        }
       }
+
       setShowForm(false);
+      setWizardStep(1);
       setEsBackorder(false);
       setContenedorNumero('');
       setFechaEstimadaArriboContenedor('');
@@ -318,7 +478,7 @@ export default function PedidosPage() {
       setLineas([{ skuId: '', metrajeRequerido: 50, precioUnitario: 0, listaPrecios: '', descuentoPct: 0, selectedHUs: [] }]);
       refetchBackorderQueue();
     } catch (e: any) {
-      toast.error(e?.response?.data?.message || 'Error al crear cotización');
+      toast.error(e?.response?.data?.message || 'Error al procesar pedido');
     }
   };
 
@@ -526,310 +686,712 @@ export default function PedidosPage() {
         )}
       </div>
 
-      {/* Create Form */}
-      {showForm && (
-        <div className="bg-white rounded-xl border p-6 space-y-4">
-          <div className="flex items-center gap-2">
-            <WmsIcon.Quote size={20} className="text-primary-500" />
-            <h2 className="text-lg font-semibold">Nueva Cotización / Pedido</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Cliente *</label>
-              <select value={clientId} onChange={e => handleClientChange(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500">
-                <option value="">Seleccionar cliente...</option>
-                {clients?.data?.map((c: any) => <option key={c.id} value={c.id}>{c.nombre} ({c.codigo})</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Vendedor (callejero)</label>
-              <select value={vendorId} onChange={e => setVendorId(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500">
-                <option value="">Sin vendedor</option>
-                {vendors?.data?.map((v: any) => <option key={v.id} value={v.id}>{v.nombre} ({v.codigo})</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Prioridad</label>
-              <select value={prioridad} onChange={e => setPrioridad(+e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500">
-                <option value={1}>Urgente</option>
-                <option value={2}>Alta</option>
-                <option value={3}>Normal</option>
-                <option value={4}>Baja</option>
-              </select>
-            </div>
-
-            {/* Domicilio de Entrega & Logística */}
-            <div className="col-span-1 md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Domicilio de Destino</label>
-                <select
-                  value={deliveryAddressId}
-                  onChange={e => {
-                    const aId = e.target.value;
-                    setDeliveryAddressId(aId);
-                    const addr = clientAddresses.find(a => a.id === aId);
-                    if (addr) {
-                      setDeliveryContactName(addr.contactoNombre || '');
-                      setDeliveryContactPhone(addr.contactoTelefono || '');
-                      setDeliverySchedule(addr.horarioRecepcion || '');
-                    }
-                  }}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="">Mismo domicilio fiscal / Matriz</option>
-                  {clientAddresses.map(addr => (
-                    <option key={addr.id} value={addr.id}>
-                      {addr.alias} — {addr.calleNumero} ({addr.municipio || 'Jalisco'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Receptor en Destino</label>
-                <input
-                  type="text"
-                  value={deliveryContactName}
-                  onChange={e => setDeliveryContactName(e.target.value)}
-                  placeholder="Nombre de quien recibe"
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Teléfono Receptor</label>
-                <input
-                  type="text"
-                  value={deliveryContactPhone}
-                  onChange={e => setDeliveryContactPhone(e.target.value)}
-                  placeholder="Teléfono para coordinar entrega"
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Fletera Seleccionada</label>
-                <select
-                  value={fletera}
-                  onChange={e => setFletera(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm"
-                >
-                  <option value="Transportes Castores">Transportes Castores</option>
-                  <option value="Tres Guerras">Tres Guerras</option>
-                  <option value="Paquetexpress">Paquetexpress</option>
-                  <option value="Estafeta Carga">Estafeta Carga</option>
-                  <option value="Chofer Local Formatex">Chofer Local Formatex</option>
-                  <option value="Ocurre en Almacén">Ocurre en Almacén Formatex</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Horario de Recepción</label>
-                <input
-                  type="text"
-                  value={deliverySchedule}
-                  onChange={e => setDeliverySchedule(e.target.value)}
-                  placeholder="Ej: L-V 09:00 a 14:00"
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm"
-                />
-              </div>
-
-              <div className="flex items-center pt-5">
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={envioAsegurado}
-                    onChange={e => setEnvioAsegurado(e.target.checked)}
-                    className="w-4 h-4 text-primary-600 rounded border-gray-300"
-                  />
-                  <span>Asegurar envío con transportista</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Apartado + Modo Entrega */}
-            <div className="col-span-1 md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Apartado de Mercancía</label>
-                <select value={reservaHoras} onChange={e => setReservaHoras(+e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 font-medium">
-                  <option value={72}>72 horas (3 días — Resguardo de Almacén) [Recomendado]</option>
-                  <option value={24}>24 horas (Plazo Comercial al Cliente)</option>
-                  <option value={48}>48 horas (2 días)</option>
-                </select>
-                <p className="text-[10px] text-gray-400 mt-1">Al cliente se informa 24h para concretar pago; almacén resguarda 72h antes de desapartar rollos.</p>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Modo de Entrega</label>
-                <select value={modoEntrega} onChange={e => setModoEntrega(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500">
-                  <option value="COMPLETA">Completa — Esperar todo junto</option>
-                  <option value="PARCIAL">Parcial — Entregas por separado</option>
-                </select>
-                <p className="text-[10px] text-gray-400 mt-1">{modoEntrega === 'PARCIAL' ? 'Se factura cada entrega por separado' : 'Una sola factura cuando todo esté listo'}</p>
-              </div>
-            </div>
-
-            {/* Modalidad de Pedido: Inventario Físico vs Backorder en Contenedor */}
-            <div className="col-span-1 md:col-span-3 bg-gradient-to-r from-blue-50/80 to-indigo-50/60 p-4 rounded-2xl border border-blue-200/80 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-blue-600 text-white rounded-xl shadow-xs">
-                    <Truck size={16} />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-gray-900">¿Es un pedido en Backorder (Tela en Contenedor o Telar)?</h4>
-                    <p className="text-[11px] text-gray-500">Activa si la tela viene en tránsito marítimo o se programa a producción</p>
-                  </div>
+      {/* Modal de Facturas Pendientes (César / Cobranza) */}
+      {showPendingInvoicesModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-red-100 text-red-700 rounded-xl">
+                  <CreditCard size={18} />
                 </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900">Facturas Pendientes de Cobranza (César)</h3>
+                  <p className="text-xs text-gray-500">
+                    Cliente: <strong>{clients?.data?.find((c: any) => c.id === clientId)?.nombre}</strong>
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setShowPendingInvoicesModal(false)} className="p-1 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600">
+                <X size={18} />
+              </button>
+            </div>
 
-                <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-xl border border-blue-200 text-xs font-bold text-blue-900 shadow-xs hover:border-blue-300 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={esBackorder}
-                    onChange={e => setEsBackorder(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded border-gray-300"
-                  />
-                  <span>Activar Backorder / Cola FIFO</span>
-                </label>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 flex items-start gap-2">
+              <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <strong>Criterio de Negociación (César):</strong> Si el cliente tiene varias facturas vencidas, puede acordar abonar 1 o 2 facturas pendientes hoy para autorizar la liberación del nuevo pedido a crédito.
+              </div>
+            </div>
+
+            <div className="overflow-y-auto flex-1 border border-gray-100 rounded-xl">
+              {loadingPendingInvoices ? (
+                <div className="p-8 text-center text-xs text-gray-400 flex items-center justify-center gap-2">
+                  <Loader2 size={16} className="animate-spin" /> Consultando facturas en Facturapi...
+                </div>
+              ) : clientPendingInvoices.length === 0 ? (
+                <div className="p-8 text-center text-xs text-gray-400">
+                  No hay facturas pendientes para este cliente.
+                </div>
+              ) : (
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-gray-50 text-gray-600 font-semibold border-b">
+                    <tr>
+                      <th className="p-2.5">Pedido / Factura</th>
+                      <th className="p-2.5">Emisión</th>
+                      <th className="p-2.5">Vencimiento</th>
+                      <th className="p-2.5 text-right">Saldo Insoluto</th>
+                      <th className="p-2.5 text-center">Estatus</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {clientPendingInvoices.map((inv: any) => {
+                      const isVencida = inv.fechaVencimiento && new Date(inv.fechaVencimiento) < new Date();
+                      return (
+                        <tr key={inv.id} className="hover:bg-gray-50/80">
+                          <td className="p-2.5 font-mono font-bold text-gray-800">{inv.codigo}</td>
+                          <td className="p-2.5 text-gray-500">{inv.facturadaAt ? new Date(inv.facturadaAt).toLocaleDateString('es-MX') : '—'}</td>
+                          <td className="p-2.5 text-gray-500">{inv.fechaVencimiento ? new Date(inv.fechaVencimiento).toLocaleDateString('es-MX') : '—'}</td>
+                          <td className="p-2.5 text-right font-mono font-bold text-red-600">
+                            ${Number(inv.saldoPendiente || inv.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="p-2.5 text-center">
+                            {isVencida ? (
+                              <span className="px-2 py-0.5 bg-red-100 text-red-700 font-bold rounded text-[10px]">🔴 Vencida</span>
+                            ) : (
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 font-semibold rounded text-[10px]">🔵 En Plazo</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2 border-t">
+              <button onClick={() => setShowPendingInvoicesModal(false)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold">
+                Cerrar y Regresar al Wizard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Form — WIZARD INTUITIVO DE 3 PASOS */}
+      {showForm && (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
+          {/* Header & Stepper */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <WmsIcon.Quote size={20} className="text-primary-500" />
+                <h2 className="text-lg font-bold text-gray-900">Asistente de Cotización y Pedidos</h2>
+              </div>
+              <p className="text-xs text-gray-400 mt-0.5">Captura guiada, validación fiscal SAT y sugerencia de inventario en almacén y telares</p>
+            </div>
+
+            {/* Stepper Pills */}
+            <div className="flex items-center gap-2">
+              {[
+                { step: 1, label: '1. Cliente & Logística' },
+                { step: 2, label: '2. Telas & Surtido' },
+                { step: 3, label: '3. Decisión & Pago' },
+              ].map(s => (
+                <button
+                  key={s.step}
+                  type="button"
+                  onClick={() => setWizardStep(s.step as any)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    wizardStep === s.step
+                      ? 'bg-primary-600 text-white shadow-xs'
+                      : wizardStep > s.step
+                        ? 'bg-primary-50 text-primary-700 hover:bg-primary-100'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                >
+                  {wizardStep > s.step && <Check size={12} />}
+                  <span>{s.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* PASO 1: CLIENTE, CRÉDITO Y LOGÍSTICA */}
+          {wizardStep === 1 && (
+            <div className="space-y-5 animate-fade-in">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Cliente *</label>
+                  <select value={clientId} onChange={e => handleClientChange(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary-500">
+                    <option value="">Seleccionar cliente...</option>
+                    {clients?.data?.map((c: any) => <option key={c.id} value={c.id}>{c.nombre} ({c.codigo})</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Vendedor Asignado</label>
+                  <select value={vendorId} onChange={e => setVendorId(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500">
+                    <option value="">Sin vendedor comisionista</option>
+                    {vendors?.data?.map((v: any) => <option key={v.id} value={v.id}>{v.nombre} ({v.codigo})</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Prioridad Operativa</label>
+                  <select value={prioridad} onChange={e => setPrioridad(+e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 font-medium">
+                    <option value={1}>⚡ Urgente (Atención inmediata)</option>
+                    <option value={2}>🟠 Alta</option>
+                    <option value={3}>🔵 Normal</option>
+                    <option value={4}>⚪ Baja</option>
+                  </select>
+                </div>
               </div>
 
-              {esBackorder && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-blue-200/60 text-xs animate-fade-in">
+              {/* Banner de Crédito y Cobranza en Vivo (César) */}
+              {clientId && (
+                <div className="pt-1">
+                  {loadingCreditCheck ? (
+                    <div className="p-3 bg-gray-50 border rounded-xl text-xs text-gray-500 flex items-center gap-2">
+                      <Loader2 size={14} className="animate-spin text-primary-500" /> Consultando estatus de crédito con César...
+                    </div>
+                  ) : clientCreditStatus?.overdueInvoices > 0 ? (
+                    <div className="p-4 bg-red-50/90 border border-red-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                      <div className="flex items-start gap-2.5">
+                        <AlertTriangle size={18} className="text-red-600 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-bold text-red-900">Alerta de Cobranza (César): {clientCreditStatus.overdueInvoices} factura(s) vencida(s)</p>
+                          <p className="text-red-700 text-[11px] mt-0.5">El cliente tiene facturas fuera de plazo. Se requiere visto bueno de César o acordar abono previo para surtir a crédito.</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={openPendingInvoicesModal}
+                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-xs transition-colors shrink-0 flex items-center gap-1.5"
+                      >
+                        <Eye size={13} /> Ver Facturas Pendientes
+                      </button>
+                    </div>
+                  ) : clientCreditStatus?.creditConfig?.creditoHabilitado ? (
+                    <div className="p-3.5 bg-emerald-50/90 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs text-emerald-900">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                        <span>
+                          <strong>Crédito Comercial Activo:</strong> Plazo {clientCreditStatus.creditConfig.plazoDefault} días · Límite: ${Number(clientCreditStatus.creditConfig.montoMaximo || 0).toLocaleString('es-MX')} · <strong>Al corriente (Sin adeudo vencido)</strong>
+                        </span>
+                      </div>
+                      <span className="text-[10px] bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded font-bold uppercase">
+                        Autorizado PPD
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-2xl flex items-center gap-2 text-xs text-blue-900">
+                      <CreditCard size={15} className="text-blue-600 shrink-0" />
+                      <span><strong>Cliente de Contado:</strong> Se liquidará de contado (Transferencia SPEI / PUE). No requiere autorización de crédito.</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Domicilio de Entrega & Logística */}
+              <div className="pt-4 border-t space-y-3">
+                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <MapPin size={14} className="text-primary-500" />
+                  Logística y Domicilio de Destino
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block font-semibold text-gray-700 mb-1">Contenedor / Embarque en Tránsito</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Domicilio de Destino</label>
                     <select
-                      value={selectedShipmentId}
+                      value={deliveryAddressId}
                       onChange={e => {
-                        const sId = e.target.value;
-                        setSelectedShipmentId(sId);
-                        const sh = containersList?.find((c: any) => c.id === sId);
-                        if (sh) {
-                          setContenedorNumero(sh.numeroContenedor || sh.codigo);
-                          setFechaEstimadaArriboContenedor(sh.fechaEstimada ? sh.fechaEstimada.split('T')[0] : '');
+                        const aId = e.target.value;
+                        setDeliveryAddressId(aId);
+                        const addr = clientAddresses.find(a => a.id === aId);
+                        if (addr) {
+                          setDeliveryContactName(addr.contactoNombre || '');
+                          setDeliveryContactPhone(addr.contactoTelefono || '');
+                          setDeliverySchedule(addr.horarioRecepcion || '');
                         }
                       }}
-                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-medium text-gray-800"
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500"
                     >
-                      <option value="">Seleccionar contenedor...</option>
-                      {containersList?.map((c: any) => (
-                        <option key={c.id} value={c.id}>
-                          {c.numeroContenedor || c.codigo} — ETA: {new Date(c.fechaEstimada).toLocaleDateString('es-MX')} ({c.supplier?.nombre || 'Proveedor'})
+                      <option value="">Mismo domicilio fiscal / Matriz</option>
+                      {clientAddresses.map(addr => (
+                        <option key={addr.id} value={addr.id}>
+                          {addr.alias} — {addr.calleNumero} ({addr.municipio || 'Jalisco'})
                         </option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-gray-700 mb-1">Número de Contenedor</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Persona que Recibe</label>
                     <input
                       type="text"
-                      placeholder="Ej: MSCU-829104-1"
-                      value={contenedorNumero}
-                      onChange={e => setContenedorNumero(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-mono font-bold"
+                      value={deliveryContactName}
+                      onChange={e => setDeliveryContactName(e.target.value)}
+                      placeholder="Nombre del receptor"
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm"
                     />
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-gray-700 mb-1">Fecha Estimada Arribo (ETA)</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Teléfono Receptor</label>
                     <input
-                      type="date"
-                      value={fechaEstimadaArriboContenedor}
-                      onChange={e => setFechaEstimadaArriboContenedor(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-medium"
+                      type="text"
+                      value={deliveryContactPhone}
+                      onChange={e => setDeliveryContactPhone(e.target.value)}
+                      placeholder="Celular para confirmar entrega"
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm"
                     />
                   </div>
 
-                  <div className="col-span-1 md:col-span-3">
-                    <label className="block font-semibold text-gray-700 mb-1">Formato de Cotización & Cobro en Backorder</label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <label className={`p-2.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
-                        condicionBackorder === 'CONTADO_ANTICIPO' ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                      }`}>
-                        <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
-                          <input type="radio" name="condBackorder" checked={condicionBackorder === 'CONTADO_ANTICIPO'} onChange={() => setCondicionBackorder('CONTADO_ANTICIPO')} className="hidden" />
-                          <span>Contado con Anticipo</span>
-                        </div>
-                        <p className={`text-[11px] leading-tight ${condicionBackorder === 'CONTADO_ANTICIPO' ? 'text-blue-100' : 'text-gray-500'}`}>
-                          El cliente paga de inmediato para asegurar su lugar y congelar su metraje en el contenedor.
-                        </p>
-                      </label>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Fletera Seleccionada</label>
+                    <select
+                      value={fletera}
+                      onChange={e => setFletera(e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium"
+                    >
+                      <option value="Transportes Castores">Transportes Castores</option>
+                      <option value="Tres Guerras">Tres Guerras</option>
+                      <option value="Paquetexpress">Paquetexpress</option>
+                      <option value="Estafeta Carga">Estafeta Carga</option>
+                      <option value="Chofer Local Formatex">Chofer Local Formatex (8 camionetas)</option>
+                      <option value="Ruta Ocotlán">Ruta Ocotlán (Martes y Jueves)</option>
+                      <option value="Ocurre en Almacén">Ocurre en Almacén Formatex</option>
+                    </select>
+                  </div>
 
-                      <label className={`p-2.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
-                        condicionBackorder === 'CONTADO_AL_ARRIBO' ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                      }`}>
-                        <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
-                          <input type="radio" name="condBackorder" checked={condicionBackorder === 'CONTADO_AL_ARRIBO'} onChange={() => setCondicionBackorder('CONTADO_AL_ARRIBO')} className="hidden" />
-                          <span>Contado al Arribo (Fiscal)</span>
-                        </div>
-                        <p className={`text-[11px] leading-tight ${condicionBackorder === 'CONTADO_AL_ARRIBO' ? 'text-blue-100' : 'text-gray-500'}`}>
-                          Queda en cola sin cobrarle. Paga y se timbra la factura en el mismo mes que llega el contenedor.
-                        </p>
-                      </label>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Horario de Recepción Autorizado</label>
+                    <input
+                      type="text"
+                      value={deliverySchedule}
+                      onChange={e => setDeliverySchedule(e.target.value)}
+                      placeholder="Ej: L-V 09:00 a 14:00"
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                    />
+                  </div>
 
-                      <label className={`p-2.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
-                        condicionBackorder === 'CREDITO' ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                      }`}>
-                        <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
-                          <input type="radio" name="condBackorder" checked={condicionBackorder === 'CREDITO'} onChange={() => setCondicionBackorder('CREDITO')} className="hidden" />
-                          <span>Crédito Comercial</span>
+                  <div className="flex items-center pt-5">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={envioAsegurado}
+                        onChange={e => setEnvioAsegurado(e.target.checked)}
+                        className="w-4 h-4 text-primary-600 rounded border-gray-300"
+                      />
+                      <span>Asegurar mercancía con la fletera</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botón de Siguiente */}
+              <div className="flex justify-end pt-4 border-t">
+                <button
+                  type="button"
+                  disabled={!clientId}
+                  onClick={() => setWizardStep(2)}
+                  className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition-all"
+                >
+                  <span>Siguiente: Seleccionar Telas & Surtido</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* PASO 2: TELAS & SURTIDO INTELIGENTE */}
+          {wizardStep === 2 && (
+            <div className="space-y-5 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                    <WmsIcon.Rolls size={16} className="text-indigo-500" />
+                    Líneas de Tela del Pedido
+                  </h3>
+                  <p className="text-xs text-gray-400">El motor analiza inventario en bodega Formatex, rollos en Telares y contenedores en barco</p>
+                </div>
+                <span className="text-[11px] text-indigo-700 font-bold bg-indigo-50 px-3 py-1 rounded-full flex items-center gap-1.5 border border-indigo-100">
+                  <Sparkles size={13} className="text-indigo-500" />
+                  Sugerencias Automáticas de Surtido
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                {lineas.map((l, idx) => (
+                  <OrderLineSmart
+                    key={idx}
+                    index={idx}
+                    clientId={clientId}
+                    line={l}
+                    skus={skus?.data || []}
+                    onChange={(i, field, value) => {
+                      setLineas(prev => {
+                        const n = [...prev];
+                        (n[i] as any)[field] = value;
+                        return n;
+                      });
+                    }}
+                    onRemove={(i) => setLineas(lineas.filter((_, j) => j !== i))}
+                    canRemove={lineas.length > 1}
+                  />
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={addLinea}
+                className="text-xs px-3.5 py-2 bg-emerald-50 text-emerald-700 font-bold rounded-xl hover:bg-emerald-100 flex items-center gap-1.5 transition-colors border border-emerald-200/80"
+              >
+                <Plus size={14} /> Agregar Otra Tela
+              </button>
+
+              {/* Barra Resumen de Disponibilidad */}
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2">
+                  <Package size={16} className="text-gray-600" />
+                  <span className="text-gray-700">Demanda total calculada: <strong>{demandDiagnostic.metrajeTotal} metros</strong></span>
+                </div>
+                <div>
+                  {demandDiagnostic.hasTransit ? (
+                    <span className="px-3 py-1 bg-blue-100 text-blue-900 font-bold rounded-full flex items-center gap-1.5">
+                      <Ship size={13} className="text-blue-600" />
+                      Tránsito Detectado: {demandDiagnostic.metrajeFisico}m bodega + {demandDiagnostic.metrajeTransito}m barco
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 bg-emerald-100 text-emerald-900 font-bold rounded-full flex items-center gap-1.5">
+                      <CheckCircle2 size={13} className="text-emerald-600" />
+                      100% Cubierto en Bodega Formatex
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Botones de Navegación */}
+              <div className="flex items-center justify-between pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => setWizardStep(1)}
+                  className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl flex items-center gap-1.5 transition-colors"
+                >
+                  <ArrowLeft size={14} /> Volver a Cliente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWizardStep(3)}
+                  className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition-all"
+                >
+                  <span>Siguiente: Decisión de Entrega & Cobranza</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* PASO 3: DECISIÓN LOGÍSTICA & COBRANZA */}
+          {wizardStep === 3 && (
+            <div className="space-y-6 animate-fade-in">
+              {/* CASO A: SI HAY TRÁNSITO MARÍTIMO DETECTADO */}
+              {demandDiagnostic.hasTransit ? (
+                <div className="bg-gradient-to-r from-blue-50/90 via-indigo-50/80 to-blue-50/90 border border-blue-200/90 rounded-2xl p-5 space-y-4">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2.5 bg-blue-600 text-white rounded-xl shadow-xs shrink-0 mt-0.5">
+                      <Ship size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-900">Demanda Mixta Detectada: Bodega Formatex + Barco Rumbo a Telares</h4>
+                      <p className="text-xs text-gray-600 mt-0.5">
+                        Disponibilidad actual: <strong className="text-emerald-700">{demandDiagnostic.metrajeFisico}m listos en Bodega Formatex</strong> y <strong className="text-blue-700">{demandDiagnostic.metrajeTransito}m en Tránsito Marítimo</strong> hacia las bodegas de Telares ({demandDiagnostic.transitItem?.embarqueCodigo || 'Barco en camino'} · ETA: {demandDiagnostic.transitItem?.diasParaLlegar ? `${demandDiagnostic.transitItem.diasParaLlegar} días` : 'Próximo arribo'}).
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <label className="block text-xs font-bold text-gray-800 uppercase tracking-wide mb-2">
+                      ¿Cómo prefiere el cliente recibir y pagar su mercancía? (1 Clic)
+                    </label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                      {/* Opción B: Entrega Dividida (Recomendada) */}
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryDecision('DIVIDIR')}
+                        className={`p-4 rounded-2xl border text-left transition-all relative ${
+                          deliveryDecision === 'DIVIDIR'
+                            ? 'bg-white border-emerald-600 ring-2 ring-emerald-500 shadow-sm'
+                            : 'bg-white/80 border-gray-200 hover:bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-bold text-xs text-emerald-950 flex items-center gap-1.5">
+                            <Split size={16} className="text-emerald-600" />
+                            Opción 1: Entrega Dividida (Recomendado)
+                          </span>
+                          {deliveryDecision === 'DIVIDIR' && (
+                            <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
+                              ✓ Seleccionada
+                            </span>
+                          )}
                         </div>
-                        <p className={`text-[11px] leading-tight ${condicionBackorder === 'CREDITO' ? 'text-blue-100' : 'text-gray-500'}`}>
-                          Se aparta en cola y se surte contra su línea de crédito autorizada una vez arribe la tela.
+                        <p className="text-[11px] text-gray-600 leading-relaxed">
+                          Genera automáticamente <strong>2 pedidos independientes</strong>:
+                          <br />• <strong>Pedido #1 ({demandDiagnostic.metrajeFisico}m):</strong> Se surte hoy de bodega.
+                          <br />• <strong>Pedido #2 ({demandDiagnostic.metrajeTransito}m):</strong> Apartado en cola FIFO del barco a Telares.
                         </p>
-                      </label>
+                      </button>
+
+                      {/* Opción A: Entrega Completa */}
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryDecision('TODO_JUNTO')}
+                        className={`p-4 rounded-2xl border text-left transition-all relative ${
+                          deliveryDecision === 'TODO_JUNTO'
+                            ? 'bg-white border-blue-600 ring-2 ring-blue-500 shadow-sm'
+                            : 'bg-white/80 border-gray-200 hover:bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-bold text-xs text-blue-950 flex items-center gap-1.5">
+                            <PackageCheck size={16} className="text-blue-600" />
+                            Opción 2: Entrega Completa (Esperar Barco)
+                          </span>
+                          {deliveryDecision === 'TODO_JUNTO' && (
+                            <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold">
+                              ✓ Seleccionada
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-gray-600 leading-relaxed">
+                          <strong>1 solo pedido</strong> por los {demandDiagnostic.metrajeTotal}m. Los rollos de bodega se resguardan esperando a que el contenedor llegue a Telares para mandar todo junto en un solo flete.
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Condiciones de Pago para la Decisión Seleccionada */}
+                  <div className="pt-3 border-t border-blue-200/70 space-y-3">
+                    <h5 className="text-xs font-bold text-gray-800 uppercase tracking-wide">
+                      Términos de Pago y Facturación Fiscal (SAT)
+                    </h5>
+
+                    {deliveryDecision === 'DIVIDIR' ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Pago Pedido 1 (Bodega) */}
+                        <div className="bg-white p-3.5 rounded-xl border border-gray-200 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-gray-900">1. Pedido Inmediato ({demandDiagnostic.metrajeFisico}m Bodega)</span>
+                            <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-bold">Hoy</span>
+                          </div>
+                          <div className="space-y-1.5 text-xs">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="pagoInmediato"
+                                checked={condicionPagoInmediato === 'CONTADO'}
+                                onChange={() => setCondicionPagoInmediato('CONTADO')}
+                                className="text-primary-600"
+                              />
+                              <span>Contado Inmediato (Transferencia SPEI · CFDI PUE)</span>
+                            </label>
+                            {clientCreditStatus?.creditConfig?.creditoHabilitado && (
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name="pagoInmediato"
+                                  checked={condicionPagoInmediato === 'CREDITO'}
+                                  onChange={() => setCondicionPagoInmediato('CREDITO')}
+                                  className="text-primary-600"
+                                />
+                                <span>Crédito a {clientCreditStatus.creditConfig.plazoDefault} días (CFDI PPD 99 Por Definir)</span>
+                              </label>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Pago Pedido 2 (Backorder Barco) */}
+                        <div className="bg-white p-3.5 rounded-xl border border-gray-200 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-gray-900">2. Pedido Backorder ({demandDiagnostic.metrajeTransito}m Barco Telares)</span>
+                            <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-bold">Al Arribo</span>
+                          </div>
+                          <div className="space-y-1.5 text-xs">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="pagoBackorder"
+                                checked={condicionPagoBackorder === 'CONTADO_AL_ARRIBO'}
+                                onChange={() => setCondicionPagoBackorder('CONTADO_AL_ARRIBO')}
+                                className="text-primary-600"
+                              />
+                              <div>
+                                <span className="font-semibold">Contado al Arribo (Cierre Fiscal SAT)</span>
+                                <p className="text-[10px] text-gray-400">Sin pago hoy. Se cobra y factura en el mismo mes que llega a Telares.</p>
+                              </div>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="pagoBackorder"
+                                checked={condicionPagoBackorder === 'CONTADO_ANTICIPO'}
+                                onChange={() => setCondicionPagoBackorder('CONTADO_ANTICIPO')}
+                                className="text-primary-600"
+                              />
+                              <div>
+                                <span className="font-semibold">Contado con Anticipo</span>
+                                <p className="text-[10px] text-gray-400">Paga anticipo hoy para congelar precio y metraje.</p>
+                              </div>
+                            </label>
+                            {clientCreditStatus?.creditConfig?.creditoHabilitado && (
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name="pagoBackorder"
+                                  checked={condicionPagoBackorder === 'CREDITO'}
+                                  onChange={() => setCondicionPagoBackorder('CREDITO')}
+                                  className="text-primary-600"
+                                />
+                                <div>
+                                  <span className="font-semibold">Crédito Comercial al Arribo</span>
+                                  <p className="text-[10px] text-gray-400">Se surte contra su línea de crédito cuando el barco descargue en Telares.</p>
+                                </div>
+                              </label>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Condiciones si es TODO JUNTO */
+                      <div className="bg-white p-3.5 rounded-xl border border-gray-200 space-y-2 text-xs">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="pagoTodoJunto"
+                            checked={condicionPagoBackorder === 'CONTADO_AL_ARRIBO'}
+                            onChange={() => setCondicionPagoBackorder('CONTADO_AL_ARRIBO')}
+                            className="text-primary-600"
+                          />
+                          <span><strong>Contado al Arribo (Cierre Fiscal):</strong> Se factura y cobra el total cuando arribe el contenedor a Telares.</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="pagoTodoJunto"
+                            checked={condicionPagoBackorder === 'CONTADO_ANTICIPO'}
+                            onChange={() => setCondicionPagoBackorder('CONTADO_ANTICIPO')}
+                            className="text-primary-600"
+                          />
+                          <span><strong>Contado con Anticipo:</strong> El cliente congela su pedido completo con un anticipo hoy.</span>
+                        </label>
+                        {clientCreditStatus?.creditConfig?.creditoHabilitado && (
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="pagoTodoJunto"
+                              checked={condicionPagoBackorder === 'CREDITO'}
+                              onChange={() => setCondicionPagoBackorder('CREDITO')}
+                              className="text-primary-600"
+                            />
+                            <span><strong>Crédito Comercial al Arribo:</strong> Se factura todo a crédito diferido (PPD 99) al llegar la mercancía.</span>
+                          </label>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* CASO B: TODO DISPONIBLE EN BODEGA (PEDIDO REGULAR) */
+                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-4">
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle2 size={18} className="text-emerald-600" />
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-900">Surtido 100% en Bodega Formatex</h4>
+                      <p className="text-xs text-gray-500">Toda la tela solicitada está disponible en racks locales para corte y despacho</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Apartado de Mercancía</label>
+                      <select
+                        value={reservaHoras}
+                        onChange={e => setReservaHoras(+e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium"
+                      >
+                        <option value={72}>72 horas (3 días — Resguardo Interno Almacén) [Recomendado]</option>
+                        <option value={24}>24 horas (Plazo Comercial Notificado al Cliente)</option>
+                        <option value={48}>48 horas (2 días hábiles)</option>
+                      </select>
+                      <p className="text-[10px] text-gray-400 mt-1">Almacén protege los rollos durante 72h antes de liberarlos.</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Forma de Pago Acordada</label>
+                      <div className="space-y-1.5 pt-1 text-xs">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="pagoRegular"
+                            checked={condicionPagoInmediato === 'CONTADO'}
+                            onChange={() => setCondicionPagoInmediato('CONTADO')}
+                            className="text-primary-600"
+                          />
+                          <span>Contado Inmediato (Transferencia SPEI · CFDI PUE)</span>
+                        </label>
+                        {clientCreditStatus?.creditConfig?.creditoHabilitado && (
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="pagoRegular"
+                              checked={condicionPagoInmediato === 'CREDITO'}
+                              onChange={() => setCondicionPagoInmediato('CREDITO')}
+                              className="text-primary-600"
+                            />
+                            <span>Crédito Comercial {clientCreditStatus.creditConfig.plazoDefault} días (CFDI PPD 99 Por Definir)</span>
+                          </label>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
-            </div>
-          </div>
 
-          <div className="border-t pt-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold flex items-center gap-2">
-                <WmsIcon.Rolls size={16} className="text-indigo-500" />
-                Líneas del Pedido
-              </h3>
-              <span className="text-[10px] text-indigo-600 font-medium bg-indigo-50 px-2 py-1 rounded-full flex items-center gap-1">
-                Sugerencias inteligentes de inventario
-              </span>
-            </div>
-            <div className="space-y-3">
-              {lineas.map((l, idx) => (
-                <OrderLineSmart
-                  key={idx}
-                  index={idx}
-                  clientId={clientId}
-                  line={l}
-                  skus={skus?.data || []}
-                  onChange={(i, field, value) => {
-                    setLineas(prev => {
-                      const n = [...prev];
-                      (n[i] as any)[field] = value;
-                      return n;
-                    });
-                  }}
-                  onRemove={(i) => setLineas(lineas.filter((_, j) => j !== i))}
-                  canRemove={lineas.length > 1}
-                />
-              ))}
-            </div>
-            <button onClick={addLinea} className="text-xs px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 mt-3 flex items-center gap-1 transition-colors"><Plus size={12} /> Agregar Línea</button>
-          </div>
+              {/* Totales Financieros */}
+              <div className="bg-gray-50 rounded-2xl p-4 space-y-1.5 text-right border border-gray-100">
+                <p className="text-xs text-gray-500">Subtotal de Tela: <span className="font-mono font-semibold text-gray-800">${subtotal.toLocaleString('es-MX', {minimumFractionDigits: 2})}</span></p>
+                <p className="text-xs text-gray-500">IVA 16%: <span className="font-mono font-semibold text-gray-800">${iva.toLocaleString('es-MX', {minimumFractionDigits: 2})}</span></p>
+                <p className="text-base font-bold text-gray-900 pt-1 border-t border-gray-200">
+                  Total Estimado: <span className="text-emerald-600 font-mono text-lg">${total.toLocaleString('es-MX', {minimumFractionDigits: 2})} MXN</span>
+                </p>
+              </div>
 
-          {/* Totals */}
-          <div className="bg-gray-50 rounded-xl p-4 space-y-1 text-right">
-            <p className="text-sm text-gray-500">Subtotal: <span className="font-mono font-semibold">${subtotal.toLocaleString('es-MX', {minimumFractionDigits: 2})}</span></p>
-            <p className="text-sm text-gray-500">IVA 16%: <span className="font-mono font-semibold">${iva.toLocaleString('es-MX', {minimumFractionDigits: 2})}</span></p>
-            <p className="text-lg font-bold text-gray-900">Total: <span className="text-emerald-600">${total.toLocaleString('es-MX', {minimumFractionDigits: 2})}</span></p>
-          </div>
+              {/* Acciones Finales del Wizard */}
+              <div className="flex items-center justify-between pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => setWizardStep(2)}
+                  className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl flex items-center gap-1.5 transition-colors"
+                >
+                  <ArrowLeft size={14} /> Volver a Telas
+                </button>
 
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">Cancelar</button>
-            <button onClick={handleCreate} disabled={createMut.isPending} className="px-6 py-2.5 bg-primary-500 text-white rounded-xl hover:bg-primary-600 text-sm font-medium disabled:opacity-50 flex items-center gap-2">
-              {createMut.isPending ? <><WmsIcon.Timer size={16} className="animate-spin" /> Creando...</> : <><WmsIcon.Quote size={16} /> Crear Cotización</>}
-            </button>
-          </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowForm(false); setWizardStep(1); }}
+                    className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCreate}
+                    disabled={createMut.isPending}
+                    className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold shadow-xs disabled:opacity-50 flex items-center gap-2 transition-all"
+                  >
+                    {createMut.isPending ? (
+                      <><Loader2 size={15} className="animate-spin" /> Procesando Pedido...</>
+                    ) : demandDiagnostic.hasTransit && deliveryDecision === 'DIVIDIR' ? (
+                      <><Split size={15} /> Generar Entrega Dividida (2 Pedidos)</>
+                    ) : (
+                      <><WmsIcon.Quote size={15} /> Confirmar y Crear Pedido</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
