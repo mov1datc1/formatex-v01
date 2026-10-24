@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle2, AlertTriangle, Truck, User, Calendar, Layers, Hash, CheckSquare, Square, ShieldCheck, ArrowRight } from 'lucide-react';
+import { X, CheckCircle2, AlertTriangle, Truck, User, Calendar, Layers, Hash, CheckSquare, Square, ShieldCheck, ArrowRight, ScanBarcode } from 'lucide-react';
 import { api } from '../../config/api';
 import toast from 'react-hot-toast';
 
@@ -29,9 +29,41 @@ export default function DescargaChecklistModal({
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   });
 
+  // Barcode / Handheld Scanner state
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const [lastScannedSku, setLastScannedSku] = useState<string | null>(null);
+
   // Checklist lines state
   const [lineasState, setLineasState] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
+  const handleBarcodeScan = (codeToScan?: string) => {
+    const raw = (codeToScan || barcodeInput).trim();
+    if (!raw) return;
+
+    const lineIndex = lineasState.findIndex(l =>
+      l.skuCodigo?.toLowerCase() === raw.toLowerCase() ||
+      l.skuNombre?.toLowerCase().includes(raw.toLowerCase()) ||
+      raw.toLowerCase().includes(l.skuCodigo?.toLowerCase() || '---')
+    );
+
+    if (lineIndex >= 0) {
+      setLineasState(prev => {
+        const copy = [...prev];
+        const current = Number(copy[lineIndex].rollosRecibidos) || 0;
+        copy[lineIndex] = { ...copy[lineIndex], rollosRecibidos: current + 1, conforme: true };
+        return copy;
+      });
+      setLastScannedSku(lineasState[lineIndex].skuNombre);
+      toast.success(`+1 Rollo: ${lineasState[lineIndex].skuNombre} (Total: ${(Number(lineasState[lineIndex].rollosRecibidos) || 0) + 1})`, { icon: '📦' });
+      if (navigator.vibrate) navigator.vibrate(80);
+    } else {
+      toast.error(`Código escaneado no coincide: ${raw}`, { icon: '⚠️' });
+      if (navigator.vibrate) navigator.vibrate([150, 50, 150]);
+    }
+    setBarcodeInput('');
+  };
+
 
   useEffect(() => {
     if (!order) return;
@@ -246,6 +278,30 @@ export default function DescargaChecklistModal({
                 className="text-xs px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg font-semibold border border-emerald-200 transition-colors flex items-center gap-1.5"
               >
                 <CheckCircle2 size={13} /> Marcar Todo Conforme
+              </button>
+            </div>
+
+            {/* Quick Scanner Bar (Handheld / Laser Gun) */}
+            <div className="bg-gray-900 rounded-xl p-3 flex items-center gap-3 text-white border border-gray-800 shadow-md">
+              <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400">
+                <ScanBarcode size={18} />
+              </div>
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={barcodeInput}
+                  onChange={e => setBarcodeInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleBarcodeScan(); }}
+                  placeholder="Escáner Handheld activo: apunta la pistola láser o escribe código de rollo / SKU..."
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 font-mono focus:border-amber-400 focus:outline-none"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => handleBarcodeScan()}
+                className="px-3 py-1.5 bg-amber-500 text-gray-950 font-bold text-xs rounded-lg hover:bg-amber-400 transition-colors"
+              >
+                OK
               </button>
             </div>
 
