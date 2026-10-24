@@ -22,6 +22,12 @@ export class ReceptionController {
     return this.receptionService.getReceptionStats();
   }
 
+  @Get('incoming-transfers')
+  @ApiOperation({ summary: 'Listar traspasos y requisiciones de Telares en camino a Formatex' })
+  getIncomingTransfers() {
+    return this.receptionService.getIncomingTransfers();
+  }
+
   @Get('suggest-locations')
   @ApiOperation({ summary: 'Sugerir 3 ubicaciones inteligentes para HUs entrantes' })
   suggestLocations(
@@ -44,4 +50,23 @@ export class ReceptionController {
   register(@Body() body: any, @Req() req: any) {
     return this.receptionService.registerReception({ ...body, recibidoPor: req.user.sub });
   }
+
+  @Post('process-intake')
+  @ApiOperation({ summary: 'Procesar checklist de descarga, crear HUs y liberar transportista' })
+  processIntake(@Body() body: any, @Req() req: any) {
+    return this.receptionService.processIntake({ ...body, recibidoPor: req.user.sub });
+  }
+
+  @Post('putaway')
+  @ApiOperation({ summary: 'Acomodar HUs en racks según zonificación (Putaway)' })
+  executePutaway(@Body() body: { assignments: Array<{ huId: string; ubicacionId: string }> }, @Req() req: any) {
+    return this.receptionService.executePutaway(body.assignments, req.user.sub);
+  }
+
+  @Post(':id/mark-labeled')
+  @ApiOperation({ summary: 'Marcar HUs como reetiquetados con marbete Formatex 360°' })
+  markLabeled(@Param('id') id: string, @Body() body: { huIds?: string[] }) {
+    return this.receptionService.markHUsLabeled(id, body?.huIds);
+  }
 }
+
