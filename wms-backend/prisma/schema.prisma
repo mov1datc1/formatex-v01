@@ -618,10 +618,24 @@ model Order {
   // === CRÉDITO / PPD ===
   metodoPagoCfdi  String      @default("PUE") // PUE o PPD
   condicionesPago String?     // "Crédito 30 días", "Crédito 60 días"
-  plazoDias       Int?        // 30, 60, 90
+  plazoDias       Int?        // 7, 15, 30, 45, 60
   saldoPendiente  Decimal?    @db.Decimal(12, 2) // Saldo por cobrar (null si PUE)
   estadoPago      String      @default("NA") // NA (PUE), PENDIENTE, PARCIAL, PAGADA
   fechaVencimiento DateTime?  // Fecha límite de pago
+
+  // === RETENCIÓN POR CRÉDITO (César) ===
+  retenidoCredito        Boolean   @default(false)
+  motivoRetencionCredito String?   // "Facturas vencidas", "Límite excedido"
+  fechaRetencionCredito  DateTime?
+  liberadoCreditoPor     String?   // userId / nombre de César
+  fechaLiberacionCredito DateTime?
+  notasLiberacionCredito String?   // Notas de negociación
+  alerta5DiasEnviada     Boolean   @default(false)
+  alerta5DiasAt          DateTime?
+
+  // === BONIFICACIÓN POR DEFECTO / CALIDAD EN CORTE (Costo Cero César) ===
+  bonificacionCorteMetros Float?   @default(0) // Metraje regalado por banderas/defectos (Costo Cero en factura)
+  motivoBonificacion      String?  // "Bandera", "Hilo jalado", "Defecto de fábrica"
 
   // === OPERATIVO ===
   requiereCorte        Boolean        @default(true)
@@ -750,6 +764,8 @@ model OrderLine {
   comisionPct    Decimal? @db.Decimal(5, 2)  // % comisión del vendedor según lista
 
   requiereCorte  Boolean  @default(true)
+  bonificacionMetros Float?   @default(0) // Metros bonificados a costo cero por defecto (César)
+  motivoBonificacion String?
   estado         String   @default("PENDIENTE") // PENDIENTE, EN_PROCESO, SURTIDA, CANCELADA
   notas          String?
   createdAt      DateTime @default(now())
@@ -792,6 +808,8 @@ model CutOperation {
   // === METRAJE ===
   metrajeAntes      Float    // Metraje del HU antes del corte
   metrajeCortado    Float    // Metros cortados para el pedido
+  bonificacionMetros Float?   @default(0) // Metros bonificados por bandera/defecto a costo cero
+  motivoBonificacion String?  // "Bandera", "Hilo jalado", "Defecto de fábrica"
   metrajeRestante   Float    // Lo que queda (retazo)
 
   // === RETAZO GENERADO ===
@@ -1281,10 +1299,12 @@ model ClientCreditConfig {
   id              String   @id @default(uuid())
   clientId        String   @unique
 
-  // === CRÉDITO ===
-  creditoHabilitado Boolean @default(true)
-  plazoDefault    Int      @default(30)  // 30, 60, 90 días
-  montoMaximo     Decimal? @db.Decimal(12, 2) // Null = sin límite (informal)
+  // === CRÉDITO (César: 7, 15, 30, 45, 60 días) ===
+  creditoHabilitado       Boolean  @default(true)
+  plazoDefault            Int      @default(30)  // 7, 15, 30, 45, 60 días oficiales
+  diasCreditoAutorizados  Int?     @default(30)
+  montoMaximo             Decimal? @db.Decimal(12, 2) // Null = sin límite (informal)
+  toleranciaRedondeo      Decimal? @db.Decimal(5, 2) @default(10.00) // Tolerancia ±$10 MXN de absorción en cobro (César)
 
   // === DESCUENTOS PRECONFIGURADOS ===
   listaDefault    String?  // Lista de precios default: "F1", "F2", etc.

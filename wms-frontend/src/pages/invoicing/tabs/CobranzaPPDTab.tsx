@@ -6,7 +6,7 @@ import {
   CreditCard, AlertTriangle, Clock, CheckCircle2,
   DollarSign, Search, X, FileCheck, Loader2,
   Download, FileText, Printer, Users, Eye, Filter,
-  Calendar, Ban, ArrowRight, RefreshCw, ChevronRight,
+  Calendar, Ban, ArrowRight, RefreshCw, ChevronRight, ShieldAlert, Info,
 } from 'lucide-react';
 
 export default function CobranzaPPDTab() {
@@ -188,6 +188,16 @@ export default function CobranzaPPDTab() {
             </div>
           );
         })}
+      </div>
+
+      {/* Regla Fiscal SAT & César */}
+      <div className="bg-amber-50/80 border border-amber-200/90 rounded-2xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-2xs">
+        <div className="flex items-start sm:items-center gap-2.5 text-amber-950">
+          <ShieldAlert size={18} className="text-amber-600 flex-shrink-0 mt-0.5 sm:mt-0" />
+          <p className="leading-relaxed">
+            <strong className="text-amber-900">Regla Fiscal SAT (César):</strong> Toda factura <strong>PPD</strong> (Crédito) requiere por ley timbrar un <strong>Complemento de Pago (REP)</strong> individual por <em>cada abono bancario recibido</em>. En facturas <strong>PUE</strong> (Contado) el pago es inmediato y queda <em>prohibido emitir REP</em>. Tolerancia de redondeo: <strong>±$10.00 MXN</strong>.
+          </p>
+        </div>
       </div>
 
       {/* Selector de Sub-Vistas de Cobranza (César) */}

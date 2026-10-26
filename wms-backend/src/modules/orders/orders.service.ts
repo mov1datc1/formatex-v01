@@ -11,7 +11,7 @@ export class OrdersService {
     return `${prefix}-${year}-${String(count + 1).padStart(4, '0')}`;
   }
 
-  async findAll(params: { search?: string; estado?: string; clientId?: string; surtidorId?: string; page?: number; limit?: number }) {
+  async findAll(params: { search?: string; estado?: string; clientId?: string; surtidorId?: string; retenidoCredito?: string | boolean; page?: number; limit?: number }) {
     const { search, estado, clientId, surtidorId, page = 1, limit = 20 } = params;
     const skip = (page - 1) * limit;
     const where: any = {};
@@ -24,6 +24,9 @@ export class OrdersService {
     }
     if (clientId) where.clientId = clientId;
     if (surtidorId) where.surtidorId = surtidorId;
+    if (params.retenidoCredito !== undefined) {
+      where.retenidoCredito = params.retenidoCredito === 'true' || params.retenidoCredito === true;
+    }
     if (search) {
       where.OR = [
         { codigo: { contains: search, mode: 'insensitive' } },
@@ -263,12 +266,68 @@ export class OrdersService {
     // Expiration for soft reservations (Apartado: 72h almacén / 48h cliente)
     const expiresAt = new Date(Date.now() + reservaHoras * 60 * 60 * 1000);
 
+    // =========================================================================
+    // REGLA CÉSAR (Cobranza y Facturación Oct 2026):
+    // No bloquea la captura en ATC, pero retiene el pedido para obligar negociación
+    // si el cliente tiene facturas PPD vencidas o rebasa su límite de crédito.
+    // =========================================================================
+    let retenidoCredito = false;
+    let motivoRetencionCredito: string | null = null;
+    let fechaRetencionCredito: Date | null = null;
+
+    const creditConfig = await this.prisma.clientCreditConfig.findUnique({
+      where: { clientId: data.clientId },
+    });
+
+    const now = new Date();
+    const overdueOrders = await this.prisma.order.findMany({
+      where: {
+        clientId: data.clientId,
+        metodoPagoCfdi: 'PPD',
+        estadoPago: { in: ['PENDIENTE', 'PARCIAL'] },
+        fechaVencimiento: { lt: now },
+        estado: { notIn: ['CANCELADO'] },
+      },
+      select: { codigo: true, saldoPendiente: true, fechaVencimiento: true },
+    });
+
+    if (creditConfig?.bloqueado) {
+      retenidoCredito = true;
+      motivoRetencionCredito = `Cliente bloqueado por cobranza: ${creditConfig.motivoBloqueo || 'Sin motivo especificado'}`;
+      fechaRetencionCredito = now;
+    } else if (overdueOrders.length > 0) {
+      retenidoCredito = true;
+      const totalVencido = overdueOrders.reduce((sum, o) => sum + (Number(o.saldoPendiente) || 0), 0);
+      motivoRetencionCredito = `Cliente con ${overdueOrders.length} factura(s) vencida(s) por un saldo de $${totalVencido.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN`;
+      fechaRetencionCredito = now;
+    } else if (creditConfig?.montoMaximo) {
+      const currentActiveDebt = await this.prisma.order.aggregate({
+        where: {
+          clientId: data.clientId,
+          metodoPagoCfdi: 'PPD',
+          estadoPago: { in: ['PENDIENTE', 'PARCIAL'] },
+          estado: { notIn: ['CANCELADO'] },
+        },
+        _sum: { saldoPendiente: true },
+      });
+      const saldoActual = Number(currentActiveDebt._sum.saldoPendiente || 0);
+      const limite = Number(creditConfig.montoMaximo);
+      if (saldoActual + total > limite) {
+        retenidoCredito = true;
+        motivoRetencionCredito = `Límite de crédito excedido ($${limite.toLocaleString('es-MX')} MXN). Saldo actual: $${saldoActual.toLocaleString('es-MX')} MXN + Nuevo pedido: $${total.toLocaleString('es-MX')} MXN`;
+        fechaRetencionCredito = now;
+      }
+    }
+
     return this.prisma.$transaction(async (tx: any) => {
       // 1. Create the order
       const order = await tx.order.create({
         data: {
           codigo: code,
           clientId: data.clientId,
+          retenidoCredito,
+          motivoRetencionCredito,
+          fechaRetencionCredito,
           deliveryAddressId: data.deliveryAddressId || null,
           deliveryContactName: data.deliveryContactName || null,
           deliveryContactPhone: data.deliveryContactPhone || null,
@@ -862,6 +921,42 @@ export class OrdersService {
         approvedAt: new Date(),
       },
     });
+  }
+
+  // =========================================================================
+  // LIBERACIÓN MANUAL POR COBRANZA / CÉSAR (Negociación o Pago Parcial)
+  // Regla César: Desbloquea el pedido retenido y lo envía de inmediato a POR_SURTIR
+  // =========================================================================
+  async releaseCreditHold(orderId: string, cobradorNombre: string, notasLiberacion: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { client: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Pedido ${orderId} no encontrado`);
+    }
+
+    if (!order.retenidoCredito) {
+      throw new BadRequestException(`El pedido ${order.codigo} no se encuentra retenido por crédito`);
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        retenidoCredito: false,
+        liberadoCreditoPor: cobradorNombre,
+        fechaLiberacionCredito: new Date(),
+        notasLiberacionCredito: notasLiberacion,
+        estado: 'POR_SURTIR',
+      },
+      include: {
+        client: true,
+        lineas: true,
+      },
+    });
+
+    return updated;
   }
 
   // =========================================================================

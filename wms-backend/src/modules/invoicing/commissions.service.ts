@@ -148,13 +148,45 @@ export class CommissionsService {
       totalFacturado: Math.round(v.totalFacturado * 100) / 100,
       totalDescuentos: Math.round(v.totalDescuentos * 100) / 100,
       totalComision: Math.round(v.totalComision * 100) / 100,
+      requiereFacturaFiscal: true,
+      fechaLimiteFactura: 'Día 5 del mes',
+      fechaPagoComision: 'Día 10 del mes',
+      politicaCobro: 'Mes trabajado = Mes cobrado',
     }));
+
+    const granTotalFacturado = result.reduce((s, v) => s + v.totalFacturado, 0);
+    const granTotalComisionDirecta = result.reduce((s, v) => s + v.totalComision, 0);
+    const gerenciaOverridePct = 1.0;
+    const gerenciaComision = Math.round(granTotalFacturado * (gerenciaOverridePct / 100) * 100) / 100;
+    const direccionOverridePct = 0.5;
+    const direccionComision = Math.round(granTotalFacturado * (direccionOverridePct / 100) * 100) / 100;
 
     return {
       data: result,
       totalVendedores: result.length,
-      granTotalFacturado: result.reduce((s, v) => s + v.totalFacturado, 0),
-      granTotalComision: result.reduce((s, v) => s + v.totalComision, 0),
+      granTotalFacturado: Math.round(granTotalFacturado * 100) / 100,
+      granTotalComision: Math.round(granTotalComisionDirecta * 100) / 100,
+      granTotalComisionDirecta: Math.round(granTotalComisionDirecta * 100) / 100,
+      jerarquia: {
+        gerenciaVentas: {
+          responsable: 'Santiago (Gerente Comercial)',
+          porcentajeOverride: gerenciaOverridePct,
+          baseCobrada: Math.round(granTotalFacturado * 100) / 100,
+          comisionCalculada: gerenciaComision,
+        },
+        direccionComercial: {
+          responsable: 'Mayra García (Dirección)',
+          porcentajeOverride: direccionOverridePct,
+          baseCobrada: Math.round(granTotalFacturado * 100) / 100,
+          comisionCalculada: direccionComision,
+        },
+      },
+      politicaPago: {
+        cortePeriodo: 'Último día del mes calendario',
+        entregaFacturaFiscal: 'Día 5 del mes siguiente (CFDI de honorarios / comisiones)',
+        pagoDispersado: 'Día 10 del mes siguiente',
+        reglaMadre: 'Mes trabajado = Mes cobrado (exclusivamente facturas liquidadas al 100%)',
+      },
     };
   }
 

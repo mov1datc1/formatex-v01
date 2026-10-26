@@ -1,0 +1,632 @@
+Entrevista - Cesar - Formatex
+lun, 26 oct 2026
+
+0:08 - Orador no identificado
+Hola, buenas tardes.
+
+0:22 - automatizacion
+¿Cómo estás, Jonathan?
+
+0:36 - Orador no identificado
+¿Estás tú solita o vas a trabajar?
+
+1:05 - Orador no identificado
+¿Vale?
+
+1:05 - automatizacion
+Estás no quiero. Creo que Mayra nos va a acompañar también.
+
+1:11 - MOVIDA TCI
+¿Ustedes qué tal? ¿Cómo están? ¿Cómo se preparan para la, para diciembre?
+
+1:17 - automatizacion
+Ay, venimos justamente de las otras oficinas para ver cómo va por allá para ver si nos acantan o se cambiaron o algo que no creo. Pero pues ahí vamos.
+
+1:33 - Orador no identificado
+Sí.
+
+1:33 - MOVIDA TCI
+Pues. Lo importante es que siempre hay algo que hacer y mejorar, o no?
+
+1:43 - Orador no identificado
+Sí.
+
+1:44 - MOVIDA TCI
+A ver aquí.
+
+2:01 - Mayra Garcia
+Hola, buenos días.
+
+2:04 - Orador no identificado
+Buenas tardes.
+
+2:06 - Mayra Garcia
+Sí.
+
+2:07 - MOVIDA TCI
+Que se pase el tiempo.
+
+2:13 - Orador no identificado
+Sí.
+
+2:14 - Mayra Garcia
+Están ya listos? Estamos listos ya.
+
+2:20 - MOVIDA TCI
+Sí, muy bien.
+
+2:23 - Orador no identificado
+Casi listos.
+
+2:25 - automatizacion
+No. En su silla. Todos listos. Pues bueno, más que nada el día de hoy vamos a ver la integración de parte de finanzas, créditos y cobranzas. Entonces ellos deberán estar preguntando cualquier duda que tengan. Sobre el sistema y pues eso es todo. Si, vamos a iniciar.
+
+3:04 - Orador no identificado
+Gracias por acompañarnos.
+
+3:06 - MOVIDA TCI
+Y bueno, la idea de esta dinámica es revalidar algunas, algunas reglas, sobre todo de negocio. Le llamamos reglas de negocio. Las reglas que utilizan ustedes para este, para, para ver cómo hacen el tipo de cobro y todo, todo esto. Entonces tanto el área de cobranza como facturación quería validar. Entonces vamos a empezar con cobranza. Nosotros estamos, estamos sistematizando que sea un poco más ágil.
+
+ Una vez desde el levantamiento del pedido, que se levanta el pedido. Y ya está por cobrar, o sea que ya el pedido se levantó, se validó con el se envió la cotización. Ya el cliente dijo que sí. Ya los, yo le llamo agentes de venta, a los que están afuera le confirman al equipo de ATC. Mira, ya el cliente pagó y he visto que por WhatsApp mandan así el screenshot.
+
+4:11 - Orador no identificado
+Mira, ya el cliente pagó.
+
+4:13 - MOVIDA TCI
+Me está pasando que sí. Entonces de allí se dispara el rol de cobranza, de validar de si ese dinero realmente está en la cuenta que corresponde. Y así darle ahí nace realmente el pedido como tal. Entiendo yo que para que sea el pedido tiene que ser el pago. En el caso de esos clientes que se pagan al contado, los clientes a crédito, bueno, ya tenemos otra dinámica. Entonces, la pregunta que, la primera pregunta es eso.
+
+ Nos citamos bien cuando el cliente es de contado, o sea que el de ATC, cuando levanta, desde que levantó la cotización, pudo validar Así este cliente es de contado y podemos darle, o sea, hacemos todo el proceso. Cuando nosotros vamos a crear un rol que se llama cobranza en el sistema, donde vas a tener una cola por así de, de, de pedidos por verificar, en el caso de contado. O sea, sería el, el flujo sería que tengas la sesión abierta e ingresas, ves cuáles son los que tienes en cola.
+
+ Le das clic allí. Bueno, contrasta con la cuenta. Si le vas a subir un común, puede ser que le subas algo como una evidencia de que sí, o simplemente ahí que confirme, porque vas a tener un botón de confirmación. Ese es con tu usuario y password, donde dice si, si valide. Entonces pasa al estatus de ese pedido. Ahí se crea el pedido y inicia el proceso de almacén. O sea, pasa al almacén porque ya se supone que el pedido está.
+
+ En el caso de crédito, reitero allí. Otra vez ATC cuando hace la cotización y están haciendo un pedido, imaginemos que el cliente tiene crédito. Ahí van a pasar varias situaciones. Si no tiene deuda, no, si no tiene facturas pendientes o tope. Se le, se levanta el pedido con, con, basado en ese tope, que haga el pedido, pero que no se pasa creo que de un número. Si se establece así, ahorita me reconfirmas esa parte.
+
+ Pero si tiene deuda, entonces ahí actúa. Actúan ustedes otra vez y ellos pueden decir mira, págame. Hay como un proceso de negociación. Si me liberas, me pagas esta factura, te puedo sacar el pedido, te puedo crear ese pedido. Hasta ahí es es lo que hemos estado digitalizando. Entonces ahí te cedo la palabra para que me corrijas allí o me complementes, este, toda esta parte de este proceso.
+
+6:54 - automatizacion
+Bien, hasta ahí esa información es correcta. Los pedidos se dividen ahí, como bien mencionas, en dos. Los que son de clientes de contado, que eso no tengo mayor problema más que verificar el banco, que si me haya caído el pago que es y, pues, darle, como tú dices, ahí el click para darle continuidad al pedido y que siga su proceso en el almacén ya de surtido. Con los clientes de crédito, también igual como bien mencionas, tenemos muchos pedidos retenidos bastante mucho tiempo porque no llegamos a una negociación o no me paga el cliente o no tiene pero ellos siempre son inteligentes, ellos siempre van a meter sus pedidos pensando que por ahí se nos pueda pasar alguno, ¿no?
+
+ Hay que nos agarre todavía dormidos, es lunes, nueve de la mañana, nos agarra dormidos y lo liberamos. Pues ya con ese sistema igual también nos va a ayudar muchísimo en, si yo me he dormido en el sistema, ¿no?
+
+7:59 - Orador no identificado
+Entonces nos lo frena también ahí tantito, ¿no?
+
+8:02 - automatizacion
+Nos hace recapacitar qué tanto nos debe y qué tanto queremos recuperar de cobranza para si esté gestionada. Pues hasta ahí está bien el proceso. No sé si más delante ya también tocarás el tema de las aplicaciones.
+
+8:21 - MOVIDA TCI
+Sí, vamos a tocar hasta el punto uno era el proceso, digamos, básico del pedido. Luego tocamos la facturación, las comisiones, este que, bueno, y el tema de los sellos, complementos de pago, etcétera. De evoluciones, o sea, hay un conjunto de cosas que, que quizás no están visibles en el proceso, pero sí, sí, sí vive, existe y también es parte de que el proceso de un pedido, este pase o no. Nosotros lo que, lo que estamos ahorita, estamos ahorita es incluso tener varios candados de que cuando ATC incluso haga el primer filtro.
+
+ Cliente XY me está haciendo, me está haciendo un pedido como este un lunes en la mañana. Ya ahí hay una consulta directa en base de datos si debe o no debe. O sea, qué tipo de cliente debe y si nos debe o no nos debe. Este ya hace el primer filtro allí. Si está todo bien o de repente unas reglas que colocamos, que eso lo podemos ahorita, digamos, vamos a dejarlo así un poco general. Después lo redefinimos y bueno, mira, si me debe 5 facturas me llamas, la pasas conmigo.
+
+ Si debe tres, bueno, puedes crearle dos pedidos más. Tenemos que hacer como esa regla. Tener esa regla para que tampoco ATC dependa tanto de ti. Tiene que ver el sistema, tiene que darle las, digamos, las pautas, las reglas de parte negocio. Yo creo Entonces, que esta la tenemos bastante ya con esos dos candados. En caso que pase contigo, que tú simplemente nada más ver cómo en el sistema le vas a decir, no sé si nada más le pasa por correo o algo.
+
+ Mira, tienes dos, dos, o sea, como que el Estado págame estas dos, por decir, pero ¿Cómo vas a hacer ese proceso? Eso. Y cuando, y si, y si el cliente dice sí, está bien. Este, bueno, ese está bien. Puede ser una semana, dos semanas. Sabemos si es el mismo día. O sea, si el pedido que estaba intentando subir, simplemente no, nunca se, no se levanta hasta que, hasta que tú no le confirmas a, a, a atención al cliente.
+
+ Que mira, ya, ya cumplió con lo que, con lo que negociamos. O sea, ya pagó dos, ya él está y el sistema a través lo vuelve a liberar. Le diga allí, mira si está, si está en verde, por decirlo así, o está en amarillo, por lo menos para otra, otro pedido. Esos son unos candados muy importantes que se levantaron en un momento, porque si, como tú ya lo dijiste, influye en el impacto, en el dinero que ingresa al negocio.
+
+ Pero hay otras cosas que bueno, que me interesaría, las noté por aquí, porque la verdad son tantas cosas. No quiero que se me escape, pero vamos a empezar con un Por ejemplo, vamos a pasar un poquito al agente de venta, ese agente de venta que está afuera. Este. Obviamente los que tienen crédito, tú le vas generando facturas, este PPD, que son por definir. Este, pero todo esto impacta en las comisiones, en las comisiones, los agentes de venta.
+
+ Entonces yo manejo la información de que estrictamente se comisionaba cuando la factura de ese pedido. O sea, yo agente de venta o yo comisiono un pedido, el pedido 1, 2, 3, hasta que ese pedido no esté 100% pagado. Yo no entro en esa comisión, ¿Verdad? Así es. Esa es la regla. No entro en esa comisión. ¿Qué pasa si este si hay una devolución y ya estabas comisionando, pero bueno, resulta que una devolución parcial puede ser, este, impactó en que tuviste que generar un complemento de pago de, de comisión, de devolución.
+
+ Y bueno, lo que la factura eran mil pesos, ahora son setecientos pesos. Entonces eso tenía que, se tendría que recalcular en la comisión. Correcto. Sí, sí, sí. Este, lo que quiero es ver es si impacta o no una devolución en las comisiones.
+
+12:31 - automatizacion
+Las dos, los dos documentos impacta una devolución, ya sea de mercancía o incluso si el cliente, bueno, si el vendedor ofrece un descuento extra a esa factura, que es una nota de crédito.
+
+12:45 - MOVIDA TCI
+Bueno, esa era la segunda pregunta. Si hace una, un descuento, pero ligado a los descuentos especiales que ya están o este, o sea, si se hace un descuento, no importa si es de este, desde la dirección. Mira, se da un descuento ese cliente. Bueno, si se hizo descuento, ya también la comisión va a bajar, ¿No? Sí, sí, sí. O sea, sobre el monto, pues si la comisión es, creo que ahorita me defino, me recuerdo los números.
+
+ Lo que se define en comisión es sobre el monto, o sea, el monto, el monto total. Si fue precio va, precio de base o precio especial, lo que sea, pero va a impactar porque va, ahí va a ser la, la, este, la aritmética base.
+
+13:34 - automatizacion
+Claro, mira aquí el compact que manejamos, todo va con una relación y eso también le sirve al SAT. Todo documento va relacionado a un documento origen. ¿Qué es esto? La factura ya salió timbrada y ya está Si hay una devolución de esa factura, esa devolución debe ir relacionada al documento de la factura, si va ligada. Entonces, causa efecto. Factura positiva, devolución negativa. Si aparte a esa factura le hago una nota de crédito por dinero solamente, que no influye en la mercancía, ya sea porque el cliente pagó el flete y no debió haberlo pagado y nosotros nos equivocamos, se le hace el descuento para bonificarle ese flete que él pagó y no debió haber pagado.
+
+ Otro ejemplo, le salió dos metros dañados, tema de calidad, entonces yo se los bonifico con dinero y le hago una nota de crédito por otros 200, 300, 500 pesos. La factura origen valía mil pesos, pero ya le hice una devolución de 200 pesos de cierto metraje, más los otros 300 o 500 pesos de la garantía, porque le salió fallo o cierto metraje. Entonces, todo eso, como va ligado al documento origen, todo va restando.
+
+ Entonces, ya la factura, al final de cuentas, el Compaq ya no la calcula que vale mil. Ya esa factura te la pone en total, incluyendo los documentos posteriores, la nota de crédito, la devolución. Entonces, ya le resta, ya te dice, no, esa factura ya solamente vale 500 pesos y sobre esos 500 pesos se calcula la comisión.
+
+15:23 - MOVIDA TCI
+Excelente, excelente. Vamos a poner aquí. Esa comisión se paga solamente, obviamente antes de IVA y otros cargos.
+
+15:35 - automatizacion
+O sea, es sobre el monto bruto. Sí.
+
+15:41 - Orador no identificado
+Perfecto.
+
+15:42 - automatizacion
+Si los temas de impuestos, de IVAs y retenciones, eso son, son, juegan nada más la empresa con ellos. Claro. Sí, sí comprendo allí.
+
+15:51 - MOVIDA TCI
+Y para cerrar esta parte de comisiones, para poderla pagar, ellos deben emitirte una factura, pero ese tipo de facturas que es récico o persona. O sea, que qué tipo de facturas te emiten y te envían aquí el XML, el PDF. O sea, qué es lo que te envían para poderle liberar esa comisión.
+
+16:11 - automatizacion
+Para ellos cobran tienen que emitir la factura independientemente de qué régimen ellos tributen. Pues se les manda el cálculo y a lo único que a mí me interesa es que me cuadre la cantidad que yo le estoy solicitando porque eso es lo que está comisionando en el mes.
+
+16:27 - MOVIDA TCI
+Tú le mandas un como un estado de cuenta.
+
+16:30 - automatizacion
+No me importan los impuestos que ellos pagan. Pero si te importa la factura.
+
+16:35 - MOVIDA TCI
+Si te importa que cambie la factura.
+
+16:37 - automatizacion
+Sí, la factura sí.
+
+16:39 - MOVIDA TCI
+Y cómo ahorita tú le envías el monto, o sea, ¿Por qué medio tú le envías? Mira, esto es lo que comisionaste.
+
+16:48 - automatizacion
+O sea, eso es cada 15 días, mensual. Mensual, todos los días, 10 de cada mes. Yo pago meses trabajados, meses cobrados. Hoy en octubre pagué las comisiones de septiembre.
+
+17:00 - Orador no identificado
+Ok, ok.
+
+17:01 - MOVIDA TCI
+Esa información.
+
+17:02 - automatizacion
+Se las mando por correo, ya con el cálculo de manera personal. Solamente a cada uno. Nadie puede ver los montajes.
+
+17:12 - Orador no identificado
+Excelente.
+
+17:12 - MOVIDA TCI
+¿Por dónde me envías? Por un reporte en el COPAC. El COPAC me lo va a hacer.
+
+17:20 - automatizacion
+¿De todos?
+
+17:21 - MOVIDA TCI
+¿Del mes y de todos? ¿Pero tú se lo vas pasando a cada uno por WhatsApp o por correo?
+
+17:30 - automatizacion
+¿Cómo se lo envías? Por correo.
+
+17:33 - Orador no identificado
+Ok.
+
+17:34 - MOVIDA TCI
+se lo formaliza por correo.
+
+17:37 - Orador no identificado
+Ok. Está muy bien.
+
+17:39 - MOVIDA TCI
+Vamos a ver aquí. Vamos a ver qué más se me escapa de comisiones. Ok, las comisiones, pues son, tienen, hay un perfil de esos agentes. Cada uno tiene la misma comisión para todo o aquí ustedes tienen unas reglas de dependiendo de quién es el vendedor, tú le vas poniendo una comisión, el porcentaje.
+
+18:07 - automatizacion
+Las comisiones las generan en base a las listas de precios. Ese si quieres, te mandamos el documento de cómo, cuál es el tipo de comisión que se le da deteniendo la EFE, de los documentos que ya te subimos también para que se puedan calcular.
+
+18:26 - MOVIDA TCI
+Sí, si quieres para complementar. Ya tenemos una pero mándame eso.
+
+18:30 - automatizacion
+Te acuerdas un ejemplo.
+
+18:32 - MOVIDA TCI
+Sí, con ese trabajamos, pero bueno, como Andrea y digamos Santi no estaban en ese momento, este, digamos de lleno, que nos envíen y ahí vamos haciendo el marchito.
+
+18:45 - automatizacion
+Aparte de eso, usted en la comisión a cada vendedor por venta y comisión a cada gerente de ventas por venta de su equipo. Más la comisión de dirección por cada vendedor. ¿Se le da comisión como vendedor por sus clientes que la atienden? ¿Se le da comisión un porcentaje menor, por eso no es de X porcentaje, por sus agentes que tiene a su cargo como gerente? Y el director comentó el sector comercial se le da.
+
+ Es el mismo porcentaje que gana el gerente, pero por todas las ventas de los de los tres gerentes que tiene.
+
+19:36 - MOVIDA TCI
+De los cuatro. Ya, ya entiendo. La cadena de de comisión. Excelente. Excelente información. Ok, este sobre o vámonos un poquito al tema de la factura, de o la sea, generación ahí de ya tenemos la cargado, supongamos que ya tenemos cargado, dado de alta en el sistema, los datos fiscales de los, de los clientes y normalmente se debería hacer la factura en el momento del empacado. O sea, en ese punto de que como los metrajes no son exactamente así muy precisos, ahí es donde ya se sabe cuánto es el valor total.
+
+ O sea, esa es la razón de no dejar para adelante. No hace que no mire poco más, poco menos. Entonces es mejor siempre generar la factura en ese punto, cuando ya casi vaya a subir, porque lo vamos a hacer con un clic. O sea, se va a generar y más si es de contado. Se genera la factura de contado o de crédito. Antes de subirse para tener un monto total de salida. Eso está bien. Así que lo hagamos así.
+
+
+
+20:43 - automatizacion
+Te voy a hacer una pregunta a ver si me ayudas a entender cómo va a funcionar el sistema o cómo podemos poner un filtro. Hoy día las cotizaciones. Pues varían en monto. Entonces aquí el día de hoy que iba a pagar $5,000 de su cotización, de su pedido. Y después, cuando regresa el pedido ya surtido, ya manipulado, ya empacado, ya todo, a la hora de que van a facturar las chicas de servicio a clientes, salen sus errores de dedo o su desconcentración.
+
+ Si me facturan $10 de más, yo no tengo problema. Tengo un rango en el sistema de absorber más o menos $10 para yo poder aplicar el pago sin problema y que no me pegue en contabilidad. Pero cuando se equivocan de más o facturan con un metro de más o unos centímetros, bueno, bastantes, bueno, pónganme un metro. Si un metro de más lo facturan de más, pues ya me impacta, ¿no? Esos $100, $200, $300 de esa tela y ya no me cuadra mi pago, ya no son comillas, un 5100, 5200.
+
+ Ahí sí ya no puedo, ya no puedo liberar eso. Que aquí no le vaya a suceder, porque el hecho de que ahorita estemos teniendo estos problemas es porque miden el rollo y miden mal, entonces al final se le hace una bonificación al cliente, que es lo que ha estado pasando, ¿no?
+
+22:15 - Orador no identificado
+Pero las bonificaciones las pueden hacer en ceros.
+
+22:18 - automatizacion
+O sea, a mí no me interesa si le van a regalar al cliente un metro, dos metros, tres metros. A mí lo que me interés realmente es que no los capturen con costo. Porque si los capturan con costo, a mí ya me eleva la cantidad. Y yo no tengo esa cantidad en el banco.
+
+22:34 - Orador no identificado
+Yo tengo 5,000. No tengo 5,100, ni 5,200, ni 5,300.
+
+22:37 - automatizacion
+Yo no voy a poder hacer match el pago contra ese pedido. Y ahí están las discrepancias donde yo tengo que regresar al servicio a clientes a exigirles que contacten al cliente y pague la diferencia. ¿Qué va a hacer el cliente?
+
+22:49 - Orador no identificado
+Yo no te voy a pagar. Tú ya me mandaste una flotización.
+
+22:53 - automatizacion
+súper bien analizada y súper bien cuadrada. A ver, perdón. ¿Por qué sucede este tema? La cotización la están mandando por 10 metros. ¿En qué momento hay un error en la captura? Y el precio lo da el sistema. ¿Cuándo hacen manual? Cuando el precio es manual. Entonces, ahí no debemos de tener problemas porque todos los precios ya van a ser digitales. Estamos trabajando para que los precios especiales sean digitales y únicamente...
+
+ Que estén desactivados, no los pueden manipular. Sí, solamente los puedan aprobar en el área de gerencia.
+
+23:33 - Orador no identificado
+¿Cierto? Correcto. Sí.
+
+23:34 - automatizacion
+Entonces si es así, no debería de haber manipulación manual, por lo cual no debería tener un cambio de la cotización a tu factura final. Y cuando van a meterles bonificaciones, ¿Cómo funciona una bonificación actualmente? Al final una bonificación que es un regalito. Si se lo estoy regalando no tengo yo porque figuraron en la factura. Solamente físicamente se los estoy regalando en el traje.
+
+24:19 - MOVIDA TCI
+¿Y dónde se registra? ¿Cuánto se les regaló? En el pedido.
+
+24:24 - automatizacion
+Cuando regresa el pedido, ahí le ponen, ah, le pusimos 50 centímetros de más porque traía una bandera. Bueno, no lo explicas que es una bandera. Una fallita en la tela. Entonces, se le bonifica ese pedazo que venía un poquito manchado, un hilo jalado, X o Y.
+
+24:44 - MOVIDA TCI
+Pero eso sería un cambio o una evolución, o sea, una sustitución. ¿Cómo sería eso?
+
+24:50 - automatizacion
+Haz de cuenta que cuando, en el rollo, en un rollo sí o sí, te puede llegar a venir hasta cinco defectos por rollo.
+
+24:59 - Orador no identificado
+Ok.
+
+24:59 - automatizacion
+Eso es de fabrica. El tema es que cuando tú haces cortes, si tú en el corte notas que tienes uno de esos cinco defectos, le das una pequeña pequeña bonificación al cliente. Y en lugar de cortar un metro de tela, cortas, no sé, uno veinte. Son de veinte a cincuenta centímetros dependiendo a qué distancia estaba la lana. Y eso lo anotan al parecer en la hoja y le dicen, no le di un metro, le estoy dando uno cincuenta.
+
+ Pero la factura le va a seguir saliendo con un veinte. Sin embargo, Pero el inventario ya no lo descuadró. El inventario ya no lo descuadró porque ya le pegaba 50 centímetros. Claro. El rollo ya no regresó de la misma medida. Ya tengo ahí una menos.
+
+25:48 - MOVIDA TCI
+Sí, lo único es que si vamos a estar en corte, ahorita en lo nuevo que queremos, si se cortó y ya se le dio 50 metros de más, igual el del cortador tiene que reetiquetar y decir cuánto está sobrando y ahí eso. Y eso tiene que cargarse en el sistema. Él tiene que reetiquetarlo. Quedó dos metros o 1.90. Tiene que poner quedó 1.90 para que justamente no suceda eso del inventario. Y el sistema si tenga lo que, lo que realmente debería tener.
+
+ No afecta como, como menciona en el mismo. O sea, no vas a cobrar ese pedazo, que es un bono, pero que el inventario no se me descuadre.
+
+26:28 - automatizacion
+Pero el fantasma no lo van a hacer.
+
+26:31 - MOVIDA TCI
+Hay un registro.
+
+26:32 - automatizacion
+Se pierde ese registro. Hay nosotros el sistema en el que tú estás haciendo. No hago ajustes. Tengo entendido que tú únicamente lo estás haciendo para que nada más den un clic. Siguiente, siguiente, siguiente, siguiente. Entonces, el Oreo del área de corte debería tener una opción que diga como bonificación y que tenga un corteador, ¿no? Para que ellos les pongan 30 centímetros, 40 centímetros, y ese automáticamente se te descuente del inventario.
+
+ Porque, por ejemplo, tú tienes un rollo de dos metros, y tú en tu sistema, una persona está viendo un corte de un metro, y otra persona está viendo un corte de un metro, y van a decir, ah, pues en esa les va a sobrar un metro, que agarren ese. Pero si en esos dos metros había una bonificación, el otro ya no le va a alcanzar. Pero tú ya hiciste tu Entonces, ¿cómo le podemos hacer?
+
+27:30 - MOVIDA TCI
+Bueno, vamos a ver. Vamos a ver cómo lo vamos a hacer. Pero está bien que lo mencione, porque no habíamos tocado este tipo de casos.
+
+27:43 - automatizacion
+Déjame revisar qué podemos hacer para no afectar el comentario. Esto día a día, la operación. Entonces, yo hoy día en Compaq, no sé si una es que una persona a mi cargo que es de la de inventarios, este chico todas las semanas, no sé si diario o cada dos días, entra al sistema, saca un reporte de los remanentes que quedan de esas bonificaciones que se dan y obviamente sabemos que si hay 50 centímetros no están, ya se fueron en alguno de los pedidos que bonificaron.
+
+ Entonces lo que hace es hacer una para estar cuadrando continuamente el inventario. Porque luego esos cincuenta centímetros de desarrollo, más otros cincuenta centímetros de otro, van a ser un metro, van a ser dos metros, van a ser diez metros que no tenemos realmente.
+
+28:41 - Orador no identificado
+Correcto.
+
+28:41 - automatizacion
+Si no lo estamos alimentando, no lo estamos depurando, limpiando el sistema, vamos a seguir falseando información.
+
+28:48 - MOVIDA TCI
+Sí. Sí, justamente por eso es que, bueno, los candados posible y procesos, ¿No? Procesos de este que se empiecen a cumplir para ir limpiando esa parte, ¿No? Porque si no, siempre vamos a tener data que nos cuadran.
+
+29:06 - automatizacion
+En el área de operaciones, cuando están los cortadores, los cortadores tienen un supervisor. No sé cómo veas el hecho de que si, si hacen un corte extra, tengan que colocar la bonificación y tenga que venir el supervisor a dar como el código de autorización lo que sea para que aplique el monto que se le está regalando porque si no luego también cualquiera va a poder hacer su... Por eso esa área no la tiene operaciones, no tienen habilitado o no tienen el poder en el sistema de ellos darle bajos en el traje porque son fuerza y parte, es encargado del almacén, pero tú sabes qué pasa, si me hace falta un rollo y lo desaparezco, no, nada más no lo hay saco quien del me sistema.
+
+ Lo Ya cobre, no no hay, hay quien me lo cuestione, no hay quien nada, entonces por eso esa parte la tenemos encargada acá en la área administrativa que somos preauritóricos Muy bien, excelente.
+
+30:09 - MOVIDA TCI
+Sí, este justamente lo que queremos es que todo se registre desde el, de, por eso hay dos dos canales, ¿No? El de restricción, que tiene que ir atado a todo lo que se solicite. O sea, que eso lo lo hablamos en la reunión pasada con con Israel. Este, toda esa parte de de que se solicita telare, o sea, ¿Qué es lo que se va requiriendo? Lo que va entrando O sea, todo ese proceso tiene que registrarse y candados allí.
+
+ O sea, ahí van a haber candados de desde que Telarem descargaste, revisé, aquí está tu nota de liberación, de que qué fue lo que vi a primera, digamos, de recibimiento. Luego que validen todo, que ahí hay otra, otro candado de revisión. Y luego de allí es el, es que donde dicen mira, este, esto se iba a ingresar y tiene que ingresar con su etiqueta. Al almacén. Esa es la parte de ingreso. Ahora la parte de salida, la única manera de salida es con un pedido, no?
+
+ Estamos hablando del pedido y ahora estamos hablando de la bonificación. Si es necesario el candado del gerente, porque también tenemos que pensar la fricción. Si el gerente no está ahí o tiene que vivir ahora. No sé qué tanta bonificación sea, porque no esté tampoco en este área y vendido ahí nada más probando. O sea, está por allá, al final del almacén y tiene que venir corriendo a cada rato a probar o que de alguna manera él apruebe.
+
+ O sea, tenemos que verlo. Si lo puede hacer desde una notificación.
+
+31:44 - automatizacion
+Sí, vamos a ver. Pedro quiere, quiere dar una bonificación. ¿Lo aceptas? No sé.
+
+31:51 - MOVIDA TCI
+Pero no necesita verlo físicamente. Sí, olvídalo.
+
+31:54 - automatizacion
+Tiene que No, pues no, no creo que sean muchos. No lo sé.
+
+32:02 - Orador no identificado
+Pero sí. Un candado.
+
+32:05 - MOVIDA TCI
+La idea es mitigar, la idea es mitigar, no de todas maneras, la idea es ir mitigando esto y que sepan que hay ahí doscientas cámaras viendo todo. Entonces. Hay presión.
+
+32:21 - automatizacion
+Es que si, si ambos, dos pedidos están tomando el metraje del mismo rollo y se hace una bonificación. ¿En qué momento se actualiza para que saquen otro metraje? Sí, hay que ver.
+
+32:34 - MOVIDA TCI
+Sí, sí, hay que ver. Si es para no devolver rollo, es para devolverlo de atraer, ¿No? O sea si ya hay un rollo en corte, en mesa de corte. Este es que también tiene que ver, o sea tenemos que evaluar porque al proceso de picking o de su justamente no es algo que tú puedas, que tú puedas definir así de que son cinco minutos, porque no sabemos cuándo paga y cuándo la cobranza. O sea, que se pase todo ese proceso anterior de cobranza y validación para que el pedido pueda pasar al almacén.
+
+ Porque si está el rollo, se está levantando un pedido y está un rollo en mesa de corte. Bueno, no sé qué tanto tiempo va a estar el rollo esperando que el pedido, que el pedido que también va a ser ese rollo, el rollo esperando. Y ese pedido duró una semana para que pagaran.
+
+33:20 - automatizacion
+Entonces, ¿Cómo lo hacemos? ¿Cómo puede llegar a suceder? Pues que tú al mismo tiempo sacaste dos pedidos de la misma tela y como ambos pedidos pues traían corte, agarraron el mismo rollo que estaba en el área de corte. Pero si alguien da una bonificación, ya no ajustan el segundo.
+
+33:40 - MOVIDA TCI
+Eso sería mi… Yo entiendo esa parte, pero vete un poquito más atrás. Cuando vas a levantar el pedido, queremos atar, tenemos o no. Entonces desde el pedido, porque cuando yo le diga tela Iron, me sale, o sea, levantando una cotización, dame 300 metros de esta tela, beige, iron, por decir un ejemplo, él le va a decir, ah, sí, tengo cuatro rollos, tengo seis rollos de 50 metros, poniéndolo así, un número fijo.
+
+ O sea, ya tú lo estás haciendo una reserva de esos rollos que están en una ubicación. O sea, es una manera de de cómo lo podemos hacer y ahorita se está planteando. O una combinación entre rollos y los otros almacenes donde hay 25 metros de masa. Pero baja, bájase una reserva, porque ¿Qué pasa? Este, si no lo hacemos así, va a haber vendedores que van a revender algo. O sea, si no lo reservamos con ubicación incluso o de lo que ya están en otro vendedor puede vender la tela al rato cuando ya se le ofrecieron a otro, ¿Me entiendes?
+
+ Primero tenemos que ver esos candados bien y de ahí parte lo que venimos, porque si ya definiste una reserva de unos rollos para un pedido. Como tú dices, de repente se encuentran dos pedidos donde tienen que cortar. Tenemos que ver cómo, cómo engranamos esa, esa pieza allí de que sea el mismo rollo que se está cortando, sean dos O sea, sé que es algo que ocurre.
+
+35:14 - automatizacion
+Pero si no impacta, yo creo que en la reserva. Eso ya lo habíamos presentado desde el inicio. Que cuando tú hicieras el pedido, detectara que hay un rollo en corte y agarrara la ubicación de ese corte para que no agarrara un rollo nuevo.
+
+35:31 - MOVIDA TCI
+Sí, sí. Pero lo que te digo ahorita, ¿Cuánto tiempo va a llegar ese pedido? Porque puede ser la cotización. En el pedido? ¿Dónde lo vas a hacer? Porque si lo estás haciendo en la cotización. O sea, si tú cotizas y dices Ah, mira, te voy a poner en la cotización el rollo que está en corte. Pero esa cotización no sabemos cuando la van a, si la van a aceptar, si la van a pagar o no. O sea, este, si ves el punto.
+
+ Sí. Si lo visualizas.
+
+36:02 - automatizacion
+Ahí donde está el detalle, ¿Cómo hacemos ese match? Ahí, ahí más bien sería. No, espera, déjame ubicar mis ideas.
+
+36:11 - MOVIDA TCI
+Que se reserve ese que estaba en corte, porque no sé, es que es retrabajo, ¿No?
+
+36:19 - automatizacion
+¿Sí lo entiendes? Pues es que sí, sí te entiendo. Se hace la cotización y cuando tú haces la cotización, se reserva el rollo durante 24, 72 horas. Digamos dicho que pudieran reservar.
+
+36:34 - MOVIDA TCI
+Digamos que se metió allí algo del corte, o sea, un rollo que estaba en corte en esa cotización y duró veinticuatro horas, veintisiete, no sé, las horas que sea. Ya duró allí, pero esa cotización va a pasar dos cosas. Que digan que sí o que digan que no. O sea, si dicen que sí, que mientras dicen que sí y se valida la cobranza y todo, ese rollo sigue en corte esperando por ese pedido. Porque lo metiste fue en el momento de la cotización.
+
+
+
+37:05 - automatizacion
+¿Cómo no siguen? O sea, puede ser que ya regresó al almacén.
+
+37:09 - MOVIDA TCI
+O sea, cortaron, el rollo era de 50 metros, cortaron, no sé, 30 metros y quedaron 20. Y ese 20 está metido en una cotización que están en espera por pagar. Entonces esos 20 ¿Qué hacen? Lo dejan ahí esperando, le ponen un papelito ahí y otra vez le ponemos ahí. Mira, esto es esperando una cotización que van a pagar. ¿O qué hacemos?
+
+37:30 - automatizacion
+O sea, el área de corte no ese rollo se está cotizando en ese momento. El hecho de que se haga la reserva con un rollo que está en corte está bien, porque la idea es terminarnos los remanentes. Sí. Pero lo más probable es que ese rollo sí tenga que volver Y ahí mi pregunta es, ¿cuándo ellos hicieron la reserva se suponía que te iban a sobrar 20 metros? Entonces tendrías que desactivar, no tendrías que disponer nada de eso hasta que no termines de hacer ese pedido, ya sea sí o no, si lo hayan pagado o no lo hayan pagado, y si no lo pagaron pues regresa completo.
+
+ Si sí lo pagaron, pues sí vas a tener un corte pero vas a tener que etiquetarlo de cuándo Mientras no. Es mejor, es mejor, yo creo que.
+
+38:32 - MOVIDA TCI
+Vas.
+
+38:33 - Orador no identificado
+Ajá.
+
+38:33 - automatizacion
+Adelante.
+
+38:34 - Orador no identificado
+Perdón.
+
+38:34 - MOVIDA TCI
+Estoy dando ideas.
+
+38:36 - automatizacion
+¿Acerca ese vas únicamente cuando sea rollo y cerrado? Y que los cortes se, en cuanto se haga el pedido, el corte agarra el rollo que esté más adobado a él, a su pedido, pues.
+
+38:56 - MOVIDA TCI
+Puede ser que se haga el pedido del corte.
+
+38:59 - automatizacion
+Entonces ya me pagué y todo. En cuanto a contabilidad, diga si se acepta, ya está el pago, ya está en todo. Al que le tienen que pasar el pedido, le tiene que aparecer el número del rollo que está para ese pedido. En ese caso, ahí ya puede agarrar en mesa de corte porque ya van a estar surgiendo pedidos de mesa de corte. El otro, no sé si le tuviera que aventar una de que, ¿sabes qué? Te lo ganan.
+
+ Vete por otro. Este ya no va a estar disponible.
+
+39:30 - Orador no identificado
+No sé.
+
+39:31 - automatizacion
+O sea, si dices que coinciden. Es que él lo que está haciendo es reservar. Te lo aparto. Te lo aparto 24 horas. Y si en 24 horas nadie lo quiso, ya lo vuelvo a sacar del mercado.
+
+39:44 - MOVIDA TCI
+El mercado es, se dice que, En todas maneras, vamos a, ya tenemos el contexto, vamos a ver cómo lo, cómo lo podemos plantear. Este, pero sí, sé que es algo que ocurre en mesa de corte, pero que si hay un rollo, obviamente que se pueda usar para pero tenemos que ver cómo lo enlazamos desde la cotización y el pedido como tal. Ver si de repente nada más las cotizaciones, o sea que el sistema haga las sugerencias.
+
+ O sea, no se bloquee por metrajes, paga las sugerencias de las unidades, pues lo que, de dónde van a tomar el pedido o algo Sí.
+
+40:30 - automatizacion
+Es que cuando, si no hacemos la reserva, va a poder llegar a pasar que dos o tres pedidos salgan al mismo tiempo y ya poco aquello. Y eso no voy a pensar en tenerlo. Es el tema del por qué la reserva primero.
+
+40:50 - Orador no identificado
+Sí.
+
+40:50 - MOVIDA TCI
+¿Lo pensamos?
+
+40:51 - automatizacion
+Déjame darle una pensada para verlo con varias áreas. Que me den su punto de vista. Y en la siguiente sesión que tengamos te doy alguna posible solución. Mientras ustedes también piénsenlo y en la próxima sesión vemos cómo, que lluvia de ideas traemos ¿Va? Entonces el tema de bonificaciones lo pasamos a la siguiente. Sí, sí. ¿Va? Está bien, va a dar unas vueltas.
+
+41:19 - MOVIDA TCI
+Aquí tengo otras preguntas, otras preguntas por César para que nos ayude a revalidar. Ya me había dado información previa. Los clientes de crédito siempre, yo he dicho que hacen, deciden pagar, pero legalmente es ¿Cuánto tiempo es? 30, 70 días por, desde la fecha de factura que se le da para que ellos paguen los que están a crédito. O sea el crédito ¿Por cuánto tiempo es? ¿Y qué es lo que ellos no cumplen los clientes?
+
+
+
+41:51 - Orador no identificado
+Depende del cliente.
+
+41:52 - automatizacion
+En la lista de que te vamos a subir, hay que ponerle cuántos días de crédito se están dando cada uno para que en base a eso el código se registre. Claro, porque el sistema pueda saber. Este cliente tiene tantos días. Sí, tengo clientes que tienen desde crédito a 7 días. 15 días, 30 días, 45 días y 60 días el máximo. Pero en la realidad, los clientes se toman más días. El de 60 me paga 90, el de 45 me paga 50 y así, ¿no?
+
+ Entonces, cuando llegan los créditos y los tengo detenidos porque no han pagado una, dos o tres o varias facturas que ya se le vencieron, pues es cuando entra la negociación ahí para la liberación de los pedidos. Ah, tengo una duda. ¿Cómo funciona? Yo sé que hay clientes que tienen 30 días, pero les damos chancla de hasta 45, ¿no? ¿O de plano ustedes son 30 días? No debiéramos darles chancla, pero tampoco tienen una pistola para obligarlos a que me cumplan los 30 días.
+
+ Entonces, ellos se los toman.
+
+43:09 - Orador no identificado
+¿Qué hago yo?
+
+43:10 - automatizacion
+Mi chamba como crítico francés es desde el día 31 pararlos. No lo hago porque tenía tenemos muchos criterios, tenemos mucho empleo del cliente, que es lo que nos han transmitido los dueños, ¿no?
+
+43:23 - Orador no identificado
+Toda la vida.
+
+43:24 - automatizacion
+Entonces, siempre tratamos de ayudar, tratamos de ayudar. Puede que tenga facturas que me den 45 días y yo le sigo liberando. No tengo problema. Pero depende de cada cliente. Entonces, ¿cómo ve? Si en la misma lista de clientes vamos a apuntarte el día de crédito que tiene validado. ¿Y a los cuantos días no puede pasar ni un solo pedido hasta que cobranza meta y algo? Los van a restringir. O sea, si yo te digo, tengo clientes de 30 días, pero ya tiene ciertas facturas 45, los van a requerir.
+
+
+
+44:00 - Orador no identificado
+Ni siquiera se los va a dejar capturar.
+
+44:03 - automatizacion
+Yo creo que eso no debería ser. Si yo tengo problema en tener el primero de pedidos ahí esperándome a que yo les dedique, no tengo problema. Porque también aparte eso es parte del servicio. Ok. O sea, el cliente tú captura el pedido, déjalo que se ilusionen y también lo estás motivando a que, ah, recuerda que debes. Estoy dejando capturar el pedido, pero tienes que poner un contrato de interés y cobranza.
+
+ ¿Por qué? Puedes tener tres, cuatro, cinco pedidos en el transcurso de dos semanas que no han podido pagar o no han tenido dinero o no han llevado a una negociación y están ahí en standby. Pero de esos 3, 4 o 5 que tienen en la cola, uno les va a un hit y por ese uno si van a hacer el esfuerzo de ir, sacar hasta el cochilito para que resultas ese. Ok, es que ahí tenemos otra comprovencia. Si tú haces la captura de los pedidos, haces una reserva del rollo, entonces nadie más la puede tomar.
+
+ Si tenemos una limitante en Rintela, por así decirlo, nadie y va a poder hacer uso de esa tela porque tienes que liberarla. Más bien tienes que poner tú un rango de a cuánto tiempo lo vas a liberar. Te voy a hacer el pedido hoy, pero si el cliente no le pagó en los tres días, aunque sea de crédito, libérala. El cliente debe estar consciente o se les debe de transmitir que la tela tiene bastante rotación, como hoy día.
+
+ No apartamos rollos. Como no apartamos rollos, es lo mismo. Tú metiste el pedido, tardaste una semana en pagarme, ¿qué crees? En esta semana ya se vendió todo el material. Que había. Tienes esa tela menos. Yo no te la voy a dar. ¿Y qué pasa si el cliente hace el depósito de una cotización que ya no está dejando? ¿Ahorita qué hacen? ¿Le regresan su dinero? Sí. Se recotiza. Si tienes más tela, se recotiza.
+
+ Si ya no tienes más tela, salí de tu devolución, por favor, porque ya no hay telepatía. Te cargaste. Y va para atrás el dinero. Pues coge otra tela. Compra otra tela. Ok. Entonces vamos sale el crédito, pues tenemos una veinticuatro horas para reserva. Tienes que librarlos. También no puedes tener tanta tela ahí restringida esperando a que el cliente pague. Ahí le dices que el cliente. Ah, dinero en jemote.
+
+ Se han tardado un mes. Ahora sí conseguí el dinero para pagar. Y después de ese mes, ah, ahora sí mandan el pedido. Ya no hay.
+
+46:25 - MOVIDA TCI
+Igualmente, lo que se reserva es la es durante la cotización. O sea, el pedido nunca existe si no se pagó. Si ¿Ya tú nos dijiste? César dijo.
+
+46:34 - automatizacion
+Mi único tema, por ejemplo, hay un cliente que se llama Seth. Este cliente pide, no es una agotización de 3 metros, son 1,000 metros. Entonces, si este cliente hace la solicitud de los 1,000 metros, sí, sí, tú dame el pedido, déjamelo ahí, se lo guardan y él a veces llega a pagar hasta dentro de un mes. Y el pedido se guarda. Literal, se guarda. No podemos tocarle un solo rollo de ahí, porque si se modifica la cotización al cliente, ya no se paga nada.
+
+ Entonces, ese es mi tema, que tenemos clientes de crédito que tienes guardándolo gratis. Lo que haces, como hacemos en Compact, tienes que crear un almacén específicamente para los reservados y para qué cliente en específico. Si quieres, sí. El reservarse y por más tiempo del normal. Ok. Ok, se cambia el almacén entonces.
+
+47:34 - MOVIDA TCI
+Si vamos, vamos entonces a considerar eso de crear como almacenes para clientes finales, clientes especiales y que se pueda, esa reserva se vaya para ese almacén hasta que lo liberen. O sea, con una regla de día, de tiempo, pues. Este, como tú dices, si es un cliente importante y son mil meses, y te está diciendo que lo hagantes tres días. Bueno, hay que quitarlo de la disponibilidad de venta, o sea, de los que están vendiendo, porque no aparezca ese, ese metraje, pero también está en riesgo de que no lo quieran.
+
+ O puede ser que como un cliente especial, muy probable siempre lo quieren.
+
+48:14 - automatizacion
+Exacto. O que aparezca que está diseñado para el cliente.
+
+48:17 - MOVIDA TCI
+Sí, para un cliente, pero eso le va a aparecer a TC. De hecho, ahorita creo que ya le pusimos reglas que aparezca lo que están reservados, lo que está disponible. Sin embargo, yo creo que esos clientes especiales son los que 90 por ciento seguro de que nunca dicen ah, sabes que ya no. Te dejaron una tela y un metraje como de mil metros o más, aguantando días y después para decirte ya, ya no. O sea, por eso, ¿A quiénes le vas a hacer eso?
+
+
+
+48:47 - automatizacion
+Tiene que ser clientes muy especiales. Sí. Ok. Entonces en el tema de de los de crédito, a los treinta y tantos días, a los días que nosotros le pongamos, a ti te tiene que aparecer una notificación. ¿Sí? ¿Qué más o qué hacen? No, es que realmente a mí el crédito y los clientes, yo creo que hoy día están tan metidos en que Si saben que deben y si deben, pues corren el riesgo de no tener telé al día de mañana si pagan mañana.
+
+ ¿Pero tú actualmente qué haces cuando retienes un pedido? ¿Qué hace Cobran? ¿Manda un correo? Se retona, normalmente, la gestión con el cliente. O sea, se pone en contacto con el cliente para normalmente poder negociar. O sea, le avisa, oye, ya me enteré que metiste un pedido. ¿Te urge? ¿Lo quieres? ¿Qué onda? ¿Sabes qué me debes? Te mando tu estado de cuenta actualizado, vemos cuántas me debes, cuánto vale el pedido, este pedido te puedo que negociar me a lo pagues a dos por uno, págame si es mucha la deuda, págame tres facturas, cuatro facturas y te lo libero y así.
+
+ Se entera servicio a clientes, se entera el vendedor a cargo de ese cliente y obviamente el cliente. De primera mano. Entonces, en ese caso, por ejemplo, en el dashboard que tenemos de pedidos, podríamos meter que el pedido está retenido por credit.
+
+50:23 - Orador no identificado
+¿OK?
+
+50:24 - automatizacion
+En el tema de contabilidad, no tendríamos que poner ninguna regla porque ya ellos se están arreglando con el cliente. Lo que sí podríamos hacer es hacerles llegar un correo a los clientes. ¿Qué te gusta? Semana antes de que venza su factura?
+
+50:42 - Orador no identificado
+O no quieres mandar correo?
+
+50:44 - automatizacion
+O sea, no sé. Pueden decir, a mí, yo te debo una factura, dime 25 días de mi crédito, hora de 30, que me llegue un correo y te diga, te recordamos que estás próximo a vencer tu factura para que no te limitemos en tus telas, haz el pago. Y pum, la factura que tienes vencida por vencer. Pero eso le detonaría Sí. Podrías, ¿No? Sí, yo creo que sí podríamos poner esa generación de mensajes automáticos.
+
+
+
+51:14 - MOVIDA TCI
+Y ¿Por qué? No sé, mandarle, mandarle. Obviamente, como dice César, o sea, igual no es una pistola que le vas a poner, pero es un recordatorio de pago a ver si...
+
+51:27 - automatizacion
+O sea, algo que a mí me gusta, por ejemplo, de la tarjeta Noop, es que te manda un recordatorio recordatorio de no se te olvide pagar tu tarjeta. Aunque tú sabes que debes, ese recordatorio te dice.
+
+51:44 - MOVIDA TCI
+No se sirve, o sea, sí sirve de algo.
+
+51:49 - automatizacion
+Entonces, ¿Cómo verías que cinco días antes de que te venza su factura, se le haga el recordatorio? Sí, o sea, yo no tengo un problema en todo lo nos nos ayude a hacer una cobranza preventiva. Si el sistema va a ser solito, méchanle todo lo que quieran, adornos y moñitos. Me parece así. Entonces en la lista de precios te vamos a agregar cuántos días de crédito tiene cada cliente. A los cinco días previos a que se venja su última factura se deberían mandar un correo al cliente mencionándole si quieres que redactamos a algo que nos gustaría que le digan, porque recuerdo si es especial para ese tipo de redacciones, porque al final estás dando la cara al cliente.
+
+ Y ya después de eso, lo único que debería de haber son el botón para que Cobranza diga si acepta o no acepta ese pedido. Porque las reglas, no podemos ponerle ninguna regla, ya que Cobranza es el que hace pues la.
+
+53:01 - MOVIDA TCI
+La validación, pues la confirmación de que sí o no.
+
+53:05 - automatizacion
+Sí, o depósitame diez mil y te libero este que es de siete. No sé, entonces como ahí no hay una, una regla en particular, nada más con que de un siguiente.
+
+53:19 - Orador no identificado
+Vale, excelente. Entonces tomo nota aquí sobre ese punto.
+
+53:23 - MOVIDA TCI
+Otro punto, César, del tema de Por ejemplo, los casos que son a crédito y los pagos que te hacen, los abonos, voy a llamarles. O sea, te dan abonos o te pagan siempre la deuda completa. Y si te dan abonos, tú le, los complementos, tú lo haces por cada transferencia que recibes o ya el total ya sabes, mira, me mandó por aquí 500 pesos, 1000 por allá. Bueno, si sumas lo que me debe, le hago su complemento.
+
+ El total o cómo haces tú?
+
+53:54 - automatizacion
+Cada uno lleva su complemento de pago. Cada uno.
+
+53:59 - Orador no identificado
+Sí.
+
+54:00 - MOVIDA TCI
+Ok, por transferencia, por eso lo haces.
+
+54:04 - automatizacion
+Como que ordenados y pagan las facturas completas y varias facturas o una factura o varias facturas, pero la suma exactita. Pero también tengo clientes desordenados que pues cuando nada más les llegó 5,000 pesos, pues eso abonan, ¿no? Y eso pues también nadie lo ve mal, ¿no? Nadie lo ve mal. Pagar quieres. Entonces abonas 5,000, pero pues no tengo ninguna factura de 5,000. O sea, lo abonas a esa de 25,000, ¿no?
+
+ Ya nada más te debo 20 y así. Entonces tengo que ir generando sus complementos de pago de cada abono que vaya vendando.
+
+54:45 - MOVIDA TCI
+Excelente. Está muy bien.
+
+54:48 - automatizacion
+¿Esos complementos de pago también los haría el sistema?
+
+54:50 - MOVIDA TCI
+Sí, es que el complemento de pago, como lo vamos a conectar con Factura API, tiene que haber una conexión con... Porque Factura API es el que va a hacer el sello. Los complementos tienen sello, por eso lo pregunto. Entonces, cada complemento... Esa es la parte que quiero tener bien cuadradita porque son las herramientas que va a usar para todo esto en lo que estamos hablando.
+
+55:12 - automatizacion
+Ojo, la aplicación de los pagos para facturas de contado Esas van sin timbre.
+
+55:17 - MOVIDA TCI
+¿Las de contado van sin timbre?
+
+55:21 - automatizacion
+No se genera un recibo electrónico de pago. No se, no se, no se timbra. Todas las facturas que son PUE o PUE, yo no estoy obligado a generar un REP. ¿No?
+
+55:39 - Orador no identificado
+No.
+
+55:39 - MOVIDA TCI
+¿Por qué?
+
+55:40 - automatizacion
+Dice el SAT que Ya recibí, además, esas facturas primero debieron de haber sido pagadas antes de ser una factura. Entonces, primero tengo el pago, después hago la factura, después entrego mercancía. Entonces, como yo ya sé cómo pagó el cliente, si yo le pongo la factura, pues yo no estoy obligado a generarle un recibo electrónico de pago, porque tanto el cliente sabó, supo cómo me pagó en transferencia, como yo supe que ya me para ver un transferencia.
+
+
+
+56:13 - MOVIDA TCI
+O sea, que nada más le da su factura PUE y ya, pero sellada igual.
+
+56:17 - automatizacion
+Es correcto. Sí, sí, sí.
+
+56:19 - MOVIDA TCI
+Sí, su factura normal PUE sellada, sí. Ahí estamos. Exactamente, detecta que ya está pagada.
+
+56:23 - automatizacion
+A él no le importa si le cae el dinero a la cuenta o no. Yo tengo que validar que sí está en mi cuenta, porque el contador me va a hacer mal en todas las facturas que son PUE y todas las facturas que entro el dinero. El dinero me tiene que pagar por todas las facturas. Claro. Y las que son de crédito, con su respectivo recibo electrónico de pago. Exacto.
+
+56:46 - MOVIDA TCI
+Y tú normalmente son por definir y son PPD. PPD. Sí. En Compacto hoy día tengo dos módulos para hacer o para aplicar esos pagos.
+
+56:55 - automatizacion
+Uno timbrado y uno no timbrado. Los timbrados yo ya sé que son para todos los de crédito o los que son PPD. Y los no timbrados que son todas las facturas juez. Ya sea pago en el lectivo, pago con cheque o pago con transferencia. Ok.
+
+57:15 - Orador no identificado
+Perfecto.
+
+57:15 - MOVIDA TCI
+Buen punto eso, pues si no lo teníamos. Sí, eso es.
+
+57:21 - automatizacion
+Tienen que estar habilitados para, para la aplicación de los pagos a las diferentes facturas de los diferentes métodos de pago.
+
+57:32 - MOVIDA TCI
+Así es. Perfecto. Yo creo que vamos a ver si se me escapa algo. Si tú me dijiste que, por ejemplo, en cuanto a las devoluciones, si se le hace su nota, se le emite o el WMS debería emitir la nota de crédito ligada a la factura de ahorita. Si son timbradas.
+
+57:57 - automatizacion
+Y se liga a la factura de ahorita, que era lo que con relación.
+
+58:05 - MOVIDA TCI
+Así es. Con relación. Está muy bien. Vamos a ver. No, yo creo que hasta ahora me han hecho preguntas claves.

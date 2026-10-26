@@ -1,0 +1,67 @@
+Entrevista - Cesar - Formatex
+lun, 26 oct 2026
+
+Resumen:
+
+La reunión definió criterios de cobranza, facturación y control de inventario.
+• Contado: confirmar el depósito antes de liberar pedidos.
+• Crédito: Cobranza decide la liberación de pedidos retenidos.
+• Alertas de vencimiento: enviar recordatorio cinco días antes.
+• Comisiones mensuales: pago el día 10 sobre meses cobrados.
+• Cada abono requiere complemento de pago propio.
+• Reservas, bonificaciones y remanentes mantienen controles pendientes.
+
+
+Elementos de acción:
+
+* automatizacion: Envía el documento con las reglas de comisiones vinculadas a las listas de precios.
+* automatizacion: Analizar con varias áreas opciones para gestionar las bonificaciones y presentar una posible solución en la próxima sesión.
+* MOVIDA TCI: Preparar ideas para resolver la reserva y asignación de rollos entre cotizaciones y pedidos para la próxima sesión.
+* automatizacion: Añade a la lista de clientes los días de crédito autorizados para cada uno
+* Meeting participant: Configura el recordatorio automático para enviarlo cinco días antes del vencimiento de la factura.
+* Meeting participant: Añade a la lista de precios los días de crédito correspondientes a cada cliente.
+* Meeting participant: Habilita la aplicación de pagos a facturas según el método de pago y el tipo de factura.
+
+
+Puntos clave de la discusión:
+
+Apertura y objetivo de la revisión
+Tras los saludos y la incorporación de Mayra, se presentó el propósito de revisar las reglas de negocio de finanzas, créditos, cobranza y facturación. La conversación se centró inicialmente en validar los flujos que se integrarán al sistema.
+
+Cobranza y liberación de pedidos
+Se describió el flujo de verificación bancaria para pedidos de contado y el paso posterior a almacén. Para clientes a crédito, se analizaron los pedidos retenidos por deuda y la necesidad de definir reglas que indiquen cuándo atención al cliente puede continuar y cuándo debe intervenir cobranza.
+
+Comisiones, ajustes y esquema de pago
+Se confirmó que devoluciones y notas de crédito reducen el importe comisionable, calculado sobre el valor ajustado de la factura de origen. También se revisaron la emisión de facturas por parte de los agentes, el calendario y canal de pago, y la estructura de comisiones para vendedores, gerentes y dirección.
+
+Facturación, conciliación de pagos y bonificaciones
+Se propuso facturar después del empaque, cuando se conoce el metraje final del pedido. La discusión abordó las diferencias entre cotización y factura que pueden impedir conciliar el pago, así como el registro de bonificaciones por producto regalado; el intercambio sobre este último punto queda abierto en el tramo disponible.
+
+Bonificaciones por defectos y control de inventario
+Se explicó cómo se compensa al cliente con metraje adicional cuando se detectan defectos en la tela, sin modificar la factura. Se discutieron el registro en el sistema, la actualización de etiquetas y los posibles controles de autorización; el procedimiento quedó pendiente de definición.
+
+Reserva de rollos para cotizaciones y pedidos
+Se analizaron los conflictos que pueden surgir cuando varios pedidos requieren tela del mismo rollo y la necesidad de relacionar las reservas con las ubicaciones y el estado del pedido. No se resolvió cuándo reservar los rollos ni cómo gestionar los remanentes mientras una cotización espera confirmación o pago, por lo que se acordó seguir evaluando opciones.
+
+Plazos de crédito y pedidos pendientes
+Se revisaron los plazos de crédito por cliente, que pueden ir de 7 a 60 días, y los retrasos habituales en los pagos. Se planteó registrar los días aprobados y debatir si los pedidos de clientes con facturas vencidas deben bloquearse o permitirse con estado pendiente.
+
+Reservas y disponibilidad de tela
+Se discutió cómo las reservas de rollos limitan la disponibilidad y por qué deben liberarse cuando el cliente no paga dentro del plazo establecido. Para pedidos grandes de clientes especiales, se consideró mantener la tela en un almacén separado, identificada para ese cliente y sujeta a una regla de tiempo.
+
+Retenciones por crédito y cobranza preventiva
+Se describió la comunicación de Cobranza con el cliente cuando un pedido queda retenido, con participación de Servicio a Clientes y del vendedor responsable. Se propuso mostrar la retención en el tablero y enviar recordatorios automáticos cinco días antes del vencimiento; Cobranza seguiría validando cada pedido.
+
+Abonos y complementos de pago
+Se aclaró que cada transferencia o abono requiere un complemento de pago individual, incluso cuando el monto se aplica parcialmente a una factura. La conversación también abordó la conexión con Factura API para timbrar los complementos.
+
+Aplicación de pagos y tratamiento fiscal
+Se diferenciaron las facturas PUE, que no requieren recibo electrónico de pago, de las facturas PPD o a crédito, que sí requieren su complemento timbrado. El sistema debe permitir aplicar los pagos considerando el tipo de factura y el método de pago.
+
+Notas de crédito por devoluciones
+Se revisó la emisión de notas de crédito por devoluciones y se confirmó que las notas timbradas deben vincularse con la factura correspondiente.
+
+
+Bloc de notas:
+
+* No hay notas

@@ -168,9 +168,14 @@ export default function HistorialTab() {
                     ${Number(inv.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      inv.metodoPagoCfdi === 'PPD' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-                    }`}>{inv.metodoPagoCfdi || 'PUE'}</span>
+                    <span
+                      title={inv.metodoPagoCfdi === 'PPD' ? 'PPD Crédito: Requiere REP timbrado ante el SAT por abono' : 'PUE Contado: Liquidada al emitir (Sin REP)'}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold cursor-help ${
+                        inv.metodoPagoCfdi === 'PPD' ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-blue-100 text-blue-800 border border-blue-200'
+                      }`}
+                    >
+                      {inv.metodoPagoCfdi === 'PPD' ? 'PPD · Crédito' : 'PUE · Contado'}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-center">
                     {inv.estadoPago && inv.estadoPago !== 'NA' && (

@@ -14,6 +14,10 @@ export default function CortadorView() {
   const [cutMetraje, setCutMetraje] = useState<number>(0);
   const [activeLineId, setActiveLineId] = useState<string>('');
   const [cutting, setCutting] = useState(false);
+  // Regla César: Bonificación por bandera/defecto de fábrica a costo cero
+  const [mostrarBonificacion, setMostrarBonificacion] = useState(false);
+  const [bonificacionMetros, setBonificacionMetros] = useState<number>(0);
+  const [motivoBonificacion, setMotivoBonificacion] = useState<string>('Bandera de fábrica');
   const [selectedMesa, setSelectedMesa] = useState<string>(() => {
     return localStorage.getItem('formatex_cortador_mesa') || 'MESA 1';
   });
@@ -99,22 +103,30 @@ export default function CortadorView() {
 
   const executeCut = async () => {
     if (!scanResult || cutMetraje <= 0) return;
-    if (cutMetraje > scanResult.metrajeActual) return toast.error(`Solo hay ${scanResult.metrajeActual}m disponibles`);
+    const bonif = mostrarBonificacion ? Number(bonificacionMetros || 0) : 0;
+    const totalDescontar = cutMetraje + bonif;
+
+    if (totalDescontar > scanResult.metrajeActual) {
+      return toast.error(`El corte (${cutMetraje}m + ${bonif}m bonif = ${totalDescontar}m) excede el metraje disponible (${scanResult.metrajeActual}m)`);
+    }
+
     setCutting(true);
     try {
       const { data } = await api.post('/cutting', {
         huOrigenId: scanResult.id,
         metrajeCortado: cutMetraje,
+        bonificacionMetros: bonif > 0 ? bonif : undefined,
+        motivoBonificacion: bonif > 0 ? (motivoBonificacion || 'Bandera de fábrica') : undefined,
         orderLineId: activeLineId || undefined,
-        notas: `Corte para pedido ${selectedOrder?.codigo || ''}`,
+        notas: `Corte para pedido ${selectedOrder?.codigo || ''}${bonif > 0 ? ` [Bonificación: +${bonif}m ${motivoBonificacion}]` : ''}`,
         mesaCorte: selectedMesa !== 'TODAS' ? selectedMesa : undefined,
       });
 
       setLastCutResult(data);
 
-      const restante = scanResult.metrajeActual - cutMetraje;
+      const restante = scanResult.metrajeActual - totalDescontar;
       if (restante > 0.5) {
-        toast.success(`✂️ Cortados ${cutMetraje}m — Retazo de ${restante.toFixed(1)}m creado`);
+        toast.success(`✂️ Cortados ${cutMetraje}m ${bonif > 0 ? `(+${bonif}m regalo) ` : ''}— Retazo de ${restante.toFixed(1)}m`);
       } else {
         toast.success(`✂️ Cortados ${cutMetraje}m — Rollo agotado`);
       }
@@ -123,6 +135,8 @@ export default function CortadorView() {
 
       setScanResult(null);
       setCutMetraje(0);
+      setBonificacionMetros(0);
+      setMostrarBonificacion(false);
       setActiveLineId('');
       // Refresh order without clearing lastCutResult
       if (selectedOrder) refreshOrder(selectedOrder.id);
@@ -372,17 +386,101 @@ export default function CortadorView() {
                 {/* Visual bar */}
                 <div className="w-full h-3 bg-gray-700 rounded-full overflow-hidden flex mt-2">
                   <div className="h-full bg-purple-500 transition-all" style={{ width: `${(cutMetraje / scanResult.metrajeActual) * 100}%` }} />
-                  <div className="h-full bg-orange-500 transition-all" style={{ width: `${((scanResult.metrajeActual - cutMetraje) / scanResult.metrajeActual) * 100}%` }} />
+                  {mostrarBonificacion && bonificacionMetros > 0 && (
+                    <div className="h-full bg-amber-400 transition-all" style={{ width: `${(bonificacionMetros / scanResult.metrajeActual) * 100}%` }} />
+                  )}
+                  <div className="h-full bg-orange-500 transition-all" style={{ width: `${(Math.max(0, scanResult.metrajeActual - (cutMetraje + (mostrarBonificacion ? bonificacionMetros : 0))) / scanResult.metrajeActual) * 100}%` }} />
                 </div>
+              </div>
+
+              {/* Bonificación por Defecto / Bandera (Regla César Costo Cero) */}
+              <div className="bg-gray-800/80 border border-gray-700 rounded-2xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-amber-400 text-sm font-semibold">🚩 Bonificación por Defecto / Bandera</span>
+                    <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-medium">Costo Cero César</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMostrarBonificacion(!mostrarBonificacion);
+                      if (mostrarBonificacion) setBonificacionMetros(0);
+                    }}
+                    className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-all ${
+                      mostrarBonificacion
+                        ? 'bg-amber-500 text-gray-900 font-bold'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    {mostrarBonificacion ? 'Activada' : '+ Agregar'}
+                  </button>
+                </div>
+
+                {mostrarBonificacion && (
+                  <div className="pt-2 border-t border-gray-700/60 space-y-3 animate-fade-in">
+                    <p className="text-[11px] text-gray-400">
+                      Se agregan metros extra sin costo para el cliente (la factura mantiene el mismo total) y se descuentan del rollo físico para evitar metros fantasma.
+                    </p>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs text-gray-300">Metros de bonificación:</label>
+                        <div className="flex gap-1.5">
+                          {[0.2, 0.3, 0.5, 1.0].map((m) => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => setBonificacionMetros(m)}
+                              className={`text-xs px-2 py-0.5 rounded font-mono ${
+                                bonificacionMetros === m
+                                  ? 'bg-amber-400 text-gray-950 font-bold'
+                                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                              }`}
+                            >
+                              +{m}m
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <input
+                        type="number"
+                        step={0.1}
+                        min={0.1}
+                        max={5}
+                        value={bonificacionMetros || ''}
+                        onChange={(e) => setBonificacionMetros(Number(e.target.value))}
+                        placeholder="Ej: 0.3"
+                        className="w-full py-2 px-3 bg-gray-900 border border-gray-600 rounded-xl text-white font-mono text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-gray-300 mb-1 block">Motivo de bonificación:</label>
+                      <select
+                        value={motivoBonificacion}
+                        onChange={(e) => setMotivoBonificacion(e.target.value)}
+                        className="w-full py-2 px-3 bg-gray-900 border border-gray-600 rounded-xl text-white text-xs"
+                      >
+                        <option value="Bandera de fábrica">Bandera de defecto de fábrica (20-50 cm)</option>
+                        <option value="Hilo jalado">Hilo jalado / rotura en tejido</option>
+                        <option value="Mancha o variación de tono">Mancha o variación visible de tono</option>
+                        <option value="Empalme de rollo">Empalme de tela</option>
+                        <option value="Cortesía comercial">Cortesía autorizada</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <button
                 onClick={executeCut}
-                disabled={cutting || cutMetraje <= 0 || cutMetraje > scanResult.metrajeActual}
+                disabled={cutting || cutMetraje <= 0 || (cutMetraje + (mostrarBonificacion ? bonificacionMetros : 0)) > scanResult.metrajeActual}
                 className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl text-lg font-bold disabled:opacity-40 active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
               >
                 <Scissors size={22} />
-                {cutting ? 'Cortando...' : `Ejecutar Corte — ${cutMetraje}m`}
+                {cutting
+                  ? 'Cortando...'
+                  : `Ejecutar Corte — ${cutMetraje}m${mostrarBonificacion && bonificacionMetros > 0 ? ` (+${bonificacionMetros}m regalo)` : ''}`}
               </button>
             </div>
           )}

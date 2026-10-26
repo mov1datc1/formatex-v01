@@ -672,8 +672,13 @@ export class InvoicingService {
         },
       });
 
-      // Update order balance
-      const nuevoSaldo = Math.max(0, saldo - aplicado);
+      // Update order balance con regla César de absorción/redondeo (±$10.00 MXN)
+      let remanente = Math.max(0, saldo - aplicado);
+      if (remanente > 0 && remanente <= 10.00) {
+        this.logger.log(`⚙️ Tolerancia de redondeo aplicada (César): Remanente residual de $${remanente.toFixed(2)} MXN absorbido. Factura liquidada.`);
+        remanente = 0;
+      }
+      const nuevoSaldo = remanente;
       const nuevoEstado = nuevoSaldo <= 0 ? 'PAGADA' : 'PARCIAL';
 
       await this.prisma.order.update({
@@ -722,6 +727,21 @@ export class InvoicingService {
 
     if (payments.length === 0) {
       throw new BadRequestException('No hay pagos pendientes de complemento para este grupo');
+    }
+
+    // Regla Fiscal SAT Anexo 20 (César): Las facturas PUE están pagadas por definición y NO llevan REP
+    const puePayments = payments.filter((p) => p.order.metodoPagoCfdi === 'PUE');
+    if (puePayments.length > 0) {
+      throw new BadRequestException(
+        `Regla Fiscal SAT: Las facturas PUE (${puePayments.map((p) => p.order.codigo).join(', ')}) no deben llevar Complemento de Pago (REP). Los pagos en PUE son registros internos.`
+      );
+    }
+
+    const missingUuid = payments.filter((p) => !p.order.uuidFiscal);
+    if (missingUuid.length > 0) {
+      throw new BadRequestException(
+        `Las facturas (${missingUuid.map((p) => p.order.codigo).join(', ')}) no cuentan con UUID Fiscal timbrado aún.`
+      );
     }
 
     const facturapi = await this.getFacturapiClient();
@@ -806,6 +826,9 @@ export class InvoicingService {
 
     if (!order) throw new NotFoundException('Pedido no encontrado');
     if (!order.uuidFiscal) throw new BadRequestException('Este pedido no tiene factura emitida');
+    if (order.metodoPagoCfdi === 'PUE') {
+      throw new BadRequestException('Regla Fiscal SAT: Las facturas PUE amparan operaciones de contado y no deben llevar Complemento de Pago (REP).');
+    }
     if (order.estadoPago !== 'PAGADA') throw new BadRequestException('La factura no está completamente pagada aún');
 
     const client = order.client as any;
@@ -1117,6 +1140,146 @@ export class InvoicingService {
     }
 
     return Array.from(clientMap.values()).sort((a, b) => b.totalPendiente - a.totalPendiente);
+  }
+
+  // -----------------------------------------------------------------------
+  // COBRANZA PREVENTIVA: ALERTA DE VENCIMIENTO A 5 DÍAS (César / Andrea)
+  // -----------------------------------------------------------------------
+  async getPreventiveAlerts() {
+    const now = new Date();
+    // Vencimiento dentro de los próximos 5 días naturales (y facturas por vencer o recién vencidas)
+    const in5Days = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        metodoPagoCfdi: 'PPD',
+        estadoPago: { in: ['PENDIENTE', 'PARCIAL'] },
+        saldoPendiente: { gt: 0 },
+        fechaVencimiento: {
+          lte: in5Days,
+        },
+        estado: { notIn: ['CANCELADO'] },
+      },
+      include: {
+        client: {
+          select: {
+            id: true,
+            nombre: true,
+            rfc: true,
+            email: true,
+            telefono: true,
+            contacto: true,
+          },
+        },
+        vendor: {
+          select: {
+            id: true,
+            nombre: true,
+            email: true,
+            telefono: true,
+          },
+        },
+      },
+      orderBy: { fechaVencimiento: 'asc' },
+    });
+
+    return orders.map((o) => {
+      const vDate = o.fechaVencimiento ? new Date(o.fechaVencimiento) : null;
+      const diffDays = vDate
+        ? Math.ceil((vDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+        : 0;
+
+      return {
+        id: o.id,
+        codigo: o.codigo,
+        folioContpaqi: o.folioContpaqi,
+        facturaRef: o.facturaRef,
+        uuidFiscal: o.uuidFiscal,
+        cliente: o.client,
+        vendedor: o.vendor,
+        totalFactura: Number(o.total || 0),
+        saldoPendiente: Number(o.saldoPendiente || 0),
+        fechaVencimiento: o.fechaVencimiento,
+        diasParaVencer: diffDays,
+        esVencida: diffDays < 0,
+        alerta5DiasEnviada: o.alerta5DiasEnviada,
+        alerta5DiasAt: o.alerta5DiasAt,
+      };
+    });
+  }
+
+  async sendPreventiveEmail(orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        client: true,
+        vendor: true,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Pedido ${orderId} no encontrado`);
+    }
+
+    if (order.metodoPagoCfdi !== 'PPD') {
+      throw new BadRequestException('Solo se pueden enviar recordatorios preventivos a facturas PPD a crédito');
+    }
+
+    const now = new Date();
+    const vDate = order.fechaVencimiento ? new Date(order.fechaVencimiento) : new Date();
+    const diffDays = Math.max(0, Math.ceil((vDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+    const folioFactura = order.facturaRef || order.folioContpaqi || order.codigo;
+    const montoInsoluto = `$${Number(order.saldoPendiente || order.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+    const fechaVencimientoFormatted = vDate.toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    });
+    const nombreCliente = order.client?.nombre || 'Estimado Cliente';
+    const agenteVentas = order.vendor?.nombre || 'tu asesor comercial';
+
+    const subject = `Recordatorio Preventivo: Tu Factura ${folioFactura} está próxima a vencer - Formatex`;
+    const emailBody = `Estimado(a) ${nombreCliente},
+
+Esperamos que te encuentres excelente. En Formatex valoramos enormemente tu preferencia y queremos apoyarte para mantener tu cuenta al corriente y asegurar que tus pedidos futuros y disponibilidad de telas se procesen con la máxima agilidad.
+
+Te recordamos que tu factura ${folioFactura}, con un saldo pendiente de ${montoInsoluto} MXN, tiene fecha límite de vencimiento el próximo ${fechaVencimientoFormatted} (quedan ${diffDays} días naturales).
+
+DATOS DE PAGO:
+• Beneficiario: FORMA TEXTIL S. DE R.L. DE C.V.
+• Banco: BBVA Bancomer | Cuenta: 0112345678 | CLABE: 012320001123456789
+• Referencia: ${order.codigo} / ${folioFactura}
+
+Una vez realizado tu depósito o transferencia, te agradeceremos compartir el comprobante al correo cobranza@formatex.mx o a través de tu asesor comercial ${agenteVentas} para aplicar tu pago de inmediato y emitir tu Complemento de Pago (REP).
+
+Agradecemos de antemano tu puntualidad y quedamos a tus órdenes.
+
+Atentamente,
+Departamento de Crédito y Cobranza
+Forma Textil S. de R.L. de C.V. | Guadalajara, Jalisco`;
+
+    // Marcar como enviada
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        alerta5DiasEnviada: true,
+        alerta5DiasAt: new Date(),
+      },
+    });
+
+    this.logger.log(`📧 Alerta preventiva enviada para orden ${order.codigo} al cliente ${order.client?.nombre}`);
+
+    return {
+      success: true,
+      orderId: order.id,
+      codigo: order.codigo,
+      folioFactura,
+      destinatarioEmail: order.client?.email,
+      copiaVendedorEmail: order.vendor?.email,
+      asunto: subject,
+      cuerpoMensaje: emailBody,
+      enviadoAt: new Date(),
+    };
   }
 
   // -----------------------------------------------------------------------

@@ -148,6 +148,20 @@ export class InvoicingController {
   }
 
   // =======================================================================
+  // COBRANZA PREVENTIVA (Alerta a 5 días)
+  // =======================================================================
+
+  @Get('preventive-alerts')
+  async getPreventiveAlerts() {
+    return this.invoicingService.getPreventiveAlerts();
+  }
+
+  @Post('send-preventive-email/:orderId')
+  async sendPreventiveEmail(@Param('orderId') orderId: string) {
+    return this.invoicingService.sendPreventiveEmail(orderId);
+  }
+
+  // =======================================================================
   // ESTADO DE CUENTA / FACTURAS PENDIENTES
   // =======================================================================
 

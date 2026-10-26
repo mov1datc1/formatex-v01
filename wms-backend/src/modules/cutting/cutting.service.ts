@@ -23,6 +23,8 @@ export class CuttingService {
   async executeCut(data: {
     huOrigenId: string;
     metrajeCortado: number;
+    bonificacionMetros?: number;
+    motivoBonificacion?: string;
     orderLineId?: string;
     cortadoPor: string;
     notas?: string;
@@ -39,11 +41,14 @@ export class CuttingService {
       throw new BadRequestException(`HU ${huOrigen.codigo} no está disponible para corte (estado: ${huOrigen.estadoHu})`);
     }
     if (data.metrajeCortado <= 0) throw new BadRequestException('Metraje a cortar debe ser mayor a 0');
-    if (data.metrajeCortado > huOrigen.metrajeActual) {
-      throw new BadRequestException(`Solo hay ${huOrigen.metrajeActual}m disponibles en ${huOrigen.codigo}`);
+    
+    const bonificacion = Number(data.bonificacionMetros) || 0;
+    const totalDescontar = data.metrajeCortado + bonificacion;
+    if (totalDescontar > huOrigen.metrajeActual) {
+      throw new BadRequestException(`Solo hay ${huOrigen.metrajeActual}m disponibles en ${huOrigen.codigo} (corte: ${data.metrajeCortado}m + bonificación: ${bonificacion}m)`);
     }
 
-    const metrajeRestante = Math.round((huOrigen.metrajeActual - data.metrajeCortado) * 100) / 100;
+    const metrajeRestante = Math.round((huOrigen.metrajeActual - totalDescontar) * 100) / 100;
     const cutCode = await this.generateCode('COR', 'cutOperation');
 
     return this.prisma.$transaction(async (tx: any) => {
@@ -149,15 +154,35 @@ export class CuttingService {
             data: { cortado: true },
           });
         }
-        // Actualizar línea
+        // Actualizar línea con metraje surtido y bonificación a costo cero
         await tx.orderLine.update({
           where: { id: data.orderLineId },
-          data: { metrajeSurtido: data.metrajeCortado, estado: 'SURTIDA' },
+          data: {
+            metrajeSurtido: data.metrajeCortado,
+            bonificacionMetros: bonificacion,
+            motivoBonificacion: data.motivoBonificacion || null,
+            estado: 'SURTIDA',
+          },
         });
+
+        // Si hubo bonificación, reflejarla en el pedido a costo cero
+        if (bonificacion > 0) {
+          const oLine = await tx.orderLine.findUnique({ where: { id: data.orderLineId }, select: { orderId: true } });
+          if (oLine) {
+            await tx.order.update({
+              where: { id: oLine.orderId },
+              data: {
+                bonificacionCorteMetros: { increment: bonificacion },
+                motivoBonificacion: data.motivoBonificacion || 'Bandera / Calidad en corte',
+              },
+            });
+          }
+        }
       }
 
       const cutNotas = [
         data.notas,
+        bonificacion > 0 ? `🎁 Bonificación calidad: +${bonificacion}m (${data.motivoBonificacion || 'Bandera'})` : null,
         data.mesaCorte ? `Mesa: ${data.mesaCorte}` : null,
         data.carrito ? `Carrito: ${data.carrito}` : null,
       ].filter(Boolean).join(' · ');
@@ -170,6 +195,8 @@ export class CuttingService {
           orderLineId: data.orderLineId || null,
           metrajeAntes: huOrigen.metrajeActual,
           metrajeCortado: data.metrajeCortado,
+          bonificacionMetros: bonificacion,
+          motivoBonificacion: data.motivoBonificacion || null,
           metrajeRestante,
           huRetazoId,
           retazoUbicacion,

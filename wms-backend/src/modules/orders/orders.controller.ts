@@ -96,10 +96,11 @@ export class OrdersController {
     @Query('estado') estado?: string,
     @Query('clientId') clientId?: string,
     @Query('surtidorId') surtidorId?: string,
+    @Query('retenidoCredito') retenidoCredito?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.ordersService.findAll({ search, estado, clientId, surtidorId, page, limit });
+    return this.ordersService.findAll({ search, estado, clientId, surtidorId, retenidoCredito, page, limit });
   }
 
   @Post(':id/assign-surtidor')
@@ -126,6 +127,17 @@ export class OrdersController {
   @ApiOperation({ summary: 'Aprobar o rechazar pedido que requería autorización especial' })
   approveOrder(@Param('id') id: string, @Body() body: { aprobado: boolean; reason?: string }, @Req() req: any) {
     return this.ordersService.approveOrder(id, req.user.sub, body.aprobado, body.reason);
+  }
+
+  @Post(':id/release-credit')
+  @ApiOperation({ summary: 'Liberar pedido retenido por crédito tras negociación o pago (César / Cobranza)' })
+  releaseCreditHold(
+    @Param('id') id: string,
+    @Body() body: { notasLiberacion: string },
+    @Req() req: any,
+  ) {
+    const cobradorNombre = req.user?.nombre || req.user?.username || 'César (Cobranza)';
+    return this.ordersService.releaseCreditHold(id, cobradorNombre, body.notasLiberacion);
   }
 
   @Get(':id/picking-list')
