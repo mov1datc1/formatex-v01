@@ -77,10 +77,39 @@ export class OrdersController {
     return this.ordersService.cancelAndReassignBackorder(id, req.user.sub, body.motivo);
   }
 
+  @Get('dispatch-queue')
+  @ApiOperation({ summary: 'Torre de control y despacho de surtido (Israel / Jefe de Almacén)' })
+  getDispatchQueue() {
+    return this.ordersService.getDispatchQueue();
+  }
+
+  @Post('auto-dispatch')
+  @ApiOperation({ summary: 'Despacho automático inteligente según montacargas y balance de carga' })
+  autoDispatch(@Req() req: any) {
+    return this.ordersService.autoDispatchOrders(req.user?.nombre || 'Israel (Jefe de Almacén)');
+  }
+
   @Get()
   @ApiOperation({ summary: 'Listar pedidos' })
-  findAll(@Query('search') search?: string, @Query('estado') estado?: string, @Query('clientId') clientId?: string, @Query('page') page?: number, @Query('limit') limit?: number) {
-    return this.ordersService.findAll({ search, estado, clientId, page, limit });
+  findAll(
+    @Query('search') search?: string,
+    @Query('estado') estado?: string,
+    @Query('clientId') clientId?: string,
+    @Query('surtidorId') surtidorId?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.ordersService.findAll({ search, estado, clientId, surtidorId, page, limit });
+  }
+
+  @Post(':id/assign-surtidor')
+  @ApiOperation({ summary: 'Asignar o reasignar pedido a un surtidor específico (Israel)' })
+  assignSurtidor(
+    @Param('id') id: string,
+    @Body() body: { surtidorId: string; tipoPicking?: string },
+    @Req() req: any,
+  ) {
+    return this.ordersService.assignSurtidor(id, body.surtidorId, body.tipoPicking, req.user?.nombre || 'Israel (Jefe de Almacén)');
   }
 
   @Get(':id')

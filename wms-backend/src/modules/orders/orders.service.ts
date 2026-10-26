@@ -11,12 +11,13 @@ export class OrdersService {
     return `${prefix}-${year}-${String(count + 1).padStart(4, '0')}`;
   }
 
-  async findAll(params: { search?: string; estado?: string; clientId?: string; page?: number; limit?: number }) {
-    const { search, estado, clientId, page = 1, limit = 20 } = params;
+  async findAll(params: { search?: string; estado?: string; clientId?: string; surtidorId?: string; page?: number; limit?: number }) {
+    const { search, estado, clientId, surtidorId, page = 1, limit = 20 } = params;
     const skip = (page - 1) * limit;
     const where: any = {};
     if (estado) where.estado = estado;
     if (clientId) where.clientId = clientId;
+    if (surtidorId) where.surtidorId = surtidorId;
     if (search) {
       where.OR = [
         { codigo: { contains: search, mode: 'insensitive' } },
@@ -1130,6 +1131,247 @@ export class OrdersService {
       data: { tipoEtiquetaEmbarque: tipoEtiqueta },
       include: { client: true, lineas: true },
     });
+  }
+
+  /**
+   * Torre de Control y Despacho de Surtido (Israel / Jefe de Almacén)
+   * Devuelve cola de pedidos en POR_SURTIR (estrictamente validados por Cobranza)
+   * y métricas de carga de los surtidores activos (meta 55-60 cortes/rollos/día).
+   */
+  async getDispatchQueue() {
+    const orders = await this.prisma.order.findMany({
+      where: { estado: 'POR_SURTIR' },
+      orderBy: [
+        { prioridad: 'asc' },
+        { fechaPago: 'asc' },
+        { createdAt: 'asc' },
+      ],
+      include: {
+        client: { select: { nombre: true, codigo: true, rfc: true, cartaFletera: true } },
+        deliveryAddress: true,
+        lineas: {
+          include: {
+            assignments: {
+              include: {
+                hu: {
+                  select: {
+                    codigo: true,
+                    metrajeActual: true,
+                    tipoRollo: true,
+                    ubicacion: { select: { codigo: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+        reservations: {
+          where: { estado: 'ACTIVA' },
+          include: {
+            hu: {
+              select: {
+                codigo: true,
+                metrajeActual: true,
+                ubicacion: { select: { codigo: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const classifiedOrders = orders.map((o) => {
+      let hasHighRolls = false;
+      let hasCuts = false;
+      let totalRollos = 0;
+      let totalCortes = 0;
+      let totalMetros = 0;
+
+      o.lineas.forEach((l) => {
+        totalMetros += l.metrajeRequerido;
+        if (l.metrajeRequerido < 50 || l.assignments.some((a) => a.requiereCorte)) {
+          hasCuts = true;
+          totalCortes += 1;
+        } else {
+          totalRollos += Math.ceil(l.metrajeRequerido / 50);
+        }
+
+        l.assignments.forEach((a) => {
+          const loc = a.hu?.ubicacion?.codigo || '';
+          if (loc.match(/N([2-9]|\d{2})/i)) {
+            hasHighRolls = true;
+          }
+        });
+      });
+
+      o.reservations.forEach((r) => {
+        const loc = r.hu?.ubicacion?.codigo || '';
+        if (loc.match(/N([2-9]|\d{2})/i)) {
+          hasHighRolls = true;
+        }
+      });
+
+      let tipoPicking = o.tipoPicking || 'SOLO_PISO';
+      if (hasHighRolls && hasCuts) {
+        tipoPicking = 'MIXTO';
+      } else if (hasHighRolls) {
+        tipoPicking = 'REQUIERE_MONTACARGAS';
+      } else {
+        tipoPicking = 'SOLO_PISO';
+      }
+
+      const totalUnidades = Math.max(1, totalRollos + totalCortes);
+      const deadline = o.fechaPromesaEntrega || new Date(o.createdAt.getTime() + (o.tiempoPromesaSlaHoras || 72) * 3600000);
+      const horasRestantes = Math.round((deadline.getTime() - Date.now()) / 3600000);
+
+      return {
+        id: o.id,
+        codigo: o.codigo,
+        folioContpaqi: o.folioContpaqi,
+        cliente: o.client?.nombre,
+        prioridad: o.prioridad,
+        fechaPedido: o.fechaPedido,
+        fechaPago: o.fechaPago,
+        horasRestantes,
+        urgente: horasRestantes <= 24 || o.prioridad === 1,
+        totalRollos,
+        totalCortes,
+        totalMetros,
+        totalUnidades,
+        tipoPicking,
+        surtidorId: o.surtidorId,
+        surtidorNombre: o.surtidorNombre,
+        asignadoPor: o.asignadoPor,
+        fechaAsignacion: o.fechaAsignacion,
+        carritoCorte: o.carritoCorte,
+        lineasCount: o.lineas.length,
+      };
+    });
+
+    const pickersUsers = await this.prisma.user.findMany({
+      where: {
+        activo: true,
+        role: { nombre: { in: ['PICKER', 'COORDINADOR_ALMACEN'] } },
+      },
+      include: { role: true },
+      orderBy: { nombre: 'asc' },
+    });
+
+    const activeAssignedOrders = await this.prisma.order.findMany({
+      where: {
+        surtidorId: { not: null },
+        estado: { in: ['POR_SURTIR', 'EN_SURTIDO', 'EN_CORTE'] },
+      },
+      select: {
+        id: true,
+        surtidorId: true,
+        tipoPicking: true,
+        lineas: { select: { metrajeRequerido: true } },
+      },
+    });
+
+    const surtidoresWorkload = pickersUsers.map((u) => {
+      const userOrders = activeAssignedOrders.filter((ao) => ao.surtidorId === u.id);
+      let unidadesHoy = 0;
+      userOrders.forEach((uo) => {
+        uo.lineas.forEach((l) => {
+          if (l.metrajeRequerido < 50) unidadesHoy += 1;
+          else unidadesHoy += Math.ceil(l.metrajeRequerido / 50);
+        });
+      });
+      if (userOrders.length > 0 && unidadesHoy === 0) unidadesHoy = userOrders.length * 2;
+
+      const tieneMontacargas = u.username.includes('juan') || u.nombre.toLowerCase().includes('montacarga') || u.role.nombre === 'COORDINADOR_ALMACEN';
+      const capacidadMax = 60;
+      const porcentajeCarga = Math.min(100, Math.round((unidadesHoy / capacidadMax) * 100));
+
+      return {
+        id: u.id,
+        nombre: u.nombre,
+        username: u.username,
+        rol: u.role.nombre,
+        tieneMontacargas,
+        pedidosAsignados: userOrders.length,
+        unidadesHoy,
+        capacidadMax,
+        porcentajeCarga,
+        estadoCarga: unidadesHoy >= 55 ? 'SATURADO' : unidadesHoy >= 40 ? 'BALANCEADO' : 'OPTIMO',
+      };
+    });
+
+    return {
+      totalPorSurtir: classifiedOrders.length,
+      pedidosSinAsignar: classifiedOrders.filter((o) => !o.surtidorId).length,
+      pedidosAsignados: classifiedOrders.filter((o) => !!o.surtidorId).length,
+      orders: classifiedOrders,
+      surtidores: surtidoresWorkload,
+    };
+  }
+
+  /**
+   * Asignar o reasignar pedido a un surtidor específico (Israel)
+   */
+  async assignSurtidor(orderId: string, surtidorId: string, tipoPicking?: string, asignadoPor?: string) {
+    const surtidor = await this.prisma.user.findUnique({
+      where: { id: surtidorId },
+      include: { role: true },
+    });
+    if (!surtidor) {
+      throw new BadRequestException('Surtidor no encontrado');
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        surtidorId: surtidor.id,
+        surtidorNombre: surtidor.nombre,
+        tipoPicking: tipoPicking || undefined,
+        asignadoPor: asignadoPor || 'Israel (Jefe de Almacén)',
+        fechaAsignacion: new Date(),
+      },
+      include: { client: true, lineas: true },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Algoritmo de Despacho Automático Inteligente de Almacén (Reglas de Negocio Israel)
+   * 1. Pedidos MIXTOS o REQUIERE_MONTACARGAS ➔ Montacarguistas con menor carga
+   * 2. Pedidos SOLO_PISO ➔ Surtidores de piso / menor carga
+   * 3. Mantiene balance respetando la meta de 55-60 unidades/día
+   */
+  async autoDispatchOrders(asignadoPor: string = 'Israel (Jefe de Almacén)') {
+    const queue = await this.getDispatchQueue();
+    const unassigned = queue.orders.filter((o) => !o.surtidorId);
+    if (unassigned.length === 0) {
+      return { count: 0, message: 'No hay pedidos pendientes de asignar en POR_SURTIR' };
+    }
+
+    const surtidores = [...queue.surtidores];
+    let dispatchedCount = 0;
+
+    for (const order of unassigned) {
+      let candidate = null;
+      if (order.tipoPicking === 'MIXTO' || order.tipoPicking === 'REQUIERE_MONTACARGAS') {
+        const montacarguistas = surtidores.filter((s) => s.tieneMontacargas).sort((a, b) => a.unidadesHoy - b.unidadesHoy);
+        candidate = montacarguistas[0] || surtidores.sort((a, b) => a.unidadesHoy - b.unidadesHoy)[0];
+      } else {
+        candidate = surtidores.sort((a, b) => a.unidadesHoy - b.unidadesHoy)[0];
+      }
+
+      if (candidate) {
+        await this.assignSurtidor(order.id, candidate.id, order.tipoPicking, asignadoPor);
+        candidate.unidadesHoy += order.totalUnidades;
+        candidate.pedidosAsignados += 1;
+        dispatchedCount++;
+      }
+    }
+
+    return {
+      count: dispatchedCount,
+      message: `Se asignaron ${dispatchedCount} pedidos exitosamente según habilidades y balance de carga.`,
+    };
   }
 }
 

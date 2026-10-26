@@ -238,9 +238,14 @@ export default function CortadorView() {
               className="w-full text-left bg-gray-800 rounded-2xl p-4 hover:bg-gray-700 active:scale-[0.98] transition-all border border-gray-700"
             >
               <div className="flex justify-between items-center">
-                <div>
+                <div className="flex items-center gap-2">
                   <span className="font-mono font-bold text-purple-400">{o.codigo}</span>
                   <StatusBadge icon={WmsIcon.InCut} label="En Corte" bgClass="bg-purple-900/50" textClass="text-purple-300" />
+                  {o.carritoCorte && (
+                    <span className="bg-purple-900/60 text-purple-200 border border-purple-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full font-mono">
+                      🛒 {o.carritoCorte}
+                    </span>
+                  )}
                 </div>
                 <ArrowRight size={20} className="text-gray-500" />
               </div>
@@ -255,7 +260,14 @@ export default function CortadorView() {
           <div className="bg-gray-800 rounded-2xl p-4 border border-gray-700">
             <div className="flex justify-between items-center mb-3">
               <div>
-                <span className="font-mono font-bold text-lg text-purple-400">{selectedOrder.codigo}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-lg text-purple-400">{selectedOrder.codigo}</span>
+                  {selectedOrder.carritoCorte && (
+                    <span className="bg-purple-900 text-purple-200 border border-purple-400 text-xs font-bold px-2.5 py-0.5 rounded-full font-mono">
+                      🛒 {selectedOrder.carritoCorte}
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-gray-300">{selectedOrder.client?.nombre}</p>
               </div>
               <button onClick={() => { setSelectedOrder(null); setScanResult(null); setLastCutResult(null); }} className="px-3 py-2 bg-gray-700 rounded-xl text-sm text-gray-300">← Volver</button>

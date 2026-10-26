@@ -675,6 +675,13 @@ model Order {
   carritoCorte                 String?        // Ej: "Carrito 01 - A1", "Carrito 02 - A3" (3 niveles A1, A2, A3)
   tipoEtiquetaEmbarque         String?        // "LOCAL_INFERIOR" | "FORANEO_SUPERIOR" | "OCOTLAN" | "PAQUETERIA"
 
+  // === ASIGNACIÓN Y DESPACHO DE SURTIDO (Torre de Control Israel) ===
+  surtidorId                   String?        // ID del surtidor asignado
+  surtidorNombre               String?        // Nombre del surtidor asignado
+  asignadoPor                  String?        // ID de quien asignó (Israel / Coordinador)
+  fechaAsignacion              DateTime?      // Fecha/hora en que Israel despachó el pedido
+  tipoPicking                  String?        @default("SOLO_PISO") // "SOLO_PISO" | "REQUIERE_MONTACARGAS" | "MIXTO"
+
   creadoPor            String
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
@@ -701,6 +708,8 @@ model Order {
   @@index([incomingShipmentId])
   @@index([contenedorNumero])
   @@index([backorderStatus])
+  @@index([surtidorId])
+  @@index([tipoPicking])
 }
 
 enum OrderStatus {
