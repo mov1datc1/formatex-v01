@@ -15,7 +15,13 @@ export class OrdersService {
     const { search, estado, clientId, surtidorId, page = 1, limit = 20 } = params;
     const skip = (page - 1) * limit;
     const where: any = {};
-    if (estado) where.estado = estado;
+    if (estado) {
+      if (estado.includes(',')) {
+        where.estado = { in: estado.split(',').map((s) => s.trim()) };
+      } else {
+        where.estado = estado;
+      }
+    }
     if (clientId) where.clientId = clientId;
     if (surtidorId) where.surtidorId = surtidorId;
     if (search) {
@@ -602,8 +608,8 @@ export class OrdersService {
       'COTIZADO': ['POR_PAGAR', 'CANCELADO'],
       'POR_PAGAR': ['PAGO_RECIBIDO', 'CANCELADO'],
       'PAGO_RECIBIDO': ['POR_SURTIR', 'CANCELADO'],
-      'POR_SURTIR': ['EN_SURTIDO'],
-      'EN_SURTIDO': ['EN_CORTE'],
+      'POR_SURTIR': ['EN_SURTIDO', 'CANCELADO'],
+      'EN_SURTIDO': ['EN_CORTE', 'EMPACADO'],
       'EN_CORTE': ['EMPACADO'],
       'EMPACADO': ['FACTURADO'],
       'FACTURADO': ['DESPACHADO'],

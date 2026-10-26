@@ -1,16 +1,31 @@
 import { useState } from 'react';
 import { useApi } from '../../hooks/useApi';
+import { usePermission } from '../../hooks/usePermission';
 import { api } from '../../config/api';
 import toast from 'react-hot-toast';
-import { WmsIcon, KpiIcon, StatusBadge } from '../../components/icons/WmsIcons';
 import {
   ArrowRight, X, ScanLine, CheckCircle2, AlertCircle, MapPin,
-  Scissors, Package, Navigation, Users, Zap, Truck, Clock, ShieldCheck,
-  RefreshCw, Check, AlertTriangle, Layers, ShoppingBag
+  Scissors, Package, Users, Zap, Truck, Clock, ShieldCheck,
+  RefreshCw, Check, AlertTriangle, ShoppingBag, Play
 } from 'lucide-react';
 
 export default function PickingPage() {
-  const [activeTab, setActiveTab] = useState<'despacho' | 'estacion'>('despacho');
+  const { user, isAdmin } = usePermission();
+
+  // Role check: Only Coordinators/Admins see the Dispatch Tower
+  const isCoordinator =
+    isAdmin ||
+    user?.role === 'COORDINADOR_ALMACEN' ||
+    user?.role === 'DIRECTOR_OPERACIONES' ||
+    user?.role === 'ADMIN' ||
+    (user?.nivel ?? 99) <= 2;
+
+  // Active tab: Coordinators default to 'despacho', Pickers are strictly 'estacion'
+  const [activeTab, setActiveTab] = useState<'despacho' | 'estacion'>(
+    isCoordinator ? 'despacho' : 'estacion'
+  );
+  const currentTab = isCoordinator ? activeTab : 'estacion';
+
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [pickingList, setPickingList] = useState<any>(null);
   const [scanInput, setScanInput] = useState('');
@@ -22,29 +37,38 @@ export default function PickingPage() {
   const [selectedCart, setSelectedCart] = useState('Carrito 01 - A1');
   const [finishingPicking, setFinishingPicking] = useState(false);
 
-  // Dispatch queue state
+  // Dispatch queue state (Israel view)
   const [filterTipo, setFilterTipo] = useState<string>('TODOS');
   const [selectedSurtidorMap, setSelectedSurtidorMap] = useState<Record<string, string>>({});
   const [autoDispatching, setAutoDispatching] = useState(false);
 
-  // Fetch dispatch queue (Orders strictly in POR_SURTIR approved by Cobranza + Pickers workload)
+  // Picking Station state
+  const [pickerFilter, setPickerFilter] = useState<'MIS_ASIGNADOS' | 'DISPONIBLES'>('MIS_ASIGNADOS');
+  const [supervisorSurtidorFilter, setSupervisorSurtidorFilter] = useState<string>('TODOS');
+
+  // Fetch dispatch queue (Israel metrics + surtidores capacity)
   const { data: dispatchData, isLoading: loadingDispatch, refetch: refetchDispatch } = useApi<any>(
     ['orders-dispatch-queue'],
     '/orders/dispatch-queue'
   );
 
-  // Fetch in-progress orders for picking station
-  const { data: enSurtidoResp, refetch: refetchEnSurtido } = useApi<any>(
-    ['picking-en-surtido'],
+  // Fetch orders in POR_SURTIR and EN_SURTIDO for the Picking Station
+  const { data: stationOrdersResp, isLoading: loadingOrders, refetch: refetchStationOrders } = useApi<any>(
+    ['picking-station-orders'],
     '/orders',
-    { estado: 'EN_SURTIDO', limit: 50 }
+    { estado: 'POR_SURTIR,EN_SURTIDO', limit: 100 }
   );
 
   const dispatchOrders = dispatchData?.orders || [];
   const surtidores = dispatchData?.surtidores || [];
-  const enSurtidoOrders = enSurtidoResp?.data || [];
+  const allStationOrders = stationOrdersResp?.data || [];
 
-  // Filter dispatch orders
+  // Current picker's personal workload
+  const myWorkload = surtidores.find(
+    (s: any) => s.id === user?.id || s.username === user?.username || s.nombre === user?.nombre
+  );
+
+  // Filter dispatch orders for Israel
   const filteredDispatchOrders = dispatchOrders.filter((o: any) => {
     if (filterTipo === 'TODOS') return true;
     if (filterTipo === 'SIN_ASIGNAR') return !o.surtidorId;
@@ -54,7 +78,31 @@ export default function PickingPage() {
     return true;
   });
 
-  // Assign order to surtidor
+  // Filter orders for the Picking Station based on role
+  const filteredStationOrders = allStationOrders.filter((o: any) => {
+    if (isCoordinator) {
+      if (supervisorSurtidorFilter === 'TODOS') return true;
+      if (supervisorSurtidorFilter === 'SIN_ASIGNAR') return !o.surtidorId;
+      return o.surtidorId === supervisorSurtidorFilter;
+    }
+
+    // Picker view:
+    if (pickerFilter === 'MIS_ASIGNADOS') {
+      return o.surtidorId === user?.id || (user?.nombre && o.surtidorNombre === user?.nombre);
+    }
+    // Unassigned queue available to be taken
+    return !o.surtidorId && o.estado === 'POR_SURTIR';
+  });
+
+  const myAssignedOrdersCount = allStationOrders.filter(
+    (o: any) => o.surtidorId === user?.id || (user?.nombre && o.surtidorNombre === user?.nombre)
+  ).length;
+
+  const unassignedOrdersCount = allStationOrders.filter(
+    (o: any) => !o.surtidorId && o.estado === 'POR_SURTIR'
+  ).length;
+
+  // Assign order to surtidor (Israel)
   const handleAssignSurtidor = async (orderId: string, tipoPicking?: string) => {
     const surtidorId = selectedSurtidorMap[orderId];
     if (!surtidorId) {
@@ -65,6 +113,7 @@ export default function PickingPage() {
       await api.post(`/orders/${orderId}/assign-surtidor`, { surtidorId, tipoPicking });
       toast.success('Pedido asignado exitosamente al surtidor');
       refetchDispatch();
+      refetchStationOrders();
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Error al asignar');
     }
@@ -77,6 +126,7 @@ export default function PickingPage() {
       const { data } = await api.post('/orders/auto-dispatch');
       toast.success(data.message || 'Despacho inteligente completado');
       refetchDispatch();
+      refetchStationOrders();
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Error en despacho automático');
     } finally {
@@ -93,19 +143,20 @@ export default function PickingPage() {
       setScanResult(null);
       setScanInput('');
     } catch {
-      toast.error('Error al cargar pedido');
+      toast.error('Error al cargar detalle del pedido');
     }
   };
 
+  // Start picking session (moves POR_SURTIR → EN_SURTIDO)
   const startPicking = async (orderId: string) => {
     try {
       await api.put(`/orders/${orderId}/status`, { estado: 'EN_SURTIDO' });
-      toast.success('Picking iniciado');
-      loadDetail(orderId);
+      toast.success('🚀 Surtido iniciado — Marbetes y ubicaciones listos');
+      await loadDetail(orderId);
+      refetchStationOrders();
       refetchDispatch();
-      refetchEnSurtido();
     } catch (e: any) {
-      toast.error(e?.response?.data?.message || 'Error');
+      toast.error(e?.response?.data?.message || 'Error al iniciar surtido');
     }
   };
 
@@ -125,15 +176,13 @@ export default function PickingPage() {
     if (!selectedOrder) return;
     setFinishingPicking(true);
     try {
-      // 1. Assign cart
       await api.put(`/orders/${selectedOrder.id}/assign-cart`, { carritoCorte: selectedCart });
-      // 2. Update status to EN_CORTE
       await api.put(`/orders/${selectedOrder.id}/status`, { estado: 'EN_CORTE' });
-      toast.success(`✂️ Pedido transferido a Corte en ${selectedCart}. ¡Surtidor liberado!`, { duration: 4500 });
+      toast.success(`✂️ Pedido transferido a Corte en ${selectedCart}. ¡Surtidor liberado!`, { duration: 5000 });
       setShowCartModal(false);
       setSelectedOrder(null);
       setPickingList(null);
-      refetchEnSurtido();
+      refetchStationOrders();
       refetchDispatch();
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Error al enviar a corte');
@@ -148,10 +197,10 @@ export default function PickingPage() {
     setFinishingPicking(true);
     try {
       await api.put(`/orders/${selectedOrder.id}/status`, { estado: 'EMPACADO' });
-      toast.success('📦 Rollos enteros surtidos → Pedido enviado a Empaque', { duration: 4000 });
+      toast.success('📦 Rollos enteros surtidos → Pedido enviado a Empaque. ¡Surtidor liberado!', { duration: 5000 });
       setSelectedOrder(null);
       setPickingList(null);
-      refetchEnSurtido();
+      refetchStationOrders();
       refetchDispatch();
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Error al enviar a empaque');
@@ -171,8 +220,7 @@ export default function PickingPage() {
         if (data.alreadyPicked) {
           toast('Este rollo ya fue escaneado', { icon: '✓' });
         } else {
-          await api.post(`/orders/${selectedOrder.id}/assign-hu`, {
-            orderLineId: data.assignment.lineId,
+          await api.post(`/orders/lines/${data.assignment.lineId}/assign`, {
             huId: data.hu.id,
             metrajeTomado: data.assignment.metrajeTomar,
           });
@@ -208,52 +256,65 @@ export default function PickingPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2.5">
             <Package className="text-primary-600" size={28} />
-            <span>Surtido & Picking de Pedidos</span>
+            <span>{isCoordinator ? 'Surtido & Torre de Despacho' : 'Mi Estación de Surtido & Escaneo'}</span>
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            Torre de control de despacho (Israel) · Asignación inteligente por altura y balance de carga
+            {isCoordinator
+              ? 'Torre de control de despacho (Israel) · Asignación inteligente por altura y balance de carga'
+              : `Operador: ${user?.nombre || 'Surtidor'} · Surtido de pedidos asignados y escaneo láser de marbetes`}
           </p>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex bg-gray-100 p-1 rounded-2xl border border-gray-200">
-          <button
-            onClick={() => setActiveTab('despacho')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'despacho'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            <Users size={16} className="text-primary-600" />
-            <span>Torre de Despacho (Israel)</span>
-            {dispatchData?.pedidosSinAsignar > 0 && (
-              <span className="bg-amber-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
-                {dispatchData.pedidosSinAsignar}
+        {/* Tab Switcher — ONLY for Coordinators & Admins */}
+        {isCoordinator ? (
+          <div className="flex bg-gray-100 p-1 rounded-2xl border border-gray-200 shadow-sm">
+            <button
+              onClick={() => setActiveTab('despacho')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                currentTab === 'despacho'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              <Users size={16} className="text-primary-600" />
+              <span>Torre de Despacho (Israel)</span>
+              {dispatchData?.pedidosSinAsignar > 0 && (
+                <span className="bg-amber-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                  {dispatchData.pedidosSinAsignar}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('estacion')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                currentTab === 'estacion'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              <ScanLine size={16} className="text-indigo-600" />
+              <span>Estación de Surtido</span>
+              <span className="bg-indigo-100 text-indigo-700 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                {allStationOrders.length}
               </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('estacion')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'estacion'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            <ScanLine size={16} className="text-indigo-600" />
-            <span>Estación de Surtido & Escaneo</span>
-            <span className="bg-indigo-100 text-indigo-700 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
-              {enSurtidoOrders.length}
+            </button>
+          </div>
+        ) : (
+          /* Surtidor Active Session Badge */
+          <div className="flex items-center gap-2 bg-primary-50 border border-primary-200 px-3.5 py-1.5 rounded-2xl">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-bold text-primary-900">{user?.nombre}</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200">
+              {myWorkload?.tieneMontacargas ? '🚜 Montacargas' : '🚶 Piso'}
             </span>
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* ===================================================================== */}
-      {/* TAB 1: TORRE DE DESPACHO Y ASIGNACIÓN (ISRAEL / COORDINADOR)          */}
+      {/* TAB 1: TORRE DE DESPACHO Y ASIGNACIÓN (ISRAEL / COORDINADOR ONLY)      */}
       {/* ===================================================================== */}
-      {activeTab === 'despacho' && (
+      {currentTab === 'despacho' && isCoordinator && (
         <div className="space-y-6 animate-fade-in">
           {/* Top KPI Summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -457,7 +518,7 @@ export default function PickingPage() {
                             </span>
                           )}
 
-                          {/* TipoPicking Badge according to Israel */}
+                          {/* TipoPicking Badge */}
                           {order.tipoPicking === 'REQUIERE_MONTACARGAS' && (
                             <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200 flex items-center gap-1">
                               <Truck size={12} /> Requiere Montacargas (Racks Altos)
@@ -532,184 +593,358 @@ export default function PickingPage() {
       )}
 
       {/* ===================================================================== */}
-      {/* TAB 2: ESTACIÓN DE PICKING & ESCANEO                                 */}
+      {/* TAB 2: ESTACIÓN DE PICKING & ESCANEO (PICKER + SUPERVISOR MONITOR)    */}
       {/* ===================================================================== */}
-      {activeTab === 'estacion' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
-          {/* Orders list in process */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <ScanLine size={18} className="text-primary-600" />
-                <span>Pedidos en Surtido ({enSurtidoOrders.length})</span>
-              </h2>
-              <button onClick={() => refetchEnSurtido()} className="text-xs text-primary-600 flex items-center gap-1">
-                <RefreshCw size={12} /> Refrescar
-              </button>
-            </div>
-
-            <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
-              {enSurtidoOrders.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-2xl border border-gray-200 p-6">
-                  <Package size={36} className="mx-auto mb-2 text-gray-400" />
-                  <p className="text-sm font-bold text-gray-700">Sin pedidos activos en surtido</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Asigna o inicia un pedido desde la Torre de Despacho.
-                  </p>
-                </div>
-              ) : (
-                enSurtidoOrders.map((order: any) => {
-                  const prio = getPrioLabel(order.prioridad);
-                  const isSelected = selectedOrder?.id === order.id;
-
-                  return (
-                    <div
-                      key={order.id}
-                      onClick={() => loadDetail(order.id)}
-                      className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                        isSelected
-                          ? 'bg-primary-50/70 border-primary-500 shadow-md ring-1 ring-primary-500'
-                          : 'bg-white border-gray-200 hover:border-gray-300 shadow-sm'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-mono text-xs font-bold text-gray-900">{order.codigo}</span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${prio.bg} ${prio.text}`}>
-                          {prio.label}
-                        </span>
-                      </div>
-
-                      <p className="font-bold text-xs text-gray-900 truncate">{order.client?.nombre}</p>
-                      <div className="flex items-center justify-between text-[11px] text-gray-500 mt-1">
-                        <span>{order.lineas?.length || 0} telas</span>
-                        <span className="font-semibold text-primary-600">
-                          {order.surtidorNombre ? `👤 ${order.surtidorNombre}` : 'Sin Surtidor'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          {/* Active Picking Station */}
-          <div className="lg:col-span-2 space-y-4">
-            {!selectedOrder ? (
-              <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center text-gray-500 shadow-sm">
-                <ScanLine size={48} className="mx-auto mb-3 text-gray-400" />
-                <h3 className="text-base font-bold text-gray-800">Selecciona un pedido para escanear</h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  Apunta la terminal láser al código del rollo para registrarlo en el pedido.
-                </p>
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-4">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3">
+      {currentTab === 'estacion' && (
+        <div className="space-y-6 animate-fade-in">
+          {/* Picker Personal HUD Card (Only shown for pickers) */}
+          {!isCoordinator && (
+            <div className="bg-gradient-to-r from-gray-900 via-primary-950 to-indigo-950 text-white rounded-3xl p-5 shadow-xl border border-white/10">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-xl font-bold font-mono">
+                    {user?.nombre?.charAt(0) || 'P'}
+                  </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-base font-bold text-gray-900">{selectedOrder.codigo}</span>
-                      <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full">
-                        EN SURTIDO
+                      <h2 className="text-base font-bold text-white">{user?.nombre}</h2>
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        🟢 Turno Activo
                       </span>
                     </div>
-                    <p className="text-xs text-gray-600 mt-0.5">{selectedOrder.client?.nombre}</p>
+                    <p className="text-xs text-gray-300 mt-0.5 flex items-center gap-1.5">
+                      {myWorkload?.tieneMontacargas ? (
+                        <>🚜 Certificado en Montacargas (Racks Altos N2 a N5)</>
+                      ) : (
+                        <>🚶 Surtidor de Nivel Piso y Cortes</>
+                      )}
+                    </p>
                   </div>
+                </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono font-bold bg-gray-100 text-gray-800 px-3 py-1.5 rounded-xl">
-                      {pickedCount} de {totalItems} HUs Escaneados
+                {/* Personal Daily Workload Progress */}
+                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3.5 border border-white/10 min-w-[280px]">
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="text-gray-300 font-medium">Mi Carga de Hoy:</span>
+                    <span className="font-mono font-bold text-emerald-400">
+                      {myWorkload?.unidadesHoy || 0} / {myWorkload?.capacidadMax || 60} u
                     </span>
                   </div>
-                </div>
-
-                {/* Laser Barcode Scanner Input */}
-                <div className="space-y-1">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={scanInput}
-                      onChange={(e) => setScanInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleScan()}
-                      placeholder="Escanea marbete HU (ej. HU-2026-00045)..."
-                      className="w-full pl-10 pr-24 py-3 bg-gray-50 border-2 border-primary-500/50 rounded-2xl text-sm font-mono focus:outline-none focus:border-primary-600"
+                  <div className="h-2.5 bg-black/40 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.round(((myWorkload?.unidadesHoy || 0) / (myWorkload?.capacidadMax || 60)) * 100))}%` }}
                     />
-                    <ScanLine size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <button
-                      onClick={handleScan}
-                      disabled={scanning || !scanInput.trim()}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold transition-all"
-                    >
-                      {scanning ? 'Validando...' : 'Escanear'}
-                    </button>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-gray-400 mt-1">
+                    <span>Meta diaria: 55 a 60 unidades</span>
+                    <span>{myWorkload?.pedidosAsignados || myAssignedOrdersCount} pedidos asignados</span>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
 
-                {/* Picking List Lines */}
-                <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-                  {pickingList?.items?.map((item: any, idx: number) => (
-                    <div
-                      key={item.assignmentId || idx}
-                      className={`p-3 rounded-xl border flex items-center justify-between text-xs transition-all ${
-                        item.picked ? 'bg-emerald-50/70 border-emerald-300' : 'bg-gray-50 border-gray-200'
-                      }`}
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
-                            item.picked ? 'bg-emerald-500 text-white' : 'bg-gray-300 text-gray-700'
-                          }`}>
-                            {item.picked ? '✓' : idx + 1}
+          {/* Main 2-Column Picking Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Column: Orders Queue */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <ScanLine size={18} className="text-primary-600" />
+                    <span>{isCoordinator ? 'Pedidos en Surtido' : 'Mis Pedidos de Surtido'}</span>
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    {isCoordinator ? 'Supervisión en tiempo real' : 'Asignados por Israel'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => refetchStationOrders()}
+                  className="text-xs text-primary-600 hover:text-primary-800 flex items-center gap-1 font-bold bg-primary-50 px-2.5 py-1 rounded-lg"
+                >
+                  <RefreshCw size={12} className={loadingOrders ? 'animate-spin' : ''} />
+                  <span>Refrescar</span>
+                </button>
+              </div>
+
+              {/* Filter Pills */}
+              {!isCoordinator ? (
+                /* Picker Toggle: Mis Pedidos vs Disponibles */
+                <div className="flex bg-gray-100 p-1 rounded-xl text-xs font-bold border border-gray-200">
+                  <button
+                    onClick={() => setPickerFilter('MIS_ASIGNADOS')}
+                    className={`flex-1 py-1.5 rounded-lg transition-all text-center ${
+                      pickerFilter === 'MIS_ASIGNADOS'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    🎯 Mis Asignados ({myAssignedOrdersCount})
+                  </button>
+                  <button
+                    onClick={() => setPickerFilter('DISPONIBLES')}
+                    className={`flex-1 py-1.5 rounded-lg transition-all text-center ${
+                      pickerFilter === 'DISPONIBLES'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    📦 Sin Asignar ({unassignedOrdersCount})
+                  </button>
+                </div>
+              ) : (
+                /* Coordinator Surtidor Dropdown Filter */
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Filtrar por Surtidor:</label>
+                  <select
+                    value={supervisorSurtidorFilter}
+                    onChange={(e) => setSupervisorSurtidorFilter(e.target.value)}
+                    className="w-full text-xs py-2 px-3 bg-gray-50 border border-gray-300 rounded-xl font-medium focus:outline-none focus:border-primary-500"
+                  >
+                    <option value="TODOS">Todos los Surtidores ({allStationOrders.length} pedidos)</option>
+                    <option value="SIN_ASIGNAR">⚠️ Sin Surtidor Asignado</option>
+                    {surtidores.map((s: any) => (
+                      <option key={s.id} value={s.id}>
+                        {s.nombre} ({s.pedidosAsignados} pedidos)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Order Cards List */}
+              <div className="space-y-2.5 max-h-[70vh] overflow-y-auto pr-1">
+                {loadingOrders ? (
+                  <div className="text-center py-12 text-gray-400 text-xs">Cargando pedidos...</div>
+                ) : filteredStationOrders.length === 0 ? (
+                  <div className="text-center py-12 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                    <Package size={38} className="mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm font-bold text-gray-800">
+                      {!isCoordinator && pickerFilter === 'MIS_ASIGNADOS'
+                        ? '¡Estás al día!'
+                        : 'Sin pedidos en esta vista'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {!isCoordinator && pickerFilter === 'MIS_ASIGNADOS'
+                        ? 'No tienes pedidos pendientes asignados por Israel en este momento.'
+                        : 'Los pedidos aparecerán conforme sean aprobados por Cobranza.'}
+                    </p>
+                  </div>
+                ) : (
+                  filteredStationOrders.map((order: any) => {
+                    const prio = getPrioLabel(order.prioridad);
+                    const isSelected = selectedOrder?.id === order.id;
+                    const isPorSurtir = order.estado === 'POR_SURTIR';
+
+                    return (
+                      <div
+                        key={order.id}
+                        onClick={() => {
+                          if (isPorSurtir) {
+                            startPicking(order.id);
+                          } else {
+                            loadDetail(order.id);
+                          }
+                        }}
+                        className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                          isSelected
+                            ? 'bg-primary-50/70 border-primary-500 shadow-md ring-1 ring-primary-500'
+                            : 'bg-white border-gray-200 hover:border-gray-300 shadow-sm'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-mono text-xs font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded border border-primary-200">
+                            {order.codigo}
                           </span>
-                          <span className="font-bold text-gray-900">{item.tela}</span>
-                          <span className="font-mono text-[10px] text-gray-500">{item.huCodigo}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${prio.bg} ${prio.text}`}>
+                            {prio.label}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-3 text-[11px] text-gray-500 pl-7">
-                          <span className="flex items-center gap-1 font-mono font-medium text-gray-700">
-                            <MapPin size={12} className="text-primary-600" /> {item.ubicacion}
-                          </span>
-                          <span>Tomar: <b className="text-gray-900 font-mono">{item.metrajeTomar}m</b></span>
-                          {item.requiereCorte && (
-                            <span className="text-[10px] font-bold text-purple-700 bg-purple-100 px-1.5 py-0.2 rounded">
-                              🔪 Requiere Corte
+
+                        <p className="font-bold text-xs text-gray-900 truncate mb-1">
+                          {order.client?.nombre || order.cliente || 'Cliente General'}
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                          {/* Status Badge */}
+                          {isPorSurtir ? (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
+                              📋 Asignado (Listo para iniciar)
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center gap-1">
+                              ⚡ En Proceso de Escaneo
+                            </span>
+                          )}
+
+                          {/* TipoPicking */}
+                          {order.tipoPicking === 'REQUIERE_MONTACARGAS' && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">
+                              🚜 Montacargas
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px] text-gray-500 pt-1.5 border-t border-gray-100">
+                          <span>{order.lineas?.length || 0} telas</span>
+                          {isPorSurtir ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startPicking(order.id);
+                              }}
+                              className="px-2.5 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg font-bold text-[10px] flex items-center gap-1 shadow-sm hover:from-emerald-700 hover:to-teal-700"
+                            >
+                              <Play size={10} /> Iniciar Surtido
+                            </button>
+                          ) : (
+                            <span className="font-semibold text-primary-600 flex items-center gap-1">
+                              Continuar →
                             </span>
                           )}
                         </div>
                       </div>
-
-                      <div className="text-right">
-                        {item.picked ? (
-                          <span className="text-emerald-700 font-bold flex items-center gap-1">
-                            <CheckCircle2 size={16} /> Recogido
-                          </span>
-                        ) : (
-                          <span className="text-gray-400 font-medium">Pendiente</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Bottom Complete Action */}
-                {allPicked && (
-                  <div className="pt-3 border-t">
-                    <button
-                      onClick={handleCompletePickingFlow}
-                      className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all"
-                    >
-                      <CheckCircle2 size={18} />
-                      <span>
-                        {needsCut
-                          ? 'Completar Picking → Asignar Carrito de Corte y Liberar Surtidor'
-                          : 'Completar Picking → Enviar Directamente a Empaque'}
-                      </span>
-                      <ArrowRight size={16} />
-                    </button>
-                  </div>
+                    );
+                  })
                 )}
               </div>
-            )}
+            </div>
+
+            {/* Right Column: Active Picking Station & Laser Scanner */}
+            <div className="lg:col-span-2 space-y-4">
+              {!selectedOrder ? (
+                <div className="bg-white rounded-3xl border border-gray-200 p-12 text-center text-gray-500 shadow-sm">
+                  <ScanLine size={48} className="mx-auto mb-3 text-gray-400" />
+                  <h3 className="text-base font-bold text-gray-800">Selecciona un pedido para escanear</h3>
+                  <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+                    Haz clic en cualquiera de tus pedidos asignados para abrir la lista de ubicaciones y activar la pistola lectora de marbetes HU.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-white rounded-3xl border border-gray-200 p-5 shadow-sm space-y-4">
+                  {/* Order Active Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-base font-bold text-gray-900">{selectedOrder.codigo}</span>
+                        <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full">
+                          EN SURTIDO
+                        </span>
+                        {selectedOrder.surtidorNombre && (
+                          <span className="text-[10px] bg-gray-100 text-gray-600 font-medium px-2 py-0.5 rounded">
+                            Surtidor: {selectedOrder.surtidorNombre}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600 mt-0.5 font-medium">
+                        {selectedOrder.client?.nombre || selectedOrder.cliente}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-bold bg-primary-50 text-primary-800 border border-primary-200 px-3 py-1.5 rounded-xl">
+                        {pickedCount} de {totalItems} HUs Escaneados
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Laser Barcode Scanner Input */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase text-gray-400 block">
+                      Escaneo de Marbete HU (Pistola o Teclado):
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={scanInput}
+                        onChange={(e) => setScanInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleScan()}
+                        placeholder="Escanea o escribe marbete HU (ej. HU-2026-00045)..."
+                        className="w-full pl-10 pr-24 py-3 bg-gray-50 border-2 border-primary-500/50 rounded-2xl text-sm font-mono focus:outline-none focus:border-primary-600"
+                        autoFocus
+                      />
+                      <ScanLine size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <button
+                        onClick={handleScan}
+                        disabled={scanning || !scanInput.trim()}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+                      >
+                        {scanning ? 'Validando...' : 'Escanear'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Picking List Lines */}
+                  <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                    {pickingList?.items?.map((item: any, idx: number) => (
+                      <div
+                        key={item.assignmentId || idx}
+                        className={`p-3.5 rounded-2xl border flex items-center justify-between text-xs transition-all ${
+                          item.picked ? 'bg-emerald-50/70 border-emerald-300' : 'bg-gray-50 border-gray-200'
+                        }`}
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
+                              item.picked ? 'bg-emerald-500 text-white' : 'bg-gray-300 text-gray-700'
+                            }`}>
+                              {item.picked ? '✓' : idx + 1}
+                            </span>
+                            <span className="font-bold text-gray-900">{item.tela}</span>
+                            <span className="font-mono text-[10px] text-gray-500 bg-white px-1.5 py-0.5 rounded border border-gray-200">
+                              {item.huCodigo}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[11px] text-gray-500 pl-7">
+                            <span className="flex items-center gap-1 font-mono font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded">
+                              <MapPin size={12} className="text-primary-600" /> {item.ubicacion}
+                            </span>
+                            <span>Tomar: <b className="text-gray-900 font-mono">{item.metrajeTomar}m</b></span>
+                            {item.requiereCorte && (
+                              <span className="text-[10px] font-bold text-purple-700 bg-purple-100 px-1.5 py-0.2 rounded border border-purple-200">
+                                🔪 Requiere Corte
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          {item.picked ? (
+                            <span className="text-emerald-700 font-bold flex items-center gap-1 bg-emerald-100 px-2.5 py-1 rounded-xl">
+                              <CheckCircle2 size={14} /> Recogido
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 font-medium bg-white px-2.5 py-1 rounded-xl border border-gray-200">
+                              Pendiente
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Bottom Complete Action */}
+                  {allPicked && (
+                    <div className="pt-3 border-t">
+                      <button
+                        onClick={handleCompletePickingFlow}
+                        className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-98"
+                      >
+                        <CheckCircle2 size={18} />
+                        <span>
+                          {needsCut
+                            ? 'Completar Picking → Asignar Carrito de Corte y Liberar Surtidor'
+                            : 'Completar Picking → Enviar Directamente a Empaque'}
+                        </span>
+                        <ArrowRight size={16} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
