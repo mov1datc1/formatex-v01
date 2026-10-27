@@ -14,7 +14,8 @@
 | `admin` | `admin123` | **DIRECTOR_OPERACIONES** | Acceso total a todos los módulos |
 | `fernando.compras` | `opera123` | **DIRECTOR_COMPRAS** | Compras, Tránsito, Planificación y Catálogos |
 | `roberto.coord` | `opera123` | **COORDINADOR_ALMACEN** | Inventario, Rollos, Ubicaciones y Corte |
-| `yareni.atc` | `opera123` | **ATC** | Pedidos, Disponibilidad y Tránsito |
+| `alma.atc` | `opera123` | **JEFE_ATC** | Supervisión ATC: Dashboard, Catálogos, Pedidos, Disponibilidad y Tránsito |
+| `yareni.atc` | `opera123` | **ATC** | Operativo ATC: Pedidos, Disponibilidad y Tránsito (Sin Dashboard ni Catálogos) |
 
 ---
 

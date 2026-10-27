@@ -30,10 +30,10 @@ const menuSections: MenuSection[] = [
   {
     title: 'General',
     items: [
-      { label: 'Dashboard', path: '/', icon: LayoutDashboard },
-      { label: 'Ubicaciones', path: '/almacen', icon: MapPin, permission: 'warehouse', excludeRoles: ['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR'] },
-      { label: 'Catálogos', path: '/catalogos', icon: ClipboardList, permission: 'catalogs' },
-      { label: 'Alertas', path: '/alertas', icon: Bell, permission: 'alerts', excludeRoles: ['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR'] },
+      { label: 'Dashboard', path: '/', icon: LayoutDashboard, excludeRoles: ['ATC', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'CHOFER'] },
+      { label: 'Ubicaciones', path: '/almacen', icon: MapPin, permission: 'warehouse', excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR'] },
+      { label: 'Catálogos', path: '/catalogos', icon: ClipboardList, permission: 'catalogs', excludeRoles: ['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR'] },
+      { label: 'Alertas', path: '/alertas', icon: Bell, permission: 'alerts', excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR'] },
     ],
   },
   {
@@ -53,7 +53,7 @@ const menuSections: MenuSection[] = [
   },
   {
     title: 'Compras & Importaciones',
-    excludeRoles: ['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR'],
+    excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR'],
     items: [
       { label: 'Órdenes de Compra', path: '/compras', icon: ShoppingCart, permission: 'compras' },
       { label: 'Tránsito & Costeo', path: '/transito?view=costeo', icon: Calculator, permission: 'compras' },
@@ -62,7 +62,7 @@ const menuSections: MenuSection[] = [
   },
   {
     title: 'Almacén',
-    excludeRoles: ['ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR'],
+    excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR'],
     items: [
       { label: 'Picking', path: '/picking', icon: Package, permission: 'picking' },
       { label: 'Corte', path: '/corte', icon: Scissors, permission: 'cutting' },
@@ -80,7 +80,7 @@ const menuSections: MenuSection[] = [
   },
   {
     title: 'Inventario',
-    excludeRoles: ['ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR'],
+    excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR'],
     items: [
       { label: 'Recepción', path: '/recepcion', icon: ScanBarcode, permission: 'reception' },
       { label: 'Etiquetas', path: '/etiquetas', icon: Tag, permission: 'labeling' },
@@ -91,7 +91,7 @@ const menuSections: MenuSection[] = [
   },
   {
     title: 'Sistema',
-    excludeRoles: ['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR'],
+    excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR'],
     items: [
       { label: 'Almacén', path: '/almacen-config', icon: Warehouse, permission: 'warehouse' },
       { label: 'Admin', path: '/admin', icon: Users, permission: 'admin' },
@@ -108,7 +108,7 @@ export const Sidebar = () => {
   const user = useSelector((state: RootState) => state.auth.user);
 
   const userRole = (user?.role?.nombre || user?.role || '').toUpperCase();
-  const isAdminOrDirector = (user?.nivel && user.nivel <= 2) || ['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'SUPERVISOR', 'JEFE_ALMACEN'].includes(userRole);
+  const isAdminOrDirector = (user?.nivel && user.nivel <= 1) || ['ADMIN', 'DIRECTOR_OPERACIONES'].includes(userRole);
 
   const isRoleAllowed = (allowedRoles?: string[], excludeRoles?: string[]) => {
     if (isAdminOrDirector) return true;
@@ -123,7 +123,12 @@ export const Sidebar = () => {
     if (isAdminOrDirector) return true;
 
     // Fallback garantizado para rol ATC en sus módulos comerciales
-    if (userRole === 'ATC' && ['orders', 'availability', 'transit', 'catalogs', 'catalog'].includes(item.permission)) {
+    if (userRole === 'ATC' && ['orders', 'availability', 'transit'].includes(item.permission)) {
+      return true;
+    }
+
+    // Fallback garantizado para JEFE_ATC (Alma)
+    if (userRole === 'JEFE_ATC' && ['dashboard', 'catalogs', 'orders', 'availability', 'transit', 'reservations'].includes(item.permission)) {
       return true;
     }
 

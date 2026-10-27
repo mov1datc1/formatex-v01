@@ -173,7 +173,8 @@ async function main() {
 
   const rolesConfig: Array<{name:string,desc:string,nivel:number,mods:string[]}> = [
     { name: 'DIRECTOR_OPERACIONES', desc: 'Director — acceso total', nivel: 1, mods: modules },
-    { name: 'ATC', desc: 'Atención al Cliente — levanta pedidos', nivel: 3, mods: ['dashboard','orders','catalogs','availability','reservations','transit'] },
+    { name: 'JEFE_ATC', desc: 'Jefa de Atención al Cliente — supervisión comercial, catálogos y pedidos', nivel: 2, mods: ['dashboard','catalogs','orders','availability','reservations','transit'] },
+    { name: 'ATC', desc: 'Atención al Cliente — levanta pedidos', nivel: 3, mods: ['orders','availability','reservations','transit'] },
     { name: 'COBRANZA', desc: 'Cobranza — verifica pagos', nivel: 3, mods: ['dashboard','orders','cobranza'] },
     { name: 'FACTURACION', desc: 'Facturación — emite factura', nivel: 3, mods: ['dashboard','orders','facturacion'] },
     { name: 'PICKER', desc: 'Picker almacén — Zebra TC22', nivel: 4, mods: ['dashboard','inventory','orders','labeling'] },
@@ -197,6 +198,7 @@ async function main() {
   const passOper = await bcrypt.hash('opera123', 10);
 
   const userAdmin = await prisma.user.create({ data: { nombre: 'Administrador WMS 360+', username: 'admin', email: 'admin@formatex.mx', password: passAdmin, roleId: roles['DIRECTOR_OPERACIONES'].id } });
+  const userJefeATC = await prisma.user.create({ data: { nombre: 'Alma Delia (Jefa ATC)', username: 'alma.atc', email: 'alma@formatex.mx', password: passOper, roleId: roles['JEFE_ATC'].id } });
   const userATC = await prisma.user.create({ data: { nombre: 'Yareni López (ATC)', username: 'yareni.atc', email: 'yareni@formatex.mx', password: passOper, roleId: roles['ATC'].id } });
   const userCobranza = await prisma.user.create({ data: { nombre: 'Sandra Ríos (Cobranza)', username: 'sandra.cobr', email: 'sandra@formatex.mx', password: passOper, roleId: roles['COBRANZA'].id } });
   await prisma.user.create({ data: { nombre: 'Luis Moreno (Facturación)', username: 'luis.fact', email: 'luis@formatex.mx', password: passOper, roleId: roles['FACTURACION'].id } });
@@ -207,7 +209,7 @@ async function main() {
   const userCoord = await prisma.user.create({ data: { nombre: 'Roberto Coord. Almacén', username: 'roberto.coord', email: 'roberto@formatex.mx', password: passOper, roleId: roles['COORDINADOR_ALMACEN'].id } });
   await prisma.user.create({ data: { nombre: 'Fernando Dir. Compras', username: 'fernando.compras', email: 'fernando@formatex.mx', password: passOper, roleId: roles['DIRECTOR_COMPRAS'].id } });
   await prisma.user.create({ data: { nombre: 'Carlos López (Compras)', username: 'carlos.compras', email: 'carlos@formatex.mx', password: passOper, roleId: roles['COMPRAS'].id } });
-  console.log('  ✅ 11 roles, 12 usuarios');
+  console.log('  ✅ 12 roles, 13 usuarios');
 
   // =====================================================================
   // 6. RECEPCIONES + HUs (batch optimized)
