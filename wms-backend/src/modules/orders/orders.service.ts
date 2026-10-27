@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 
 @Injectable()
@@ -11,8 +11,8 @@ export class OrdersService {
     return `${prefix}-${year}-${String(count + 1).padStart(4, '0')}`;
   }
 
-  async findAll(params: { search?: string; estado?: string; clientId?: string; surtidorId?: string; retenidoCredito?: string | boolean; page?: number; limit?: number }) {
-    const { search, estado, clientId, surtidorId, page = 1, limit = 20 } = params;
+  async findAll(params: { search?: string; estado?: string; clientId?: string; surtidorId?: string; retenidoCredito?: string | boolean; creadoPor?: string; page?: number; limit?: number }) {
+    const { search, estado, clientId, surtidorId, retenidoCredito, creadoPor, page = 1, limit = 20 } = params;
     const skip = (page - 1) * limit;
     const where: any = {};
     if (estado) {
@@ -28,17 +28,33 @@ export class OrdersService {
     }
     if (clientId) where.clientId = clientId;
     if (surtidorId) where.surtidorId = surtidorId;
-    if (params.retenidoCredito !== undefined) {
-      where.retenidoCredito = params.retenidoCredito === 'true' || params.retenidoCredito === true;
+    if (retenidoCredito !== undefined) {
+      where.retenidoCredito = retenidoCredito === 'true' || retenidoCredito === true;
+    }
+
+    const andConditions: any[] = [];
+    if (creadoPor) {
+      andConditions.push({
+        OR: [
+          { creadoPor },
+          { atcUserId: creadoPor },
+        ],
+      });
     }
     if (search) {
-      where.OR = [
-        { codigo: { contains: search, mode: 'insensitive' } },
-        { folioContpaqi: { contains: search, mode: 'insensitive' } },
-        { facturaRef: { contains: search, mode: 'insensitive' } },
-        { client: { nombre: { contains: search, mode: 'insensitive' } } },
-      ];
+      andConditions.push({
+        OR: [
+          { codigo: { contains: search, mode: 'insensitive' } },
+          { folioContpaqi: { contains: search, mode: 'insensitive' } },
+          { facturaRef: { contains: search, mode: 'insensitive' } },
+          { client: { nombre: { contains: search, mode: 'insensitive' } } },
+        ],
+      });
     }
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
+    }
+
     const [data, total] = await Promise.all([
       this.prisma.order.findMany({
         where, skip, take: limit, orderBy: { createdAt: 'desc' },
@@ -65,8 +81,18 @@ export class OrdersService {
       select: { id: true, codigo: true, nombre: true, color: true },
     }) : [];
     const skuMap = new Map(skus.map(s => [s.id, s]));
+
+    // Enrich with creator names
+    const creatorIds = [...new Set(data.map(o => o.creadoPor).filter(Boolean))];
+    const creators = creatorIds.length > 0 ? await this.prisma.user.findMany({
+      where: { id: { in: creatorIds } },
+      select: { id: true, nombre: true, username: true },
+    }) : [];
+    const creatorMap = new Map(creators.map(c => [c.id, c.nombre]));
+
     const enrichedData = data.map(o => ({
       ...o,
+      creadorNombre: creatorMap.get(o.creadoPor) || o.creadoPor || 'ATC',
       lineas: o.lineas.map(l => ({
         ...l,
         sku: skuMap.get(l.skuId) || null,
@@ -112,7 +138,17 @@ export class OrdersService {
       sku: skuMap.get(l.skuId) || null,
     }));
 
-    return { ...order, lineas: enrichedLineas };
+    // Look up creator user name
+    let creadorNombre = order.creadoPor || 'ATC';
+    if (order.creadoPor) {
+      const creator = await this.prisma.user.findUnique({
+        where: { id: order.creadoPor },
+        select: { nombre: true, email: true },
+      }).catch(() => null);
+      if (creator?.nombre) creadorNombre = creator.nombre;
+    }
+
+    return { ...order, creadorNombre, lineas: enrichedLineas };
   }
 
   /**
@@ -666,7 +702,7 @@ export class OrdersService {
   // =========================================================================
   // CAMBIAR ESTADO — Con lógica de reservas
   // =========================================================================
-  async updateStatus(id: string, estado: string, extraData?: any) {
+  async updateStatus(id: string, estado: string, extraData?: any, user?: any) {
     const validTransitions: Record<string, string[]> = {
       'COTIZADO': ['POR_PAGAR', 'CANCELADO'],
       'POR_PAGAR': ['PAGO_RECIBIDO', 'CANCELADO'],
@@ -682,6 +718,31 @@ export class OrdersService {
       where: { id },
       include: { lineas: { include: { assignments: true } } },
     });
+
+    // Control de Permisos ATC vs Supervisión (Alma / Dirección):
+    // Si el usuario es de rol ATC o de nivel operativo (no es Director ni Jefa de ATC Alma)
+    if (user) {
+      const isBossOrAdmin = user.role === 'ADMIN' ||
+                            user.role === 'DIRECTOR_OPERACIONES' ||
+                            user.role === 'JEFE_ATC' ||
+                            user.role === 'GERENCIA' ||
+                            (user.nivel && user.nivel <= 2) ||
+                            user.username?.toLowerCase().includes('alma') ||
+                            user.email?.toLowerCase().includes('alma');
+
+      if (!isBossOrAdmin && (user.role === 'ATC' || user.role === 'VENTAS')) {
+        const isOwner = order.creadoPor === user.sub ||
+                        order.atcUserId === user.sub ||
+                        order.creadoPor === user.nombre ||
+                        order.creadoPor === user.username;
+        if (!isOwner) {
+          throw new ForbiddenException(
+            'Acceso denegado: Solo el ejecutivo creador del pedido o la Jefa de ATC (Alma) pueden cambiar el estatus de este pedido.'
+          );
+        }
+      }
+    }
+
     const allowed = validTransitions[order.estado] || [];
     if (!allowed.includes(estado)) {
       throw new BadRequestException(`No se puede cambiar de ${order.estado} a ${estado}. Transiciones válidas: ${allowed.join(', ')}`);
@@ -855,10 +916,18 @@ export class OrdersService {
     return { total, cotizados, porPagar, porSurtir, enProceso, empacados, facturados, despachados };
   }
 
-  async getStatusCounts() {
+  async getStatusCounts(creadoPor?: string) {
+    const where: any = {};
+    if (creadoPor) {
+      where.OR = [
+        { creadoPor },
+        { atcUserId: creadoPor },
+      ];
+    }
     const groups = await this.prisma.order.groupBy({
       by: ['estado'],
       _count: { id: true },
+      where,
     });
     const counts: Record<string, number> = {
       COTIZADO: 0,

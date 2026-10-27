@@ -11,6 +11,7 @@ import {
   CheckCircle2, Check, Lock, Building2, Package, Layers, Calendar,
   ArrowUpDown, ChevronRight, ChevronLeft, Filter, Sparkles, RefreshCw, AlertTriangle,
   CreditCard, Split, PackageCheck, Ship, ArrowRight, ArrowLeft, Ban, Eye,
+  User, Users,
 } from 'lucide-react';
 import type { FC } from 'react';
 import type { LucideProps } from 'lucide-react';
@@ -66,6 +67,23 @@ export default function PedidosPage() {
   const [quotationOrder, setQuotationOrder] = useState<any>(null);
   const { canCreate, canUpdate, isAdmin, isSupervisor, user } = usePermission();
 
+  const isAlma = useMemo(() => {
+    return Boolean(
+      user?.role === 'JEFE_ATC' ||
+      user?.username?.toLowerCase().includes('alma') ||
+      user?.email?.toLowerCase().includes('alma') ||
+      user?.nombre?.toLowerCase().includes('alma')
+    );
+  }, [user]);
+
+  const isFullAdmin = isAdmin || isAlma;
+
+  // Scope: 'MIO' (Mis Cotizaciones/Pedidos) o 'TODOS' (Todo el WMS)
+  // Si el usuario es de rol ATC (y no es Alma ni Admin), por defecto inicia en 'MIO'
+  const [scopeFilter, setScopeFilter] = useState<'MIO' | 'TODOS'>(() => {
+    return user?.role === 'ATC' && !isAlma ? 'MIO' : 'TODOS';
+  });
+
   // Tab principal y sub-filtros de navegación
   type MainTab = 'cotizaciones' | 'pedidos' | 'pipeline' | 'backorder';
   const [activeMainTab, setActiveMainTab] = useState<MainTab>('cotizaciones');
@@ -79,7 +97,11 @@ export default function PedidosPage() {
     total: number;
     cotizaciones: number;
     pedidos: number;
-  }>(['order-status-counts'], '/orders/status-counts');
+  }>(
+    ['order-status-counts', scopeFilter, user?.id],
+    '/orders/status-counts',
+    { creadoPor: scopeFilter === 'MIO' && user?.id ? user.id : undefined }
+  );
 
   const effectiveEstado = useMemo(() => {
     if (activeMainTab === 'cotizaciones') {
@@ -95,11 +117,34 @@ export default function PedidosPage() {
   }, [activeMainTab, subFilterCotizaciones, subFilterPedidos, filterEstado]);
 
   const { data: resp, isLoading, refetch: refetchOrders } = useApi<PaginatedResponse<Order>>(
-    ['orders', search, effectiveEstado, page, limit],
+    ['orders', search, effectiveEstado, scopeFilter, user?.id, page, limit],
     '/orders',
-    { search: search || undefined, estado: effectiveEstado, page, limit }
+    {
+      search: search || undefined,
+      estado: effectiveEstado,
+      creadoPor: scopeFilter === 'MIO' && user?.id ? user.id : undefined,
+      page,
+      limit,
+    }
   );
   const totalPages = Math.max(1, Math.ceil((resp?.total || 0) / limit));
+
+  const isOrderOwner = (o: any) => {
+    if (!user || !o) return false;
+    return Boolean(
+      (user.id && o.creadoPor === user.id) ||
+      (user.id && o.atcUserId === user.id) ||
+      (user.nombre && o.creadoPor === user.nombre) ||
+      (user.username && o.creadoPor === user.username) ||
+      (user.nombre && o.creadorNombre === user.nombre)
+    );
+  };
+
+  const canModifyOrder = (o: any) => {
+    if (!o) return false;
+    if (isFullAdmin) return true; // Alma y Dirección pueden gestionar y avanzar cualquier pedido
+    return isOrderOwner(o); // ATC regular solo puede modificar los pedidos creados por él/ella
+  };
 
   const handleTabChange = (tab: MainTab) => {
     setActiveMainTab(tab);
@@ -1442,7 +1487,7 @@ export default function PedidosPage() {
             </button>
           </div>
 
-          {activeMainTab === 'backorder' && (
+          {activeMainTab === 'backorder' ? (
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-gray-500 hidden sm:inline">Filtrar Contenedor:</span>
               <select
@@ -1457,6 +1502,35 @@ export default function PedidosPage() {
                   </option>
                 ))}
               </select>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 bg-gray-100/90 p-1 rounded-xl self-start sm:self-auto shrink-0">
+              <button
+                type="button"
+                onClick={() => { setScopeFilter('MIO'); setPage(1); setSelectedOrder(null); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  scopeFilter === 'MIO'
+                    ? 'bg-white text-emerald-800 shadow-xs ring-1 ring-emerald-500/20'
+                    : 'text-gray-500 hover:text-gray-800'
+                }`}
+                title="Mostrar solo las cotizaciones y pedidos creados por ti"
+              >
+                <User size={13} className={scopeFilter === 'MIO' ? 'text-emerald-600' : 'text-gray-400'} />
+                <span>Mis Registros</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setScopeFilter('TODOS'); setPage(1); setSelectedOrder(null); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  scopeFilter === 'TODOS'
+                    ? 'bg-white text-blue-900 shadow-xs ring-1 ring-blue-500/20'
+                    : 'text-gray-500 hover:text-gray-800'
+                }`}
+                title="Mostrar todas las cotizaciones y pedidos del WMS (consulta general)"
+              >
+                <Users size={13} className={scopeFilter === 'TODOS' ? 'text-blue-600' : 'text-gray-400'} />
+                <span>Todo el WMS</span>
+              </button>
             </div>
           )}
         </div>
@@ -1658,7 +1732,16 @@ export default function PedidosPage() {
                         </div>
                         <div className="mt-1 flex items-center justify-between">
                           <span className="text-sm text-gray-700 font-medium">{o.client?.nombre}</span>
-                          <div className="flex items-center gap-3 text-xs text-gray-400">
+                          <div className="flex items-center gap-2 text-xs text-gray-400 flex-wrap justify-end">
+                            {isOrderOwner(o) ? (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-800 font-bold border border-emerald-200">
+                                <User size={10} /> Mi Pedido
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-gray-100 text-gray-600 font-medium border border-gray-200" title={`Creado por ${o.creadorNombre || 'ATC'}`}>
+                                <Users size={10} /> {o.creadorNombre || 'ATC'}
+                              </span>
+                            )}
                             {o.vendor && <span className="flex items-center gap-1"><Phone size={10} /> {o.vendor.nombre}</span>}
                             {o.lineas?.some((l: any) => !l.assignments?.length) && (
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-amber-50 text-amber-700 font-medium border border-amber-200">
@@ -1765,6 +1848,27 @@ export default function PedidosPage() {
                 );
               })()}
 
+              {/* Creador del Registro e Identificación de Permisos */}
+              <div className="flex items-center justify-between text-xs px-3 py-2 bg-gray-50 rounded-xl border border-gray-100">
+                <span className="flex items-center gap-1.5 text-gray-600 truncate">
+                  <User size={13} className="text-gray-400 shrink-0" />
+                  <span>Creado por: <strong className="text-gray-900">{detail.creadorNombre || detail.creadoPor || 'ATC'}</strong></span>
+                </span>
+                {isOrderOwner(detail) ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
+                    Tu Pedido
+                  </span>
+                ) : isFullAdmin ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200 shrink-0">
+                    Supervisión (Alma / Admin)
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 shrink-0">
+                    Solo Lectura
+                  </span>
+                )}
+              </div>
+
               {/* Advance button — EMPACADO uses Facturapi instead */}
               {(isAdmin || canUpdate('facturacion')) && detail.estado === 'EMPACADO' && !detail.facturapiId && (
                 <button
@@ -1779,8 +1883,27 @@ export default function PedidosPage() {
                 const Icon = t.icon;
                 const hasPermission = isAdmin || canUpdate(t.requiredModule);
                 if (!hasPermission) return null;
+
+                const canModify = canModifyOrder(detail);
+                if (!canModify) {
+                  return (
+                    <div className="p-3 bg-amber-50/90 border border-amber-200/90 rounded-xl space-y-1 animate-fade-in shadow-xs">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                        <Lock size={13} className="text-amber-600 shrink-0" />
+                        <span>Modo Solo Lectura (Pedido de otro ejecutivo)</span>
+                      </div>
+                      <p className="text-[11px] text-amber-800 leading-snug">
+                        Este registro fue creado por <strong className="font-semibold text-gray-900">{detail.creadorNombre || detail.creadoPor || 'otro usuario'}</strong>. Puedes consultar y descargar la cotización en PDF o packing list, pero solo el creador o la Gerente de ATC (Alma) pueden cambiar su estatus a <em>"{t.label}"</em>.
+                      </p>
+                    </div>
+                  );
+                }
+
                 return (
-                  <button onClick={() => advanceStatus(detail.id, detail.estado)} className="w-full px-4 py-2.5 bg-primary-500 text-white rounded-xl hover:bg-primary-600 text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-sm">
+                  <button
+                    onClick={() => advanceStatus(detail.id, detail.estado)}
+                    className="w-full px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-98"
+                  >
                     <Icon size={16} /> {t.label}
                   </button>
                 );

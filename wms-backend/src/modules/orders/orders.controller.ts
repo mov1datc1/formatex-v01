@@ -16,7 +16,9 @@ export class OrdersController {
 
   @Get('status-counts')
   @ApiOperation({ summary: 'Conteo en tiempo real por cada estado del pipeline Formatex' })
-  getStatusCounts() { return this.ordersService.getStatusCounts(); }
+  getStatusCounts(@Query('creadoPor') creadoPor?: string) {
+    return this.ordersService.getStatusCounts(creadoPor);
+  }
 
   @Get('pending-delivery-confirmations')
   @ApiOperation({ summary: 'Listar pedidos en surtido pendientes de confirmación de entrega (ATC y Supervisora)' })
@@ -101,10 +103,11 @@ export class OrdersController {
     @Query('clientId') clientId?: string,
     @Query('surtidorId') surtidorId?: string,
     @Query('retenidoCredito') retenidoCredito?: string,
+    @Query('creadoPor') creadoPor?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.ordersService.findAll({ search, estado, clientId, surtidorId, retenidoCredito, page, limit });
+    return this.ordersService.findAll({ search, estado, clientId, surtidorId, retenidoCredito, creadoPor, page, limit });
   }
 
   @Post(':id/assign-surtidor')
@@ -164,8 +167,13 @@ export class OrdersController {
 
   @Put(':id/status')
   @ApiOperation({ summary: 'Cambiar estado del pedido' })
-  updateStatus(@Param('id') id: string, @Body('estado') estado: string, @Body() body: any) {
-    return this.ordersService.updateStatus(id, estado, body);
+  updateStatus(
+    @Param('id') id: string,
+    @Body('estado') estado: string,
+    @Body() body: any,
+    @Req() req: any,
+  ) {
+    return this.ordersService.updateStatus(id, estado, body, req.user);
   }
 
   @Put(':id/reassign/:assignmentId')
