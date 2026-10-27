@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, BadRequestException, ForbiddenException, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CatalogService } from './catalog.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -9,6 +9,15 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 @Controller('catalog')
 export class CatalogController {
   constructor(private readonly catalogService: CatalogService) {}
+
+  private checkPriceManagerPermission(req: any) {
+    const userRole = (req.user?.role || '').toUpperCase();
+    const isAuthorized = (req.user?.nivel != null && req.user.nivel <= 2) ||
+      ['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'GERENCIA', 'JEFE_ATC'].includes(userRole);
+    if (!isAuthorized) {
+      throw new ForbiddenException('No tiene permisos para modificar precios especiales o listas maestras de precios');
+    }
+  }
 
   // ===== SKUs =====
   @Get('skus')
@@ -178,25 +187,29 @@ export class CatalogController {
 
   @Post('special-prices')
   @ApiOperation({ summary: 'Registrar o actualizar precio especial' })
-  createSpecialPrice(@Body() body: any) {
+  createSpecialPrice(@Body() body: any, @Req() req: any) {
+    this.checkPriceManagerPermission(req);
     return this.catalogService.createSpecialPrice(body);
   }
 
   @Put('special-prices/:id')
   @ApiOperation({ summary: 'Modificar precio especial' })
-  updateSpecialPrice(@Param('id') id: string, @Body() body: any) {
+  updateSpecialPrice(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+    this.checkPriceManagerPermission(req);
     return this.catalogService.updateSpecialPrice(id, body);
   }
 
   @Delete('special-prices/:id')
   @ApiOperation({ summary: 'Eliminar precio especial' })
-  deleteSpecialPrice(@Param('id') id: string) {
+  deleteSpecialPrice(@Param('id') id: string, @Req() req: any) {
+    this.checkPriceManagerPermission(req);
     return this.catalogService.deleteSpecialPrice(id);
   }
 
   @Post('special-prices/bulk')
   @ApiOperation({ summary: 'Importar precios especiales masivamente desde CSV/Excel' })
-  bulkCreateSpecialPrices(@Body() body: { items: any[] }) {
+  bulkCreateSpecialPrices(@Body() body: { items: any[] }, @Req() req: any) {
+    this.checkPriceManagerPermission(req);
     if (!body.items?.length) throw new BadRequestException('No se recibieron items');
     return this.catalogService.bulkCreateSpecialPrices(body.items);
   }
@@ -210,13 +223,15 @@ export class CatalogController {
 
   @Put('price-lists/:id')
   @ApiOperation({ summary: 'Actualizar lista de precios' })
-  updatePriceList(@Param('id') id: string, @Body() body: any) {
+  updatePriceList(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+    this.checkPriceManagerPermission(req);
     return this.catalogService.updatePriceList(id, body);
   }
 
   @Post('price-lists/seed')
   @ApiOperation({ summary: 'Sembrar las 10 listas de precios oficiales si no existen' })
-  seedPriceLists() {
+  seedPriceLists(@Req() req: any) {
+    this.checkPriceManagerPermission(req);
     return this.catalogService.seedPriceLists();
   }
 

@@ -7,17 +7,13 @@ function isManagerOrAdmin(user: any): boolean {
   if (!user) return false;
   const role = user.role;
   const nivel = user.nivel;
-  const username = user.username?.toLowerCase() || '';
-  const email = user.email?.toLowerCase() || '';
   return (
     role === 'ADMIN' ||
     role === 'DIRECTOR_OPERACIONES' ||
     role === 'DIRECTOR_COMPRAS' ||
     role === 'GERENCIA' ||
     role === 'JEFE_ATC' ||
-    (nivel !== undefined && nivel <= 2) ||
-    username.includes('alma') ||
-    email.includes('alma')
+    (nivel !== undefined && Number(nivel) <= 2)
   );
 }
 
@@ -45,12 +41,15 @@ export class ReservationsController {
   createVip(@Body() body: any, @Req() req: any) {
     if (!isManagerOrAdmin(req.user)) {
       throw new ForbiddenException(
-        'Acceso denegado: Solo Gerencia, Dirección o la Jefa de ATC (Alma) pueden autorizar apartados VIP extendidos.'
+        'Acceso denegado: Solo Gerencia, Dirección o la Jefa de ATC pueden autorizar apartados VIP extendidos.'
       );
     }
+    const actorId = req.user?.sub;
+    const actorDisplayName = req.user?.nombre || req.user?.username || 'Gerencia';
     return this.svc.createVipReservation({
       ...body,
-      autorizadoPor: req.user?.nombre || req.user?.username || req.user?.sub || 'DIRECCION',
+      actorId,
+      autorizadoPor: actorDisplayName,
     });
   }
 
@@ -59,12 +58,15 @@ export class ReservationsController {
   releaseVip(@Body() body: any, @Req() req: any) {
     if (!isManagerOrAdmin(req.user)) {
       throw new ForbiddenException(
-        'Acceso denegado: Solo Gerencia, Dirección o la Jefa de ATC (Alma) pueden liberar o descongelar reservas VIP a venta general.'
+        'Acceso denegado: Solo Gerencia, Dirección o la Jefa de ATC pueden liberar o descongelar reservas VIP a venta general.'
       );
     }
+    const actorId = req.user?.sub;
+    const actorDisplayName = req.user?.nombre || req.user?.username || 'Gerencia';
     return this.svc.releaseVipReservation({
       ...body,
-      liberadoPor: req.user?.nombre || req.user?.username || req.user?.sub || 'DIRECCION',
+      actorId,
+      liberadoPor: actorDisplayName,
     });
   }
 

@@ -39,6 +39,7 @@ import PlanificacionPage from '../pages/planning/PlanificacionPage';
 import FacturacionPage from '../pages/invoicing/FacturacionPage';
 import CobranzaPage from '../pages/cobranza/CobranzaPage';
 import ComprasPage from '../pages/compras/ComprasPage';
+import ComisionesPage from '../pages/comisiones/ComisionesPage';
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -117,6 +118,7 @@ export function AppRouter() {
           <Route path="pedidos" element={<PedidosPage />} />
           <Route path="disponibilidad" element={<DisponibilidadPage />} />
           <Route path="transito" element={<TransitoPage />} />
+          <Route path="comisiones" element={<ComisionesPage />} />
 
           {/* Cobranza */}
           <Route path="cobranza" element={<RoleGuard allowedRoles={['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'COBRANZA', 'SUPERVISOR', 'JEFE_ALMACEN']}><CobranzaPage /></RoleGuard>} />

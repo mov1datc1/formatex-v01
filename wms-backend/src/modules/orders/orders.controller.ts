@@ -24,10 +24,11 @@ export class OrdersController {
   @ApiOperation({ summary: 'Listar pedidos en surtido pendientes de confirmación de entrega (ATC y Supervisora)' })
   getPendingDeliveryConfirmations(@Req() req: any) {
     const isSupervisor = req.user.role === 'ADMIN' ||
+                         req.user.role === 'DIRECTOR_OPERACIONES' ||
                          req.user.role === 'GERENCIA' ||
                          req.user.role === 'SUPERVISOR' ||
-                         (req.user.nivel && req.user.nivel <= 2) ||
-                         req.user.username?.toLowerCase().includes('alma');
+                         req.user.role === 'JEFE_ATC' ||
+                         (req.user.nivel && req.user.nivel <= 2);
     return this.ordersService.getPendingDeliveryConfirmations(req.user.sub, isSupervisor);
   }
 
@@ -52,10 +53,11 @@ export class OrdersController {
     @Query('skuId') skuId?: string,
   ) {
     const isSupervisor = req.user.role === 'ADMIN' ||
+                         req.user.role === 'DIRECTOR_OPERACIONES' ||
                          req.user.role === 'GERENCIA' ||
                          req.user.role === 'SUPERVISOR' ||
-                         (req.user.nivel && req.user.nivel <= 2) ||
-                         req.user.username?.toLowerCase().includes('alma');
+                         req.user.role === 'JEFE_ATC' ||
+                         (req.user.nivel && req.user.nivel <= 2);
     return this.ordersService.getBackorderQueue(req.user.sub, isSupervisor, {
       contenedorNumero,
       incomingShipmentId,

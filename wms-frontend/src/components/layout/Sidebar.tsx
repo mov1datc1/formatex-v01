@@ -42,6 +42,7 @@ const menuSections: MenuSection[] = [
       { label: 'Pedidos', path: '/pedidos', icon: ClipboardList, permission: 'orders' },
       { label: 'Disponibilidad', path: '/disponibilidad', icon: Search, permission: 'availability' },
       { label: 'En Tránsito (ATC)', path: '/transito?view=atc', icon: Ship, permission: 'transit' },
+      { label: 'Mis Comisiones', path: '/comisiones', icon: BadgeDollarSign, permission: 'orders' },
     ],
   },
   {

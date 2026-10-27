@@ -6,6 +6,21 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 export class ReservationsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async resolveValidUserId(userId?: string): Promise<string> {
+    if (userId) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      });
+      if (user) return user.id;
+    }
+    const admin = await this.prisma.user.findFirst({
+      where: { role: { nivel: 1 } },
+      select: { id: true },
+    });
+    return admin?.id || '00000000-0000-0000-0000-000000000000';
+  }
+
   /**
    * Crear reserva blanda (24h) — ATC cotiza con el cliente
    */
@@ -248,6 +263,8 @@ export class ReservationsService {
     anticipoMonto?: number;
     notas?: string;
     autorizadoPor: string;
+    actorId?: string;
+    userId?: string;
   }) {
     if (!data.huIds || data.huIds.length === 0) {
       throw new BadRequestException('Debes seleccionar al menos un rollo (HU) para la reserva VIP');
@@ -343,6 +360,8 @@ export class ReservationsService {
         });
         createdReservations.push(res);
 
+        const validUserId = await this.resolveValidUserId(data.actorId || data.userId);
+
         // Registrar trazabilidad en InventoryMovement
         await tx.inventoryMovement.create({
           data: {
@@ -351,8 +370,8 @@ export class ReservationsService {
             metrajeAntes: hu.metrajeActual,
             metrajeDespues: hu.metrajeActual,
             referencia: `VIP-${virtualWh!.codigo}`,
-            notas: `Apartado especial VIP (${dias} días) para ${client.nombre}. Autorizado por ${data.autorizadoPor}. Anticipo: ${data.anticipoPorcentaje || 0}% ($${data.anticipoMonto || 0})`,
-            userId: data.autorizadoPor,
+            notas: `Apartado especial VIP (${dias} días) para ${client.nombre}. Autorizado por ${data.autorizadoPor || 'Gerencia'}. Anticipo: ${data.anticipoPorcentaje || 0}% ($${data.anticipoMonto || 0})`,
+            userId: validUserId,
           },
         });
       }
@@ -492,6 +511,8 @@ export class ReservationsService {
     huId?: string;
     liberadoPor: string;
     motivo?: string;
+    actorId?: string;
+    userId?: string;
   }) {
     // Validar que se proporcione al menos un identificador explícito
     // Protege contra cancelaciones masivas accidentales o no intencionadas de todos los clientes VIP
@@ -519,6 +540,8 @@ export class ReservationsService {
     return this.prisma.$transaction(async (tx: any) => {
       let releasedMeters = 0;
 
+      const validUserId = await this.resolveValidUserId(params.actorId || params.userId);
+
       for (const res of toRelease) {
         if (res.huId) {
           await tx.handlingUnit.update({
@@ -538,8 +561,8 @@ export class ReservationsService {
               metrajeAntes: res.hu?.metrajeActual || res.metrajeReservado,
               metrajeDespues: res.hu?.metrajeActual || res.metrajeReservado,
               referencia: `LIB-VIP-${res.clienteNombre || 'CLIENTE'}`,
-              notas: `Descongelado de sub-almacén VIP a venta general. Motivo: ${params.motivo || 'Plazo vencido sin pago / Cancelación comercial'}. Liberado por: ${params.liberadoPor}`,
-              userId: params.liberadoPor,
+              notas: `Descongelado de sub-almacén VIP a venta general. Motivo: ${params.motivo || 'Plazo vencido sin pago / Cancelación comercial'}. Liberado por: ${params.liberadoPor || 'Gerencia'}`,
+              userId: validUserId,
             },
           });
         }

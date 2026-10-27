@@ -132,7 +132,14 @@ export default function QuotationModal({ order, onClose }: QuotationModalProps) 
     const folio = order.codigo;
     const totalFmt = `$${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN`;
     const lineasTexto = lineas
-      .map((l: any) => `• *${l.sku?.nombre || l.sku?.codigo || 'Tela'}* (${l.sku?.color || ''}): ${l.metrajeRequerido}m x $${Number(l.precioUnitario || 0).toFixed(2)} = $${Number(l.subtotal || (l.metrajeRequerido * (l.precioUnitario || 0))).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`)
+      .map((l: any) => {
+        const dPct = Number(l.descuentoPct || 0);
+        const pNeto = Number(l.precioUnitario || 0);
+        const pLista = Number(l.precioLista || (dPct > 0 ? (pNeto / (1 - dPct / 100)) : pNeto));
+        const sub = Number(l.importe ?? l.subtotal ?? (l.metrajeRequerido * pNeto));
+        const descTxt = dPct > 0 ? ` (Desc: ${dPct}%)` : '';
+        return `• *${l.sku?.nombre || l.sku?.codigo || 'Tela'}* (${l.sku?.color || ''}): ${l.metrajeRequerido}m x $${pLista.toFixed(2)}${descTxt} = $${sub.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+      })
       .join('%0A');
 
     const mensaje = `*FORMA TEXTIL — ${docTitulo}*%0A` +
@@ -373,9 +380,10 @@ export default function QuotationModal({ order, onClose }: QuotationModalProps) 
                   {lineas.map((line: any, idx: number) => {
                     const sku = line.sku || {};
                     const cant = Number(line.metrajeRequerido || line.metrajeSurtido || 0);
-                    const pu = Number(line.precioUnitario || sku.precioReferencia || 0);
                     const descPct = Number(line.descuentoPct || 0);
-                    const subtotalLinea = Number(line.subtotal || (cant * pu * (1 - descPct / 100)));
+                    const puNeto = Number(line.precioUnitario || sku.precioReferencia || 0);
+                    const puLista = Number(line.precioLista || (descPct > 0 ? (puNeto / (1 - descPct / 100)) : puNeto));
+                    const subtotalLinea = Number(line.importe ?? line.subtotal ?? (cant * puNeto));
 
                     return (
                       <tr key={line.id || idx} className="bg-white hover:bg-slate-50/50">
@@ -399,7 +407,7 @@ export default function QuotationModal({ order, onClose }: QuotationModalProps) 
                           {cant.toFixed(2)}
                         </td>
                         <td className="py-3 px-3 text-right font-mono text-gray-700">
-                          ${pu.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          ${puLista.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="py-3 px-3 text-center font-mono text-gray-600">
                           {descPct > 0 ? `${descPct}%` : '—'}

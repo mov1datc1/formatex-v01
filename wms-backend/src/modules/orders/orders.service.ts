@@ -726,9 +726,7 @@ export class OrdersService {
                             user.role === 'DIRECTOR_OPERACIONES' ||
                             user.role === 'JEFE_ATC' ||
                             user.role === 'GERENCIA' ||
-                            (user.nivel && user.nivel <= 2) ||
-                            user.username?.toLowerCase().includes('alma') ||
-                            user.email?.toLowerCase().includes('alma');
+                            (user.nivel && user.nivel <= 2);
 
       if (!isBossOrAdmin && (user.role === 'ATC' || user.role === 'VENTAS')) {
         const isOwner = order.creadoPor === user.sub ||

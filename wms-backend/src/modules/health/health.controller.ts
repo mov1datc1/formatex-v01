@@ -26,53 +26,78 @@ export class HealthController {
 
     const result = await new Promise<{
       url: string;
-      compromisedCertificateBlocked: boolean;
+      status: 'SECURE' | 'VULNERABLE' | 'INCONCLUSIVE';
       statusCode?: number;
       errorCode?: string;
       errorMessage?: string;
     }>((resolve) => {
-      const req = https.get(testCanaryUrl, { timeout: 5000 }, (res) => {
+      const knownTlsCertErrors = new Set([
+        'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+        'CERT_REVOKED',
+        'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+        'CERT_HAS_EXPIRED',
+        'DEPTH_ZERO_SELF_SIGNED_CERT',
+        'SELF_SIGNED_CERT_IN_CHAIN',
+        'ERR_TLS_CERT_ALTNAME_INVALID',
+      ]);
+
+      const req = https.get(testCanaryUrl, { timeout: 6000 }, (res) => {
         resolve({
           url: testCanaryUrl,
-          compromisedCertificateBlocked: false,
+          status: 'VULNERABLE',
           statusCode: res.statusCode,
-          errorMessage: 'ADVERTENCIA: La conexión HTTPS tuvo éxito; el certificado comprometido fue aceptado por el runtime.',
+          errorMessage: 'ALERTA: La conexión TLS se estableció con éxito; el certificado comprometido fue aceptado por el runtime.',
         });
       });
 
       req.on('error', (err: any) => {
-        resolve({
-          url: testCanaryUrl,
-          compromisedCertificateBlocked: true,
-          errorCode: err.code || 'TLS_CERT_REJECTED',
-          errorMessage: err.message,
-        });
+        const code = err.code || '';
+        const isCertRejection = knownTlsCertErrors.has(code) || /certificate|cert|tls/i.test(err.message || '');
+        
+        if (isCertRejection) {
+          resolve({
+            url: testCanaryUrl,
+            status: 'SECURE',
+            errorCode: code || 'TLS_CERT_REJECTED',
+            errorMessage: `Certificado comprometido bloqueado correctamente por la cadena de confianza (${err.message})`,
+          });
+        } else {
+          resolve({
+            url: testCanaryUrl,
+            status: 'INCONCLUSIVE',
+            errorCode: code || 'NETWORK_ERROR',
+            errorMessage: `Error de red o conectividad externa al endpoint canario: ${err.message}`,
+          });
+        }
       });
 
       req.on('timeout', () => {
         req.destroy();
         resolve({
           url: testCanaryUrl,
-          compromisedCertificateBlocked: true,
+          status: 'INCONCLUSIVE',
           errorCode: 'TIMEOUT',
-          errorMessage: 'Timeout de conexión al endpoint de prueba',
+          errorMessage: 'Tiempo de espera agotado al conectar con el endpoint canario externo (timeout 6s).',
         });
       });
     });
 
     return {
-      status: result.compromisedCertificateBlocked ? 'SECURE' : 'VULNERABLE',
+      status: result.status,
       timestamp: new Date().toISOString(),
       nodeVersion: process.version,
       nodeOptions: process.env.NODE_OPTIONS || 'default',
       renderAdvisory: 'https://render.com/docs/advisory-emudhra',
       audit: {
         canaryTest: result.url,
-        isProtected: result.compromisedCertificateBlocked,
-        verdict: result.compromisedCertificateBlocked
-          ? 'EXCELENTE: El servidor rechaza los certificados comprometidos de eMudhra conforme al aviso de seguridad de Render.'
-          : 'ALERTA: Se requiere asegurar NODE_VERSION >= 22.23.4 o configurar NODE_OPTIONS="--use-openssl-ca" en el dashboard de Render.',
+        verdict:
+          result.status === 'SECURE'
+            ? 'EXCELENTE: El servidor rechaza los certificados comprometidos de eMudhra conforme al aviso de seguridad de Render.'
+            : result.status === 'VULNERABLE'
+              ? 'ALERTA: El runtime aceptó el certificado comprometido. Se requiere configurar NODE_VERSION >= 22.23.4 o NODE_OPTIONS="--use-openssl-ca" en Render.'
+              : 'INCONCLUSO: No se pudo verificar debido a problemas de conectividad de red o timeout con el servidor canario.',
         rejectionCode: result.errorCode,
+        detail: result.errorMessage,
       },
     };
   }

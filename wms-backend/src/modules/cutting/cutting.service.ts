@@ -11,6 +11,35 @@ export class CuttingService {
     return `${prefix}-${year}-${String(count + 1).padStart(5, '0')}`;
   }
 
+  private async resolveValidUserId(userId?: string): Promise<string> {
+    const isUuid = (val?: string) =>
+      Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val));
+
+    if (isUuid(userId)) {
+      const user = await this.prisma.user.findUnique({ where: { id: userId } });
+      if (user) return user.id;
+    }
+
+    if (userId) {
+      const user = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { username: userId },
+            { email: userId },
+            { nombre: { contains: userId, mode: 'insensitive' } },
+          ],
+        },
+      });
+      if (user) return user.id;
+    }
+
+    const fallback = await this.prisma.user.findFirst({
+      where: { activo: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    return fallback?.id || '00000000-0000-0000-0000-000000000000';
+  }
+
   /**
    * OPERACIÓN DE CORTE — Core del sistema
    * 
@@ -40,22 +69,29 @@ export class CuttingService {
     if (!['DISPONIBLE', 'RESERVADO', 'EN_CORTE', 'EN_PICKING'].includes(huOrigen.estadoHu)) {
       throw new BadRequestException(`HU ${huOrigen.codigo} no está disponible para corte (estado: ${huOrigen.estadoHu})`);
     }
-    if (data.metrajeCortado <= 0) throw new BadRequestException('Metraje a cortar debe ser mayor a 0');
+    if (data.metrajeCortado <= 0 || isNaN(data.metrajeCortado) || !isFinite(data.metrajeCortado)) {
+      throw new BadRequestException('Metraje a cortar debe ser un número válido mayor a 0');
+    }
     
     const bonificacion = Number(data.bonificacionMetros) || 0;
-    const totalDescontar = data.metrajeCortado + bonificacion;
+    if (bonificacion < 0 || isNaN(bonificacion) || !isFinite(bonificacion)) {
+      throw new BadRequestException('La bonificación no puede ser un valor negativo');
+    }
+
+    const totalDescontar = Math.round((data.metrajeCortado + bonificacion) * 100) / 100;
     if (totalDescontar > huOrigen.metrajeActual) {
       throw new BadRequestException(`Solo hay ${huOrigen.metrajeActual}m disponibles en ${huOrigen.codigo} (corte: ${data.metrajeCortado}m + bonificación: ${bonificacion}m)`);
     }
 
     const metrajeRestante = Math.round((huOrigen.metrajeActual - totalDescontar) * 100) / 100;
     const cutCode = await this.generateCode('COR', 'cutOperation');
+    const validUserId = await this.resolveValidUserId(data.cortadoPor);
 
     return this.prisma.$transaction(async (tx: any) => {
       let huRetazoId: string | null = null;
       let retazoUbicacion: string | null = null;
 
-      // Si queda metraje → crear HU retazo (hijo)
+      // Si queda metraje (> 0.5m) → crear HU retazo (hijo) con el saldo remanente físico
       if (metrajeRestante > 0.5) { // Mínimo 0.5m para crear retazo
         const retazoCode = await this.generateCode('HU', 'handlingUnit');
 
@@ -106,11 +142,12 @@ export class CuttingService {
           data: {
             huId: retazo.id,
             tipo: 'CORTE',
+            metrajeAntes: 0,
             metrajeDespues: metrajeRestante,
             ubicacionDestino: retazoUbicacion,
             referencia: cutCode,
             notas: `Retazo de ${huOrigen.codigo} → ${metrajeRestante}m (gen ${huOrigen.generacion + 1})`,
-            userId: data.cortadoPor,
+            userId: validUserId,
           },
         });
 
@@ -120,13 +157,13 @@ export class CuttingService {
         }
       }
 
-      // Actualizar HU origen: agotar o reducir metraje
-      const nuevoEstado = metrajeRestante <= 0.5 ? 'AGOTADO' : 'DISPONIBLE';
+      // HU origen queda AGOTADO (metrajeActual: 0) porque sus metros se dividieron entre la pieza cortada y el retazo hijo generado.
+      // Esto garantiza la conservación estricta de metros: 50m - 10m deja 40m en retazo, NUNCA 80m.
       await tx.handlingUnit.update({
         where: { id: huOrigen.id },
         data: {
-          metrajeActual: metrajeRestante <= 0.5 ? 0 : metrajeRestante,
-          estadoHu: nuevoEstado,
+          metrajeActual: 0,
+          estadoHu: 'AGOTADO',
         },
       });
 
@@ -136,15 +173,30 @@ export class CuttingService {
           huId: huOrigen.id,
           tipo: 'CORTE',
           metrajeAntes: huOrigen.metrajeActual,
-          metrajeDespues: metrajeRestante <= 0.5 ? 0 : metrajeRestante,
+          metrajeDespues: 0,
           referencia: cutCode,
-          notas: `Cortados ${data.metrajeCortado}m${data.orderLineId ? ' para pedido' : ''}`,
-          userId: data.cortadoPor,
+          notas: `Corte de ${data.metrajeCortado}m${bonificacion > 0 ? ` (+${bonificacion}m bonif)` : ''}${data.orderLineId ? ' para pedido' : ''}; remanente de ${metrajeRestante}m transferido a retazo`,
+          userId: validUserId,
         },
       });
 
-      // Si hay línea de pedido, actualizar asignación como cortada
+      // Si hay línea de pedido, validar SKU y acumular metraje surtido
       if (data.orderLineId) {
+        const oLine = await tx.orderLine.findUniqueOrThrow({
+          where: { id: data.orderLineId },
+          include: { order: true },
+        });
+
+        // Validar correspondencia estricta de SKU
+        if (oLine.skuId !== huOrigen.skuId) {
+          throw new BadRequestException(`El SKU del rollo origen (${huOrigen.sku?.codigo || huOrigen.skuId}) no coincide con el SKU requerido por la línea del pedido (${oLine.skuId})`);
+        }
+
+        // Validar estado del pedido
+        if (['CANCELADO', 'DEVUELTO'].includes(oLine.order.estado)) {
+          throw new BadRequestException(`No se puede surtir corte para un pedido en estado ${oLine.order.estado}`);
+        }
+
         const assignment = await tx.orderLineAssignment.findFirst({
           where: { orderLineId: data.orderLineId, huId: huOrigen.id },
         });
@@ -154,29 +206,34 @@ export class CuttingService {
             data: { cortado: true },
           });
         }
-        // Actualizar línea con metraje surtido y bonificación a costo cero
+
+        // Acumular metraje surtido (cortes parciales acumulativos, e.g. 7 + 6 + 7 = 20)
+        const surtidoPrevio = Number(oLine.metrajeSurtido || 0);
+        const bonifPrevia = Number(oLine.bonificacionMetros || 0);
+        const nuevoSurtido = Math.round((surtidoPrevio + data.metrajeCortado) * 100) / 100;
+        const nuevoBonificacion = Math.round((bonifPrevia + bonificacion) * 100) / 100;
+        const requerido = Number(oLine.metrajeRequerido || 0);
+        const isSurtidaCompleta = nuevoSurtido >= requerido;
+
         await tx.orderLine.update({
           where: { id: data.orderLineId },
           data: {
-            metrajeSurtido: data.metrajeCortado,
-            bonificacionMetros: bonificacion,
-            motivoBonificacion: data.motivoBonificacion || null,
-            estado: 'SURTIDA',
+            metrajeSurtido: nuevoSurtido,
+            bonificacionMetros: nuevoBonificacion,
+            motivoBonificacion: data.motivoBonificacion || oLine.motivoBonificacion,
+            estado: isSurtidaCompleta ? 'SURTIDA' : 'PARCIAL',
           },
         });
 
         // Si hubo bonificación, reflejarla en el pedido a costo cero
         if (bonificacion > 0) {
-          const oLine = await tx.orderLine.findUnique({ where: { id: data.orderLineId }, select: { orderId: true } });
-          if (oLine) {
-            await tx.order.update({
-              where: { id: oLine.orderId },
-              data: {
-                bonificacionCorteMetros: { increment: bonificacion },
-                motivoBonificacion: data.motivoBonificacion || 'Bandera / Calidad en corte',
-              },
-            });
-          }
+          await tx.order.update({
+            where: { id: oLine.orderId },
+            data: {
+              bonificacionCorteMetros: { increment: bonificacion },
+              motivoBonificacion: data.motivoBonificacion || 'Bandera / Calidad en corte',
+            },
+          });
         }
       }
 
@@ -205,8 +262,8 @@ export class CuttingService {
         },
       });
 
-      // Liberar ubicación del HU origen si se agotó
-      if (nuevoEstado === 'AGOTADO' && huOrigen.ubicacionId) {
+      // Liberar ubicación del HU origen (ya agotado tras derivar su remanente al retazo)
+      if (huOrigen.ubicacionId) {
         const remaining = await tx.handlingUnit.count({
           where: { ubicacionId: huOrigen.ubicacionId, estadoHu: { not: 'AGOTADO' }, id: { not: huOrigen.id } },
         });

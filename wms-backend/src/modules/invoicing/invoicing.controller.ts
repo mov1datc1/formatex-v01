@@ -8,10 +8,14 @@ import {
   Query,
   Res,
   HttpCode,
+  UseGuards,
+  Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InvoicingService } from './invoicing.service';
 import { CreditService } from './credit.service';
 import { CommissionsService } from './commissions.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { Response } from 'express';
 
 @Controller('invoicing')
@@ -230,35 +234,58 @@ export class InvoicingController {
   // COMISIONES
   // =======================================================================
 
+  @UseGuards(JwtAuthGuard)
   @Get('commissions')
   async getCommissionReport(
+    @Req() req: any,
     @Query('vendorId') vendorId?: string,
     @Query('desde') desde?: string,
     @Query('hasta') hasta?: string,
+    @Query('anio') anio?: string,
+    @Query('mes') mes?: string,
     @Query('soloFacturasPagadas') soloFacturasPagadas?: string,
   ) {
     return this.commissionsService.getVendorCommissionReport({
       vendorId,
       desde,
       hasta,
+      anio,
+      mes,
       soloFacturasPagadas: soloFacturasPagadas !== 'false',
+      user: req.user,
     });
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('commissions/periods')
   async listPeriods() {
     return this.commissionsService.listPeriods();
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('commissions/periods')
   async createPeriod(
-    @Body() body: { fechaInicio: string; fechaFin: string; creadoPor: string },
+    @Req() req: any,
+    @Body() body: { fechaInicio: string; fechaFin: string; creadoPor?: string },
   ) {
-    return this.commissionsService.createPeriod(body);
+    const userRole = (req.user?.role || '').toUpperCase();
+    const isManager = (req.user?.nivel != null && req.user.nivel <= 2) ||
+      ['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'GERENCIA', 'COBRANZA', 'JEFE_ATC'].includes(userRole);
+    if (!isManager) {
+      throw new ForbiddenException('No tiene permisos para crear periodos de comisión');
+    }
+    return this.commissionsService.createPeriod({ ...body, creadoPor: req.user?.sub || body.creadoPor || 'SISTEMA' });
   }
 
+  @UseGuards(JwtAuthGuard)
   @Put('commissions/periods/:id/close')
-  async closePeriod(@Param('id') id: string) {
+  async closePeriod(@Req() req: any, @Param('id') id: string) {
+    const userRole = (req.user?.role || '').toUpperCase();
+    const isManager = (req.user?.nivel != null && req.user.nivel <= 2) ||
+      ['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'GERENCIA', 'COBRANZA', 'JEFE_ATC'].includes(userRole);
+    if (!isManager) {
+      throw new ForbiddenException('No tiene permisos para cerrar periodos de comisión');
+    }
     return this.commissionsService.closePeriod(id);
   }
 
