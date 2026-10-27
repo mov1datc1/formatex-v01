@@ -493,6 +493,14 @@ export class ReservationsService {
     liberadoPor: string;
     motivo?: string;
   }) {
+    // Validar que se proporcione al menos un identificador explícito
+    // Protege contra cancelaciones masivas accidentales o no intencionadas de todos los clientes VIP
+    if (!params.reservationId && !params.virtualWarehouseId && !params.clienteId && !params.huId) {
+      throw new BadRequestException(
+        'Acción denegada: Se requiere especificar un alcance explícito (reservationId, virtualWarehouseId, clienteId o huId) para liberar reservas VIP. No se permite la liberación masiva sin identificador.'
+      );
+    }
+
     const where: any = { tipo: 'VIP', estado: 'ACTIVA' };
     if (params.reservationId) where.id = params.reservationId;
     if (params.virtualWarehouseId) where.virtualWarehouseId = params.virtualWarehouseId;
