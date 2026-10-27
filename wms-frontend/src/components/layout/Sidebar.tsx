@@ -31,13 +31,13 @@ const menuSections: MenuSection[] = [
     title: 'General',
     items: [
       { label: 'Dashboard', path: '/', icon: LayoutDashboard, excludeRoles: ['ATC', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'CHOFER'] },
-      { label: 'Ubicaciones', path: '/almacen', icon: MapPin, permission: 'warehouse', excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR'] },
       { label: 'Catálogos', path: '/catalogos', icon: ClipboardList, permission: 'catalogs', excludeRoles: ['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR'] },
       { label: 'Alertas', path: '/alertas', icon: Bell, permission: 'alerts', excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR'] },
     ],
   },
   {
     title: 'Ventas / ATC',
+    allowedRoles: ['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'GERENCIA', 'ATC', 'JEFE_ATC', 'VENDEDOR'],
     items: [
       { label: 'Pedidos', path: '/pedidos', icon: ClipboardList, permission: 'orders' },
       { label: 'Disponibilidad', path: '/disponibilidad', icon: Search, permission: 'availability' },
@@ -54,7 +54,7 @@ const menuSections: MenuSection[] = [
   },
   {
     title: 'Compras & Importaciones',
-    excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR'],
+    excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR', 'COORDINADOR_ALMACEN', 'JEFE_ALMACEN'],
     items: [
       { label: 'Órdenes de Compra', path: '/compras', icon: ShoppingCart, permission: 'compras' },
       { label: 'Tránsito & Costeo', path: '/transito?view=costeo', icon: Calculator, permission: 'compras' },
@@ -65,6 +65,7 @@ const menuSections: MenuSection[] = [
     title: 'Almacén',
     excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR'],
     items: [
+      { label: 'Ubicaciones', path: '/almacen', icon: MapPin, permission: 'warehouse', excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR'] },
       { label: 'Picking', path: '/picking', icon: Package, permission: 'picking' },
       { label: 'Corte', path: '/corte', icon: Scissors, permission: 'cutting' },
       { label: 'Empaque', path: '/empaque', icon: PackageCheck, permission: 'packing' },
@@ -132,6 +133,25 @@ export const Sidebar = () => {
     if (userRole === 'JEFE_ATC' && ['dashboard', 'catalogs', 'orders', 'availability', 'transit', 'reservations'].includes(item.permission)) {
       return true;
     }
+
+    // Fallback garantizado para líderes de almacén (COORDINADOR_ALMACEN, JEFE_ALMACEN, SUPERVISOR)
+    const isWarehouseLeader = ['COORDINADOR_ALMACEN', 'JEFE_ALMACEN', 'SUPERVISOR'].includes(userRole);
+    if (isWarehouseLeader) {
+      const warehouseLeaderPermissions = [
+        'dashboard', 'catalogs', 'alerts',
+        'warehouse', 'picking', 'cutting', 'packing', 'shipping', 'transfers',
+        'reception', 'labeling', 'inventory'
+      ];
+      if (warehouseLeaderPermissions.includes(item.permission)) {
+        return true;
+      }
+    }
+
+    // Fallbacks para roles operativos individuales de almacén
+    if (userRole === 'PICKER' && ['picking', 'warehouse'].includes(item.permission)) return true;
+    if (userRole === 'CORTADOR' && ['cutting'].includes(item.permission)) return true;
+    if (userRole === 'EMPACADOR' && ['packing'].includes(item.permission)) return true;
+    if (userRole === 'DESPACHADOR' && ['shipping'].includes(item.permission)) return true;
 
     if (!user?.permissions) return false;
     return user.permissions.some((p) => p.modulo === item.permission || (p.modulo === 'catalogs' && item.permission === 'catalog'));

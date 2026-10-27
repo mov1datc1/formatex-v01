@@ -77,9 +77,13 @@ function RoleGuard({
 function DashboardGuard() {
   const user = useSelector((state: RootState) => state.auth.user);
   const userRole = (user?.role?.nombre || user?.role || '').toUpperCase();
-  if (['ATC', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'CHOFER'].includes(userRole)) {
+  if (['ATC', 'VENDEDOR'].includes(userRole)) {
     return <Navigate to="/pedidos" replace />;
   }
+  if (userRole === 'PICKER') return <Navigate to="/picking" replace />;
+  if (userRole === 'CORTADOR') return <Navigate to="/corte" replace />;
+  if (userRole === 'EMPACADOR') return <Navigate to="/empaque" replace />;
+  if (userRole === 'DESPACHADOR' || userRole === 'CHOFER') return <Navigate to="/envio" replace />;
   return <Dashboard />;
 }
 
