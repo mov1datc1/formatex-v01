@@ -39,11 +39,18 @@ export default function PickerView() {
 
   const allOrders = [...(ordersResp?.data || []), ...(progressResp?.data || [])];
 
+  const userRole = (currentUser?.role?.nombre || currentUser?.role || '').toUpperCase();
+  const isSupervisor = ['ADMIN', 'SUPERVISOR', 'JEFE_ALMACEN', 'DIRECTOR', 'GERENTE', 'COORDINADOR'].includes(userRole) || (currentUser?.nivel && currentUser.nivel <= 2);
+
   // Filter by "Mis Pedidos Asignados" vs "Todos"
   const visibleOrders = allOrders.filter((o: any) => {
+    if (!isSupervisor) {
+      // Pickers solo ven pedidos explícitamente asignados a su ID (sin pedidos ajenos ni sin asignar)
+      return o.surtidorId === currentUser?.id;
+    }
     if (!filterMine) return true;
     if (!currentUser?.id) return true;
-    return o.surtidorId === currentUser.id || !o.surtidorId;
+    return o.surtidorId === currentUser.id;
   });
 
   // Take an order (POR_SURTIR → EN_SURTIDO) and load its picking list
@@ -171,8 +178,8 @@ export default function PickerView() {
           </div>
         </div>
 
-        {/* Filter Toggle: Mis Asignados vs Todos */}
-        {!selectedOrder && (
+        {/* Filter Toggle: Mis Asignados vs Todos (Solo visible para Supervisores y Jefes de Almacén) */}
+        {!selectedOrder && isSupervisor && (
           <div className="flex bg-gray-900 p-1 rounded-xl border border-gray-800 text-xs">
             <button
               onClick={() => setFilterMine(true)}
@@ -199,16 +206,20 @@ export default function PickerView() {
         <div className="space-y-3">
           <div className="flex items-center justify-between px-1">
             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-              {filterMine ? 'Mis Pedidos Asignados' : 'Todos los Pedidos por Surtir'} ({visibleOrders.length})
+              {(!isSupervisor || filterMine) ? 'Mis Pedidos Asignados' : 'Todos los Pedidos por Surtir'} ({visibleOrders.length})
             </span>
           </div>
 
           {visibleOrders.length === 0 ? (
             <div className="text-center py-12 bg-gray-900 rounded-2xl border border-gray-800 p-6 space-y-2">
               <Package size={44} className="mx-auto text-gray-700 mb-1" />
-              <p className="text-sm font-bold text-gray-300">No hay pedidos asignados</p>
+              <p className="text-sm font-bold text-gray-300">
+                {!isSupervisor ? 'No tienes pedidos asignados' : 'No hay pedidos pendientes'}
+              </p>
               <p className="text-xs text-gray-500">
-                Israel (Jefe de Almacén) despachará los pedidos correspondientes a tu turno.
+                {!isSupervisor
+                  ? `👤 ${currentUser?.nombre || 'Surtidor'} · Israel (Jefe de Almacén) te asignará tus pedidos desde el Tablero de Despacho.`
+                  : 'No se encontraron pedidos en estado Por Surtir o En Surtido en este momento.'}
               </p>
             </div>
           ) : (
