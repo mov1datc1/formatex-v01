@@ -20,6 +20,12 @@ export class CuttingController {
     return this.cuttingService.findAllCuts({ search, page, limit });
   }
 
+  @Get('pending-for-sku/:skuId')
+  @ApiOperation({ summary: 'Consultar pedidos en cola para re-corte continuo de un SKU' })
+  getPendingForSku(@Param('skuId') skuId: string, @Query('maxMetraje') maxMetraje?: string) {
+    return this.cuttingService.getPendingCutsForSku(skuId, maxMetraje ? Number(maxMetraje) : undefined);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Detalle de operación de corte' })
   findById(@Param('id') id: string) { return this.cuttingService.findCutById(id); }

@@ -142,7 +142,7 @@ export class ReservationsService {
   }
 
   /**
-   * Disponibilidad unificada de un SKU (stock + tránsito)
+   * Disponibilidad unificada de un SKU (stock + tránsito + reservas VIP)
    */
   async getAvailability(skuId: string) {
     const sku = await this.prisma.skuMaster.findUnique({
@@ -153,9 +153,9 @@ export class ReservationsService {
       },
     });
 
-    // Stock físico disponible
+    // Stock físico disponible (incluyendo reservas blandas, firmes y VIP)
     const hus = await this.prisma.handlingUnit.findMany({
-      where: { skuId, estadoHu: { in: ['DISPONIBLE', 'RESERVADO_BLANDO', 'RESERVADO'] }, metrajeActual: { gt: 0 } },
+      where: { skuId, estadoHu: { in: ['DISPONIBLE', 'RESERVADO_BLANDO', 'RESERVADO', 'RESERVADO_VIP'] }, metrajeActual: { gt: 0 } },
       include: { ubicacion: { select: { codigo: true, tipo: true } } },
       orderBy: { fechaIngreso: 'asc' }, // FIFO
     });
@@ -163,6 +163,7 @@ export class ReservationsService {
     const stockDisponible = hus.filter(h => h.estadoHu === 'DISPONIBLE').reduce((a, h) => a + h.metrajeActual, 0);
     const stockReservadoBlando = hus.filter(h => h.estadoHu === 'RESERVADO_BLANDO').reduce((a, h) => a + h.metrajeActual, 0);
     const stockReservadoFirme = hus.filter(h => h.estadoHu === 'RESERVADO').reduce((a, h) => a + h.metrajeActual, 0);
+    const stockReservadoVip = hus.filter(h => h.estadoHu === 'RESERVADO_VIP').reduce((a, h) => a + h.metrajeActual, 0);
 
     // Stock en tránsito
     const transitLines = await this.prisma.incomingShipmentLine.findMany({
@@ -193,7 +194,8 @@ export class ReservationsService {
         disponible: stockDisponible,
         reservadoBlando: stockReservadoBlando,
         reservadoFirme: stockReservadoFirme,
-        total: stockDisponible + stockReservadoBlando + stockReservadoFirme,
+        reservadoVip: stockReservadoVip,
+        total: stockDisponible + stockReservadoBlando + stockReservadoFirme + stockReservadoVip,
         rollos: hus.length,
         detalle: hus.map(h => ({
           id: h.id,
@@ -206,6 +208,9 @@ export class ReservationsService {
           calidadRestringida: h.calidadRestringida || false,
           loteProveedor: h.loteProveedor,
           fechaIngreso: h.fechaIngreso,
+          reservaVipClienteId: h.reservaVipClienteId,
+          reservaVipNombre: h.reservaVipNombre,
+          reservaVipHasta: h.reservaVipHasta,
         })),
       },
       transito: {
@@ -232,7 +237,329 @@ export class ReservationsService {
   }
 
   /**
-   * Cronjob: Expirar reservas blandas después de 24h
+   * Crear o asignar sub-almacén virtual VIP y apartar rollos (Caso "Seth" / 500m - 1,000m+)
+   * Protegido contra auto-expiración de 24h — Administrado con semáforo preventivo
+   */
+  async createVipReservation(data: {
+    clientId: string;
+    huIds: string[];
+    diasVigencia?: number;
+    anticipoPorcentaje?: number;
+    anticipoMonto?: number;
+    notas?: string;
+    autorizadoPor: string;
+  }) {
+    if (!data.huIds || data.huIds.length === 0) {
+      throw new BadRequestException('Debes seleccionar al menos un rollo (HU) para la reserva VIP');
+    }
+
+    const client = await this.prisma.client.findUniqueOrThrow({
+      where: { id: data.clientId },
+    });
+
+    // 1. Obtener o crear el Almacén Virtual para este cliente VIP
+    let virtualWhId = client.almacenVirtualId;
+    let virtualWh = virtualWhId ? await this.prisma.warehouse.findUnique({ where: { id: virtualWhId } }) : null;
+
+    if (!virtualWh) {
+      const whCode = `VIP-${client.codigo || client.id.slice(0, 6).toUpperCase()}`;
+      virtualWh = await this.prisma.warehouse.findFirst({
+        where: { OR: [{ codigo: whCode }, { clienteAsignado: client.nombre, tipo: 'VIRTUAL' }] },
+      });
+
+      if (!virtualWh) {
+        virtualWh = await this.prisma.warehouse.create({
+          data: {
+            nombre: `Sub-Almacén Virtual — ${client.nombre}`,
+            codigo: whCode,
+            tipo: 'VIRTUAL',
+            clienteAsignado: client.nombre,
+            descripcion: `Almacén virtual exclusivo para apartados extendidos de ${client.nombre}`,
+          },
+        });
+      }
+
+      await this.prisma.client.update({
+        where: { id: client.id },
+        data: { esVip: true, almacenVirtualId: virtualWh.id, notasVip: data.notas },
+      });
+    }
+
+    const dias = data.diasVigencia && data.diasVigencia > 0 ? Number(data.diasVigencia) : 15;
+    const expiresAt = new Date(Date.now() + dias * 24 * 60 * 60 * 1000);
+
+    // 2. Validar que todos los HUs existan y estén disponibles
+    const hus = await this.prisma.handlingUnit.findMany({
+      where: { id: { in: data.huIds } },
+      include: { sku: true },
+    });
+
+    if (hus.length !== data.huIds.length) {
+      throw new BadRequestException('Uno o más rollos no existen en el sistema');
+    }
+
+    for (const hu of hus) {
+      if (!['DISPONIBLE', 'RESERVADO_BLANDO'].includes(hu.estadoHu)) {
+        throw new BadRequestException(`El rollo ${hu.codigo} no está disponible (estado actual: ${hu.estadoHu})`);
+      }
+    }
+
+    // 3. Ejecutar transacción atómica de reserva VIP
+    return this.prisma.$transaction(async (tx: any) => {
+      const createdReservations: any[] = [];
+
+      for (const hu of hus) {
+        // Actualizar HU a RESERVADO_VIP
+        await tx.handlingUnit.update({
+          where: { id: hu.id },
+          data: {
+            estadoHu: 'RESERVADO_VIP',
+            reservaVipClienteId: client.id,
+            reservaVipNombre: client.nombre,
+            reservaVipHasta: expiresAt,
+          },
+        });
+
+        // Crear registro en Reservation
+        const res = await tx.reservation.create({
+          data: {
+            huId: hu.id,
+            skuId: hu.skuId,
+            metrajeReservado: hu.metrajeActual,
+            tipo: 'VIP',
+            estado: 'ACTIVA',
+            clienteId: client.id,
+            clienteNombre: client.nombre,
+            virtualWarehouseId: virtualWh!.id,
+            diasVigenciaVip: dias,
+            anticipoPorcentaje: data.anticipoPorcentaje ? Number(data.anticipoPorcentaje) : null,
+            anticipoMonto: data.anticipoMonto ? Number(data.anticipoMonto) : null,
+            autorizadoPor: data.autorizadoPor,
+            autorizadoAt: new Date(),
+            notasVip: data.notas || null,
+            expiresAt,
+            creadoPor: data.autorizadoPor,
+          },
+        });
+        createdReservations.push(res);
+
+        // Registrar trazabilidad en InventoryMovement
+        await tx.inventoryMovement.create({
+          data: {
+            huId: hu.id,
+            tipo: 'RESERVA_VIP',
+            metrajeAntes: hu.metrajeActual,
+            metrajeDespues: hu.metrajeActual,
+            referencia: `VIP-${virtualWh!.codigo}`,
+            notas: `Apartado especial VIP (${dias} días) para ${client.nombre}. Autorizado por ${data.autorizadoPor}. Anticipo: ${data.anticipoPorcentaje || 0}% ($${data.anticipoMonto || 0})`,
+            userId: data.autorizadoPor,
+          },
+        });
+      }
+
+      return {
+        success: true,
+        virtualWarehouse: virtualWh,
+        cliente: client.nombre,
+        diasVigencia: dias,
+        expiresAt,
+        totalRollos: hus.length,
+        totalMetraje: hus.reduce((acc: number, h: any) => acc + h.metrajeActual, 0),
+        reservations: createdReservations,
+      };
+    });
+  }
+
+  /**
+   * Listar reservas VIP activas con cálculo de semáforo preventivo (7d / 15d)
+   */
+  async listVipReservations() {
+    const reservations = await this.prisma.reservation.findMany({
+      where: { tipo: 'VIP', estado: 'ACTIVA' },
+      include: {
+        hu: {
+          include: {
+            sku: { select: { id: true, codigo: true, nombre: true, color: true, precioReferencia: true } },
+            ubicacion: { select: { codigo: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const now = new Date();
+
+    const mapped = reservations.map((r: any) => {
+      const created = new Date(r.createdAt);
+      const expires = r.expiresAt ? new Date(r.expiresAt) : new Date(created.getTime() + (r.diasVigenciaVip || 15) * 86400000);
+      const msElapsed = now.getTime() - created.getTime();
+      const diasTranscurridos = Math.max(0, Math.floor(msElapsed / (1000 * 60 * 60 * 24)));
+      const msRemaining = expires.getTime() - now.getTime();
+      const diasRestantes = Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
+
+      let semaforo: 'VERDE' | 'AMARILLO' | 'ROJO' = 'VERDE';
+      let semaforoLabel = 'Normal (En plazo)';
+
+      if (diasTranscurridos >= 15 || diasRestantes <= 0) {
+        semaforo = 'ROJO';
+        semaforoLabel = 'Crítico: 15+ días sin pago / Expirado';
+      } else if (diasTranscurridos >= 7) {
+        semaforo = 'AMARILLO';
+        semaforoLabel = 'Alerta preventiva: 7+ días sin pago';
+      }
+
+      const valorEstimado = (r.metrajeReservado || 0) * Number(r.hu?.sku?.precioReferencia || 0);
+
+      return {
+        id: r.id,
+        clienteId: r.clienteId,
+        clienteNombre: r.clienteNombre || 'Cliente VIP',
+        virtualWarehouseId: r.virtualWarehouseId,
+        huId: r.huId,
+        huCodigo: r.hu?.codigo,
+        skuId: r.skuId,
+        skuCodigo: r.hu?.sku?.codigo,
+        skuNombre: r.hu?.sku?.nombre,
+        color: r.hu?.sku?.color,
+        metraje: r.metrajeReservado,
+        ubicacion: r.hu?.ubicacion?.codigo || 'En Almacén',
+        anticipoPorcentaje: r.anticipoPorcentaje ? Number(r.anticipoPorcentaje) : 0,
+        anticipoMonto: r.anticipoMonto ? Number(r.anticipoMonto) : 0,
+        autorizadoPor: r.autorizadoPor,
+        autorizadoAt: r.autorizadoAt,
+        notasVip: r.notasVip,
+        createdAt: r.createdAt,
+        expiresAt: r.expiresAt,
+        diasVigenciaVip: r.diasVigenciaVip || 15,
+        diasTranscurridos,
+        diasRestantes,
+        semaforo,
+        semaforoLabel,
+        valorEstimado,
+      };
+    });
+
+    // Agrupación por cliente
+    const clientesMap = new Map<string, any>();
+    for (const item of mapped) {
+      const key = item.clienteId || item.clienteNombre;
+      if (!clientesMap.has(key)) {
+        clientesMap.set(key, {
+          clienteId: item.clienteId,
+          clienteNombre: item.clienteNombre,
+          virtualWarehouseId: item.virtualWarehouseId,
+          totalMetros: 0,
+          totalRollos: 0,
+          valorTotal: 0,
+          maxDiasTranscurridos: 0,
+          peorSemaforo: 'VERDE',
+          reservas: [],
+        });
+      }
+      const grp = clientesMap.get(key);
+      grp.totalMetros += item.metraje;
+      grp.totalRollos += 1;
+      grp.valorTotal += item.valorEstimado;
+      grp.maxDiasTranscurridos = Math.max(grp.maxDiasTranscurridos, item.diasTranscurridos);
+      if (item.semaforo === 'ROJO' || grp.peorSemaforo === 'ROJO') {
+        grp.peorSemaforo = 'ROJO';
+      } else if (item.semaforo === 'AMARILLO' && grp.peorSemaforo !== 'ROJO') {
+        grp.peorSemaforo = 'AMARILLO';
+      }
+      grp.reservas.push(item);
+    }
+
+    const totalMetrosGlobal = mapped.reduce((a, b) => a + b.metraje, 0);
+    const totalRollosGlobal = mapped.length;
+    const totalValorGlobal = mapped.reduce((a, b) => a + b.valorEstimado, 0);
+
+    return {
+      totalMetrosGlobal,
+      totalRollosGlobal,
+      totalValorGlobal,
+      porCliente: Array.from(clientesMap.values()),
+      detalle: mapped,
+    };
+  }
+
+  /**
+   * Liberar / Descongelar Reserva VIP (1-Click) para volver a disponibilidad general
+   */
+  async releaseVipReservation(params: {
+    reservationId?: string;
+    virtualWarehouseId?: string;
+    clienteId?: string;
+    huId?: string;
+    liberadoPor: string;
+    motivo?: string;
+  }) {
+    const where: any = { tipo: 'VIP', estado: 'ACTIVA' };
+    if (params.reservationId) where.id = params.reservationId;
+    if (params.virtualWarehouseId) where.virtualWarehouseId = params.virtualWarehouseId;
+    if (params.clienteId) where.clienteId = params.clienteId;
+    if (params.huId) where.huId = params.huId;
+
+    const toRelease = await this.prisma.reservation.findMany({
+      where,
+      include: { hu: true },
+    });
+
+    if (toRelease.length === 0) {
+      throw new BadRequestException('No se encontraron reservas VIP activas con los criterios especificados');
+    }
+
+    return this.prisma.$transaction(async (tx: any) => {
+      let releasedMeters = 0;
+
+      for (const res of toRelease) {
+        if (res.huId) {
+          await tx.handlingUnit.update({
+            where: { id: res.huId },
+            data: {
+              estadoHu: 'DISPONIBLE',
+              reservaVipClienteId: null,
+              reservaVipNombre: null,
+              reservaVipHasta: null,
+            },
+          });
+
+          await tx.inventoryMovement.create({
+            data: {
+              huId: res.huId,
+              tipo: 'LIBERACION_VIP',
+              metrajeAntes: res.hu?.metrajeActual || res.metrajeReservado,
+              metrajeDespues: res.hu?.metrajeActual || res.metrajeReservado,
+              referencia: `LIB-VIP-${res.clienteNombre || 'CLIENTE'}`,
+              notas: `Descongelado de sub-almacén VIP a venta general. Motivo: ${params.motivo || 'Plazo vencido sin pago / Cancelación comercial'}. Liberado por: ${params.liberadoPor}`,
+              userId: params.liberadoPor,
+            },
+          });
+        }
+
+        await tx.reservation.update({
+          where: { id: res.id },
+          data: {
+            estado: 'CANCELADA',
+            liberadoPor: params.liberadoPor,
+            liberadoAt: new Date(),
+            motivoLiberacion: params.motivo || 'Liberado a venta general',
+          },
+        });
+
+        releasedMeters += res.metrajeReservado;
+      }
+
+      return {
+        success: true,
+        rollosLiberados: toRelease.length,
+        metrajeLiberado: releasedMeters,
+        mensaje: `Se liberaron exitosamente ${toRelease.length} rollos (${releasedMeters.toFixed(1)}m) a venta general.`,
+      };
+    });
+  }
+
+  /**
+   * Cronjob: Expirar reservas blandas después de 24h (las VIP están protegidas)
    */
   @Cron(CronExpression.EVERY_HOUR)
   async expireSoftReservations() {

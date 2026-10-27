@@ -349,13 +349,18 @@ _Información en tiempo real verificada en WMS Formatex. Reserva blanda garantiz
 
               <div>
                 <p className="text-2xl font-black text-gray-900">{fisico?.disponible?.toLocaleString() || 0} <span className="text-sm font-normal text-gray-500">m libres</span></p>
-                <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-500">
+                <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-500 flex-wrap">
                   <span className="flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-amber-400" /> Blanda: {fisico?.reservadoBlando || 0}m
                   </span>
                   <span className="flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-red-400" /> Firme: {fisico?.reservadoFirme || 0}m
                   </span>
+                  {(fisico?.reservadoVip || 0) > 0 && (
+                    <span className="flex items-center gap-1 text-purple-700 font-bold bg-purple-50 px-1.5 py-0.5 rounded">
+                      <span className="w-2 h-2 rounded-full bg-purple-600" /> 💎 VIP: {fisico.reservadoVip}m
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -541,6 +546,11 @@ _Información en tiempo real verificada en WMS Formatex. Reserva blanda garantiz
                               {hu.estado === 'RESERVADO' && (
                                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 flex items-center justify-center gap-1 w-fit mx-auto">
                                   <ShieldAlert size={11} /> Firme
+                                </span>
+                              )}
+                              {hu.estado === 'RESERVADO_VIP' && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300 flex items-center justify-center gap-1 w-fit mx-auto" title={`Apartado VIP en sub-almacén para ${hu.reservaVipNombre || 'Cliente'}`}>
+                                  💎 VIP: {hu.reservaVipNombre || 'Apartado'}
                                 </span>
                               )}
                             </td>

@@ -31,6 +31,8 @@ export default function CortadorView() {
   const [lastCutResult, setLastCutResult] = useState<any>(null);
   const [printBatch, setPrintBatch] = useState<any[]>([]);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [skuPendingCuts, setSkuPendingCuts] = useState<any[]>([]);
+  const [loadingSkuPending, setLoadingSkuPending] = useState(false);
 
   const { data: ordersResp, refetch } = useApi<PaginatedResponse<any>>(['cortador-orders'], '/orders', { estado: 'EN_CORTE', limit: 20 });
   const orders = ordersResp?.data || [];
@@ -41,7 +43,62 @@ export default function CortadorView() {
       setSelectedOrder(d.data);
       setScanResult(null);
       setLastCutResult(null);
+      setSkuPendingCuts([]);
     } catch { toast.error('Error al cargar pedido'); }
+  };
+
+  // Encadenar re-corte continuo para evitar devolver el rollo a rack (Regla Cero Retrabajo en Mesa)
+  const handleEncadenarReCorte = async (sug: any) => {
+    try {
+      const d = await api.get(`/orders/${sug.orderId}`);
+      setSelectedOrder(d.data);
+
+      const huEnMesa = lastCutResult?.huRetazo ? {
+        id: lastCutResult.huRetazo.id,
+        codigo: lastCutResult.huRetazo.codigo,
+        metrajeActual: lastCutResult.metrajeRestante,
+        sku: lastCutResult.huOrigen?.sku,
+        ubicacion: lastCutResult.huRetazo.ubicacion || { codigo: lastCutResult.retazoUbicacion || 'MESA-CORTE' },
+      } : {
+        id: lastCutResult?.huOrigen?.id,
+        codigo: lastCutResult?.huOrigen?.codigo,
+        metrajeActual: lastCutResult?.metrajeRestante,
+        sku: lastCutResult?.huOrigen?.sku,
+        ubicacion: { codigo: 'MESA-CORTE' },
+      };
+
+      setScanResult(huEnMesa);
+      setCutMetraje(sug.metrajeSugerido);
+      setActiveLineId(sug.orderLineId);
+      setLastCutResult(null);
+      setSkuPendingCuts([]);
+
+      toast.success(`⚡ ¡Re-corte encadenado para ${sug.orderCodigo}! Listo para cortar ${sug.metrajeSugerido}m sin mover el rollo`, {
+        duration: 4000,
+        icon: '✂️',
+      });
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+    } catch (e: any) {
+      toast.error('Error al encadenar pedido');
+    }
+  };
+
+  // Consultar en tiempo real si hay pedidos esperando este SKU
+  const checkPendingQueueForSku = async (skuId: string, maxMetros?: number) => {
+    if (!skuId) return;
+    setLoadingSkuPending(true);
+    try {
+      const resp = await api.get(`/cutting/pending-for-sku/${skuId}`, {
+        params: { maxMetraje: maxMetros },
+      });
+      setSkuPendingCuts(resp.data?.sugerencias || []);
+      if (!resp.data?.sugerencias?.length) {
+        toast('No hay otros pedidos en cola para este SKU', { icon: 'ℹ️' });
+      }
+    } catch {
+      toast.error('Error al consultar cola de re-corte');
+    }
+    setLoadingSkuPending(false);
   };
 
   // Refresh order data without clearing cut result (used after cutting)
@@ -358,7 +415,41 @@ export default function CortadorView() {
                 {scanResult.ubicacion && (
                   <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5"><MapPin size={10} /> {scanResult.ubicacion.codigo}</p>
                 )}
+                <button
+                  type="button"
+                  onClick={() => checkPendingQueueForSku(scanResult.sku?.id || scanResult.skuId, scanResult.metrajeActual)}
+                  disabled={loadingSkuPending}
+                  className="mt-2 text-[11px] px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg flex items-center gap-1.5 transition-colors font-medium"
+                >
+                  <span>⚡</span>
+                  <span>{loadingSkuPending ? 'Consultando cola...' : 'Ver otros pedidos en cola para este rollo'}</span>
+                </button>
               </div>
+
+              {/* Sku pending cuts preview */}
+              {skuPendingCuts.length > 0 && (
+                <div className="bg-amber-950/40 border border-amber-500/50 rounded-xl p-3 space-y-2">
+                  <p className="text-xs font-bold text-amber-300 uppercase">⚡ Pedidos en espera de esta tela:</p>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {skuPendingCuts.map((s: any) => (
+                      <div key={s.orderLineId} className="bg-gray-900/80 p-2 rounded-lg text-xs flex justify-between items-center">
+                        <div>
+                          <span className="font-mono text-amber-400 font-bold">{s.orderCodigo}</span>
+                          <span className="text-gray-300 ml-1.5">· {s.clientNombre}</span>
+                          <span className="text-amber-200 ml-1.5 font-bold">({s.metrajePendiente}m)</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleEncadenarReCorte(s)}
+                          className="px-2 py-1 bg-amber-500 text-gray-950 font-bold rounded text-[10px]"
+                        >
+                          Encadenar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="text-sm text-gray-300 mb-2 block">Metros a cortar:</label>
@@ -565,6 +656,60 @@ export default function CortadorView() {
                   </button>
                 </div>
               </div>
+
+              {/* ⚡ RE-CORTE CONTINUO EN MESA (CERO RETRABAJO) */}
+              {lastCutResult.sugerenciasReCorte?.length > 0 && (
+                <div className="bg-gradient-to-r from-amber-950/70 via-gray-900 to-purple-950/70 border-2 border-amber-400/90 rounded-2xl p-3.5 space-y-2.5 shadow-xl animate-fade-in">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-lg">⚡</span>
+                      <div>
+                        <h4 className="font-black text-amber-300 text-xs uppercase tracking-wide">
+                          ¡Re-corte Inmediato Recomendado!
+                        </h4>
+                        <p className="text-[11px] text-gray-300">
+                          Mismo rollo en mesa ({lastCutResult.metrajeRestante}m restantes). Pedidos en cola:
+                        </p>
+                      </div>
+                    </div>
+                    <span className="bg-amber-400 text-gray-950 font-black text-[9px] px-2 py-0.5 rounded-full uppercase">
+                      Cero Retrabajo
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {lastCutResult.sugerenciasReCorte.map((sug: any) => (
+                      <div
+                        key={sug.orderLineId}
+                        className="bg-gray-800/90 border border-amber-500/40 rounded-xl p-2.5 flex items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-bold text-amber-400 text-xs">{sug.orderCodigo}</span>
+                            {sug.carritoCorte && (
+                              <span className="text-[9px] bg-purple-900/80 text-purple-200 border border-purple-500/40 px-1.5 py-0.5 rounded font-mono">
+                                🛒 {sug.carritoCorte}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-white font-medium truncate">{sug.clientNombre}</p>
+                          <p className="text-[10px] text-gray-400">
+                            Requiere: <span className="font-bold text-amber-300">{sug.metrajePendiente}m</span>
+                            {sug.cubreTotal ? ' · (Cubre 100%)' : ` · (Parcial ${sug.metrajeSugerido}m)`}
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => handleEncadenarReCorte(sug)}
+                          className="px-3 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 active:scale-95 text-gray-950 font-black rounded-xl text-xs flex items-center gap-1 whitespace-nowrap shadow-md shadow-amber-500/20"
+                        >
+                          <Scissors size={12} /> Encadenar {sug.metrajeSugerido}m
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <p className="text-[11px] text-gray-400 text-center italic">
                 🏷️ Pega la morada en el rollo cortado para el cliente y la naranja en el retazo que va al carrito.

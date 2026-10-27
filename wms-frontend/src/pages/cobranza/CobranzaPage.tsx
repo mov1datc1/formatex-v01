@@ -10,8 +10,9 @@ import {
   CreditCard, AlertTriangle, ArrowRight, User, Upload, FileCheck,
   ShieldAlert, Send, Mail, Copy, Check, Info,
 } from 'lucide-react';
+import SubalmacenesVipTab from './SubalmacenesVipTab';
 
-type CobranzaTab = 'pendientes' | 'validados' | 'retenidos';
+type CobranzaTab = 'pendientes' | 'validados' | 'retenidos' | 'vip';
 
 export default function CobranzaPage() {
   const [tab, setTab] = useState<CobranzaTab>('pendientes');
@@ -62,6 +63,7 @@ export default function CobranzaPage() {
     ['cobranza', tab, search],
     '/orders',
     queryParams,
+    tab !== 'vip'
   );
 
   const orders = resp?.data || [];
@@ -260,9 +262,24 @@ export default function CobranzaPage() {
             </span>
           )}
         </button>
+
+        <button
+          onClick={() => { setTab('vip'); setSearch(''); }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+            tab === 'vip'
+              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm font-bold'
+              : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200'
+          }`}
+        >
+          <span>💎</span> Sub-Almacenes VIP (Seth)
+        </button>
       </div>
 
-      {/* Search */}
+      {tab === 'vip' ? (
+        <SubalmacenesVipTab currentUserId={user?.id} currentUserName={user?.nombre || user?.email} />
+      ) : (
+        <>
+          {/* Search */}
       <div className="relative max-w-md">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
@@ -443,6 +460,8 @@ export default function CobranzaPage() {
           </table>
         )}
       </div>
+        </>
+      )}
 
       {/* =========================================================================
           MODAL: LIBERAR PEDIDO RETENIDO POR CRÉDITO (CÉSAR / NEGOCIACIÓN)

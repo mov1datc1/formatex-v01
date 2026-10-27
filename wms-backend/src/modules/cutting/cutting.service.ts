@@ -215,7 +215,58 @@ export class CuttingService {
         }
       }
 
-      return tx.cutOperation.findUnique({
+      // === RE-CORTE CONTINUO EN MESA (CERO RETRABAJO) ===
+      // Si el rollo aún tiene metraje restante (>= 1.0m), buscar otros pedidos pendientes del mismo SKU
+      let sugerenciasReCorte: any[] = [];
+      if (metrajeRestante >= 1.0) {
+        const orderLineExcluida = data.orderLineId ? await tx.orderLine.findUnique({
+          where: { id: data.orderLineId },
+          select: { orderId: true },
+        }) : null;
+
+        const pendingLines = await tx.orderLine.findMany({
+          where: {
+            skuId: huOrigen.skuId,
+            estado: { in: ['PENDIENTE', 'EN_PROCESO'] },
+            order: {
+              estado: { in: ['POR_SURTIR', 'EN_SURTIDO', 'EN_CORTE'] },
+              ...(orderLineExcluida?.orderId ? { id: { not: orderLineExcluida.orderId } } : {}),
+            },
+          },
+          include: {
+            order: {
+              select: {
+                id: true,
+                codigo: true,
+                estado: true,
+                carritoCorte: true,
+                client: { select: { id: true, nombre: true } },
+              },
+            },
+          },
+          take: 5,
+          orderBy: { createdAt: 'asc' },
+        });
+
+        sugerenciasReCorte = pendingLines.map((line: any) => {
+          const pendiente = Math.round(Math.max(0, line.metrajeRequerido - (line.metrajeSurtido || 0)) * 100) / 100;
+          return {
+            orderLineId: line.id,
+            orderId: line.order.id,
+            orderCodigo: line.order.codigo,
+            orderEstado: line.order.estado,
+            carritoCorte: line.order.carritoCorte,
+            clientNombre: line.order.client?.nombre || 'Cliente General',
+            metrajeRequerido: line.metrajeRequerido,
+            metrajeSurtido: line.metrajeSurtido,
+            metrajePendiente: pendiente,
+            metrajeSugerido: Math.min(metrajeRestante, pendiente),
+            cubreTotal: metrajeRestante >= pendiente,
+          };
+        });
+      }
+
+      const cutDetail = await tx.cutOperation.findUnique({
         where: { id: cut.id },
         include: {
           huOrigen: { include: { sku: true } },
@@ -229,12 +280,71 @@ export class CuttingService {
                   client: { select: { id: true, nombre: true } },
                 },
               },
-              sku: true,
             },
           },
         },
       });
+
+      return {
+        ...cutDetail,
+        sugerenciasReCorte,
+      };
     });
+  }
+
+  /**
+   * Buscar cortes pendientes en cola para un SKU específico (para re-corte encadenado en mesa)
+   */
+  async getPendingCutsForSku(skuId: string, maxMetraje?: number) {
+    const pendingLines = await this.prisma.orderLine.findMany({
+      where: {
+        skuId,
+        estado: { in: ['PENDIENTE', 'EN_PROCESO'] },
+        order: {
+          estado: { in: ['POR_SURTIR', 'EN_SURTIDO', 'EN_CORTE'] },
+        },
+      },
+      include: {
+        order: {
+          select: {
+            id: true,
+            codigo: true,
+            estado: true,
+            carritoCorte: true,
+            client: { select: { id: true, nombre: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: 10,
+    });
+
+    const sku = await this.prisma.skuMaster.findUnique({
+      where: { id: skuId },
+      select: { id: true, codigo: true, nombre: true, color: true },
+    });
+
+    const maxM = maxMetraje ? Number(maxMetraje) : undefined;
+
+    return {
+      sku,
+      sugerencias: pendingLines.map((line: any) => {
+        const pendiente = Math.round(Math.max(0, line.metrajeRequerido - (line.metrajeSurtido || 0)) * 100) / 100;
+        return {
+          orderLineId: line.id,
+          orderId: line.order.id,
+          orderCodigo: line.order.codigo,
+          orderEstado: line.order.estado,
+          carritoCorte: line.order.carritoCorte,
+          clientNombre: line.order.client?.nombre || 'Cliente General',
+          metrajeRequerido: line.metrajeRequerido,
+          metrajeSurtido: line.metrajeSurtido,
+          metrajePendiente: pendiente,
+          metrajeSugerido: maxM ? Math.min(maxM, pendiente) : pendiente,
+          cubreTotal: maxM ? maxM >= pendiente : true,
+        };
+      }),
+    };
   }
 
   async findAllCuts(params: { search?: string; page?: number; limit?: number }) {

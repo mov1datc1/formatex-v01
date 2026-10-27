@@ -218,6 +218,9 @@ model Client {
   listaPrecioDefault String?  @default("F1") // "F1" Casa Decoradora, "F2" Tienda, etc.
   cartaFletera       String?  // Fletera habitual por carta: "Castores", "Tres Guerras", "Paquetexpress", "Local"
   seguroEnvioDefault Boolean  @default(false)
+  esVip              Boolean  @default(false) // Cliente VIP (Seth, etc.) con derecho a almacén virtual y apartado especial
+  almacenVirtualId   String?  // ID del almacén virtual VIP asociado
+  notasVip           String?  // Acuerdos especiales / plazos
   activo             Boolean  @default(true)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -336,6 +339,11 @@ model HandlingUnit {
   etiquetaImpresa   Boolean      @default(false)
   fechaEtiquetado   DateTime?
 
+  // === RESERVA ESPECIAL VIP (Sub-Almacén Virtual) ===
+  reservaVipClienteId String?  // ID del cliente VIP que tiene apartado este rollo
+  reservaVipNombre    String?  // Nombre del cliente VIP (ej: "Seth", "Liverpool")
+  reservaVipHasta     DateTime? // Fecha límite del apartado especial
+
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
@@ -371,6 +379,7 @@ enum HuStatus {
   DISPONIBLE
   RESERVADO_BLANDO     // Reserva de cotización (24h, auto-expira)
   RESERVADO            // Reserva firme (cliente aprobó)
+  RESERVADO_VIP        // Reserva especial en almacén virtual VIP (Seth, etc. — requiere autorización César)
   EN_PICKING
   EN_CORTE
   EN_EMPAQUE
@@ -409,6 +418,8 @@ enum MovementType {
   CONTEO
   RESERVA
   TRANSFERENCIA
+  RESERVA_VIP
+  LIBERACION_VIP
 }
 
 // =============================================================================
@@ -417,27 +428,45 @@ enum MovementType {
 
 model Reservation {
   id              String          @id @default(uuid())
-  orderId         String?         // Pedido asociado
-  orderLineId     String?         // Línea específica del pedido
-  huId            String?         // HU físico reservado
-  shipmentLineId  String?         // Línea de embarque en tránsito (null si es stock físico)
-  skuId           String          // SKU de la tela
-  metrajeReservado Float          // Metros reservados
-  tipo            ReservationType // BLANDA (24h) o FIRME
-  estado          ReservationStatus @default(ACTIVA)
+  orderId           String?         // Pedido asociado
+  orderLineId       String?         // Línea específica del pedido
+  huId              String?         // HU físico reservado
+  shipmentLineId    String?         // Línea de embarque en tránsito (null si es stock físico)
+  skuId             String          // SKU de la tela
+  metrajeReservado  Float           // Metros reservados
+  tipo              ReservationType // BLANDA (24h), FIRME, VIP
+  estado            ReservationStatus @default(ACTIVA)
   motivoCancelacion String?
-  expiresAt       DateTime?       // Para reservas blandas — auto expira
-  creadoPor       String          // userId del ATC
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  expiresAt         DateTime?       // Para reservas blandas o VIP — auto expira o semáforo
+  creadoPor         String          // userId del ATC
 
-  order           Order?          @relation(fields: [orderId], references: [id])
-  hu              HandlingUnit?   @relation(fields: [huId], references: [id])
-  shipmentLine    IncomingShipmentLine? @relation(fields: [shipmentLineId], references: [id])
+  // === RESERVA ESPECIAL VIP (Sub-Almacén Virtual / Caso Seth 1,000m) ===
+  clienteId          String?         // Cliente VIP
+  clienteNombre      String?         // "Seth", etc.
+  virtualWarehouseId String?         // Sub-almacén virtual
+  diasVigenciaVip    Int?            @default(15) // Plazo pactado
+  anticipoPorcentaje Decimal?        @db.Decimal(5, 2) // % de anticipo condicionado
+  anticipoMonto      Decimal?        @db.Decimal(12, 2)
+  autorizadoPor      String?         // César / Dirección
+  autorizadoAt       DateTime?
+  notasVip           String?         // Justificación comercial y financiera
+  notificado7DiasAt  DateTime?       // Semáforo amarillo (7 días sin pago)
+  notificado15DiasAt DateTime?       // Semáforo rojo (15 días crítico)
+  liberadoPor        String?         // Quien descongeló el inventario
+  liberadoAt         DateTime?
+  motivoLiberacion   String?
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  order             Order?          @relation(fields: [orderId], references: [id])
+  hu                HandlingUnit?   @relation(fields: [huId], references: [id])
+  shipmentLine      IncomingShipmentLine? @relation(fields: [shipmentLineId], references: [id])
 
   @@index([orderId])
   @@index([huId])
   @@index([skuId])
+  @@index([clienteId])
   @@index([estado])
   @@index([expiresAt])
 }
@@ -445,6 +474,7 @@ model Reservation {
 enum ReservationType {
   BLANDA  // Cotización — expira en 24h
   FIRME   // Cliente aprobó — no expira
+  VIP     // Sub-almacén virtual para cliente VIP (500m-1,000m+) — plazo extendido con semáforo
 }
 
 enum ReservationStatus {
