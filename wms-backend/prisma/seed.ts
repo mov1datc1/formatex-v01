@@ -173,7 +173,7 @@ async function main() {
 
   const rolesConfig: Array<{name:string,desc:string,nivel:number,mods:string[]}> = [
     { name: 'DIRECTOR_OPERACIONES', desc: 'Director — acceso total', nivel: 1, mods: modules },
-    { name: 'ATC', desc: 'Atención al Cliente — levanta pedidos', nivel: 3, mods: ['dashboard','orders','catalogs','inventory','reservations','transit'] },
+    { name: 'ATC', desc: 'Atención al Cliente — levanta pedidos', nivel: 3, mods: ['dashboard','orders','catalogs','availability','reservations','transit'] },
     { name: 'COBRANZA', desc: 'Cobranza — verifica pagos', nivel: 3, mods: ['dashboard','orders','cobranza'] },
     { name: 'FACTURACION', desc: 'Facturación — emite factura', nivel: 3, mods: ['dashboard','orders','facturacion'] },
     { name: 'PICKER', desc: 'Picker almacén — Zebra TC22', nivel: 4, mods: ['dashboard','inventory','orders','labeling'] },

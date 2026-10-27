@@ -48,6 +48,31 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function RoleGuard({
+  children,
+  excludeRoles,
+  allowedRoles,
+  redirectTo = '/pedidos',
+}: {
+  children: React.ReactNode;
+  excludeRoles?: string[];
+  allowedRoles?: string[];
+  redirectTo?: string;
+}) {
+  const user = useSelector((state: RootState) => state.auth.user);
+  const userRole = (user?.role?.nombre || user?.role || '').toUpperCase();
+  const isAdmin = (user?.nivel && user.nivel <= 2) || ['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS'].includes(userRole);
+
+  if (isAdmin) return <>{children}</>;
+  if (excludeRoles && excludeRoles.includes(userRole)) {
+    return <Navigate to={redirectTo} replace />;
+  }
+  if (allowedRoles && !allowedRoles.includes(userRole)) {
+    return <Navigate to={redirectTo} replace />;
+  }
+  return <>{children}</>;
+}
+
 export function AppRouter() {
   const dispatch = useDispatch();
 
@@ -76,8 +101,8 @@ export function AppRouter() {
           <Route index element={<Dashboard />} />
 
           {/* General */}
-          <Route path="almacen" element={<UbicacionesPage />} />
-          <Route path="alertas" element={<AlertasPage />} />
+          <Route path="almacen" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR']}><UbicacionesPage /></RoleGuard>} />
+          <Route path="alertas" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR']}><AlertasPage /></RoleGuard>} />
 
           {/* Ventas / ATC */}
           <Route path="pedidos" element={<PedidosPage />} />
@@ -85,38 +110,38 @@ export function AppRouter() {
           <Route path="transito" element={<TransitoPage />} />
 
           {/* Cobranza */}
-          <Route path="cobranza" element={<CobranzaPage />} />
+          <Route path="cobranza" element={<RoleGuard allowedRoles={['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'COBRANZA', 'SUPERVISOR', 'JEFE_ALMACEN']}><CobranzaPage /></RoleGuard>} />
 
           {/* Planificación */}
-          <Route path="planificacion" element={<PlanificacionPage />} />
+          <Route path="planificacion" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR']}><PlanificacionPage /></RoleGuard>} />
 
           {/* Compras */}
-          <Route path="compras" element={<ComprasPage />} />
+          <Route path="compras" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR']}><ComprasPage /></RoleGuard>} />
 
           {/* Almacén */}
-          <Route path="picking" element={<PickingPage />} />
-          <Route path="corte" element={<CortePage />} />
-          <Route path="empaque" element={<EmpaquePage />} />
-          <Route path="envio" element={<EnvioPage />} />
-          <Route path="transferencias" element={<TransferenciasPage />} />
+          <Route path="picking" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR']}><PickingPage /></RoleGuard>} />
+          <Route path="corte" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR']}><CortePage /></RoleGuard>} />
+          <Route path="empaque" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR']}><EmpaquePage /></RoleGuard>} />
+          <Route path="envio" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR']}><EnvioPage /></RoleGuard>} />
+          <Route path="transferencias" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR']}><TransferenciasPage /></RoleGuard>} />
 
           {/* Facturación */}
-          <Route path="facturacion" element={<FacturacionPage />} />
+          <Route path="facturacion" element={<RoleGuard allowedRoles={['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'FACTURACION', 'SUPERVISOR', 'JEFE_ALMACEN']}><FacturacionPage /></RoleGuard>} />
 
           {/* Inventario */}
-          <Route path="recepcion" element={<RecepcionPage />} />
-          <Route path="recepcion/nueva" element={<RecepcionPage />} />
-          <Route path="etiquetas" element={<EtiquetasPage />} />
-          <Route path="inventario/rollos" element={<RollosPage />} />
-          <Route path="inventario/retazos" element={<RetazosPage />} />
+          <Route path="recepcion" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR']}><RecepcionPage /></RoleGuard>} />
+          <Route path="recepcion/nueva" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR']}><RecepcionPage /></RoleGuard>} />
+          <Route path="etiquetas" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR']}><EtiquetasPage /></RoleGuard>} />
+          <Route path="inventario/rollos" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR']}><RollosPage /></RoleGuard>} />
+          <Route path="inventario/retazos" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR']}><RetazosPage /></RoleGuard>} />
 
           {/* Sistema */}
           <Route path="catalogos" element={<CatalogosPage />} />
-          <Route path="almacen-config" element={<AlmacenPage />} />
+          <Route path="almacen-config" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR']}><AlmacenPage /></RoleGuard>} />
 
           {/* Admin */}
-          <Route path="admin" element={<AdminPage />} />
-          <Route path="config" element={<ConfigPage />} />
+          <Route path="admin" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR']}><AdminPage /></RoleGuard>} />
+          <Route path="config" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR']}><ConfigPage /></RoleGuard>} />
         </Route>
 
         {/* PWA / Zebra — mobile-first layout with bottom nav */}

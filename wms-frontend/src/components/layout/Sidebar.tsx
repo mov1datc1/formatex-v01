@@ -15,10 +15,14 @@ interface MenuItem {
   path: string;
   icon: React.ElementType;
   permission?: string;
+  allowedRoles?: string[];
+  excludeRoles?: string[];
 }
 
 interface MenuSection {
   title: string;
+  allowedRoles?: string[];
+  excludeRoles?: string[];
   items: MenuItem[];
 }
 
@@ -27,9 +31,9 @@ const menuSections: MenuSection[] = [
     title: 'General',
     items: [
       { label: 'Dashboard', path: '/', icon: LayoutDashboard },
-      { label: 'Ubicaciones', path: '/almacen', icon: MapPin, permission: 'warehouse' },
-      { label: 'Catálogos', path: '/catalogos', icon: ClipboardList, permission: 'catalog' },
-      { label: 'Alertas', path: '/alertas', icon: Bell, permission: 'alerts' },
+      { label: 'Ubicaciones', path: '/almacen', icon: MapPin, permission: 'warehouse', excludeRoles: ['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR'] },
+      { label: 'Catálogos', path: '/catalogos', icon: ClipboardList, permission: 'catalogs' },
+      { label: 'Alertas', path: '/alertas', icon: Bell, permission: 'alerts', excludeRoles: ['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR'] },
     ],
   },
   {
@@ -42,20 +46,23 @@ const menuSections: MenuSection[] = [
   },
   {
     title: 'Cobranza',
+    allowedRoles: ['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'COBRANZA', 'SUPERVISOR', 'JEFE_ALMACEN'],
     items: [
       { label: 'Cobranza', path: '/cobranza', icon: BadgeDollarSign, permission: 'cobranza' },
     ],
   },
   {
     title: 'Compras & Importaciones',
+    excludeRoles: ['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR'],
     items: [
       { label: 'Órdenes de Compra', path: '/compras', icon: ShoppingCart, permission: 'compras' },
-      { label: 'Tránsito & Costeo', path: '/transito?view=costeo', icon: Calculator, permission: 'transit' },
+      { label: 'Tránsito & Costeo', path: '/transito?view=costeo', icon: Calculator, permission: 'compras' },
       { label: 'Plan de Resurtido', path: '/planificacion', icon: CalendarRange, permission: 'supply-planning' },
     ],
   },
   {
     title: 'Almacén',
+    excludeRoles: ['ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR'],
     items: [
       { label: 'Picking', path: '/picking', icon: Package, permission: 'picking' },
       { label: 'Corte', path: '/corte', icon: Scissors, permission: 'cutting' },
@@ -66,22 +73,25 @@ const menuSections: MenuSection[] = [
   },
   {
     title: 'Facturación',
+    allowedRoles: ['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'FACTURACION', 'SUPERVISOR', 'JEFE_ALMACEN'],
     items: [
       { label: 'Facturación', path: '/facturacion', icon: FileText, permission: 'facturacion' },
     ],
   },
   {
     title: 'Inventario',
+    excludeRoles: ['ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR'],
     items: [
       { label: 'Recepción', path: '/recepcion', icon: ScanBarcode, permission: 'reception' },
-      { label: 'Etiquetas', path: '/etiquetas', icon: Tag, permission: 'inventory' },
+      { label: 'Etiquetas', path: '/etiquetas', icon: Tag, permission: 'labeling' },
       { label: 'Rollos (HUs)', path: '/inventario/rollos', icon: ScrollText, permission: 'inventory' },
-      { label: 'Retazos', path: '/inventario/retazos', icon: Scissors, permission: 'inventory' },
+      { label: 'Retazos', path: '/inventario/retazos', icon: Scissors, permission: 'cutting' },
       { label: 'Conteo Cíclico', path: '/inventario/rollos?tab=cyclic', icon: ClipboardList, permission: 'inventory' },
     ],
   },
   {
     title: 'Sistema',
+    excludeRoles: ['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR'],
     items: [
       { label: 'Almacén', path: '/almacen-config', icon: Warehouse, permission: 'warehouse' },
       { label: 'Admin', path: '/admin', icon: Users, permission: 'admin' },
@@ -97,11 +107,28 @@ export const Sidebar = () => {
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.auth.user);
 
-  const hasPermission = (permission?: string) => {
-    if (!permission) return true;
+  const userRole = (user?.role?.nombre || user?.role || '').toUpperCase();
+  const isAdminOrDirector = (user?.nivel && user.nivel <= 2) || ['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'SUPERVISOR', 'JEFE_ALMACEN'].includes(userRole);
+
+  const isRoleAllowed = (allowedRoles?: string[], excludeRoles?: string[]) => {
+    if (isAdminOrDirector) return true;
+    if (excludeRoles && excludeRoles.includes(userRole)) return false;
+    if (allowedRoles && !allowedRoles.includes(userRole)) return false;
+    return true;
+  };
+
+  const hasPermission = (item: MenuItem) => {
+    if (!isRoleAllowed(item.allowedRoles, item.excludeRoles)) return false;
+    if (!item.permission) return true;
+    if (isAdminOrDirector) return true;
+
+    // Fallback garantizado para rol ATC en sus módulos comerciales
+    if (userRole === 'ATC' && ['orders', 'availability', 'transit', 'catalogs', 'catalog'].includes(item.permission)) {
+      return true;
+    }
+
     if (!user?.permissions) return false;
-    if (user.nivel <= 2) return true; // Director/Gerente ven todo
-    return user.permissions.some((p) => p.modulo === permission);
+    return user.permissions.some((p) => p.modulo === item.permission || (p.modulo === 'catalogs' && item.permission === 'catalog'));
   };
 
   const handleLogout = () => {
@@ -139,7 +166,8 @@ export const Sidebar = () => {
       {/* Menu */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-6">
         {menuSections.map((section) => {
-          const visibleItems = section.items.filter((item) => hasPermission(item.permission));
+          if (!isRoleAllowed(section.allowedRoles, section.excludeRoles)) return null;
+          const visibleItems = section.items.filter((item) => hasPermission(item));
           if (visibleItems.length === 0) return null;
 
           return (
