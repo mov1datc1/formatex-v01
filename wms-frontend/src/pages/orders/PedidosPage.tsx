@@ -16,6 +16,7 @@ import type { FC } from 'react';
 import type { LucideProps } from 'lucide-react';
 import OrderLineSmart from '../../components/orders/OrderLineSmart';
 import PackingSlipModal from '../../components/orders/PackingSlipModal';
+import QuotationModal from '../../components/orders/QuotationModal';
 import { usePermission } from '../../hooks/usePermission';
 import ExpressIngestModal from '../../components/inventory/ExpressIngestModal';
 
@@ -62,6 +63,7 @@ export default function PedidosPage() {
   const [invoicing, setInvoicing] = useState(false);
   const [invoiceForm, setInvoiceForm] = useState({ formaPago: '03', metodoPago: 'PUE', usoCfdi: 'G03', condicionesPago: '' });
   const [packingSlipOrder, setPackingSlipOrder] = useState<any>(null);
+  const [quotationOrder, setQuotationOrder] = useState<any>(null);
   const { canCreate, canUpdate, isAdmin, isSupervisor, user } = usePermission();
 
   const { data: resp, isLoading } = useApi<PaginatedResponse<Order>>(['orders', search, filterEstado], '/orders', { search: search || undefined, estado: filterEstado || undefined, limit: 20 });
@@ -1558,9 +1560,23 @@ export default function PedidosPage() {
                           </span>
                         )}
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex flex-col items-end gap-1">
                         <span className="text-sm font-bold text-emerald-600">${Number(o.total || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</span>
-                        <p className="text-xs text-gray-400">{new Date(o.fechaPedido).toLocaleDateString()}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs text-gray-400">{new Date(o.fechaPedido).toLocaleDateString()}</p>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              api.get(`/orders/${o.id}`).then((res) => setQuotationOrder(res.data)).catch(() => setQuotationOrder(o));
+                            }}
+                            className="px-2 py-0.5 text-[10px] font-bold text-blue-700 hover:text-white bg-blue-50 hover:bg-blue-600 rounded-md border border-blue-200 transition-all flex items-center gap-1 active:scale-95"
+                            title="Descargar o Imprimir Cotización para Cliente"
+                          >
+                            <FileText size={11} />
+                            <span>Cotización PDF</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                     <div className="mt-1 flex items-center justify-between">
@@ -1639,6 +1655,16 @@ export default function PedidosPage() {
                   </button>
                 );
               })()}
+
+              {/* Generar / Descargar Cotización Oficial Formatex para Cliente */}
+              <button
+                type="button"
+                onClick={() => setQuotationOrder(detail)}
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+              >
+                <FileText size={16} className="text-cyan-200" />
+                <span>Descargar / Imprimir Cotización (PDF Cliente)</span>
+              </button>
 
               {/* Generar Packing List Oficial Formatex */}
               <button
@@ -2931,6 +2957,14 @@ export default function PedidosPage() {
           refetchDetail();
         }}
       />
+
+      {/* Cotización Oficial Formatex Modal (PDF Cliente) */}
+      {quotationOrder && (
+        <QuotationModal
+          order={quotationOrder}
+          onClose={() => setQuotationOrder(null)}
+        />
+      )}
 
       {/* Packing List Oficial Formatex Modal */}
       {packingSlipOrder && (
