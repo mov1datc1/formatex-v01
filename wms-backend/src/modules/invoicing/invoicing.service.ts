@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
+import * as nodemailer from 'nodemailer';
 
 // Facturapi SDK — handle both ESM and CJS imports
 let Facturapi: any;
@@ -1208,7 +1209,7 @@ export class InvoicingService {
     });
   }
 
-  async sendPreventiveEmail(orderId: string) {
+  private async buildPreventiveEmailData(orderId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -1225,6 +1226,13 @@ export class InvoicingService {
       throw new BadRequestException('Solo se pueden enviar recordatorios preventivos a facturas PPD a crédito');
     }
 
+    const destinatarioEmail = order.client?.email?.trim();
+    if (!destinatarioEmail) {
+      throw new BadRequestException(
+        `El cliente '${order.client?.nombre || 'Desconocido'}' no cuenta con un correo electrónico registrado en su ficha comercial.`
+      );
+    }
+
     const now = new Date();
     const vDate = order.fechaVencimiento ? new Date(order.fechaVencimiento) : new Date();
     const diffDays = Math.max(0, Math.ceil((vDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
@@ -1238,6 +1246,29 @@ export class InvoicingService {
     const nombreCliente = order.client?.nombre || 'Estimado Cliente';
     const agenteVentas = order.vendor?.nombre || 'tu asesor comercial';
 
+    // Obtener datos bancarios oficiales y correo de cobranza de SystemSetting
+    const settings = await this.prisma.systemSetting.findMany({
+      where: {
+        clave: {
+          in: [
+            'banco_beneficiario',
+            'banco_nombre',
+            'banco_cuenta',
+            'banco_clabe',
+            'empresa_email_cobranza',
+            'cotizacion_email_comprobantes',
+          ],
+        },
+      },
+    });
+    const settingsMap = Object.fromEntries(settings.map((s) => [s.clave, s.valor]));
+    const beneficiario = settingsMap['banco_beneficiario'] || 'FORMA TEXTIL S. DE R.L. DE C.V.';
+    const bancoNombre = settingsMap['banco_nombre'] || 'BBVA México';
+    const bancoCuenta = settingsMap['banco_cuenta'] || '0114 8592 31';
+    const bancoClabe = settingsMap['banco_clabe'] || '0123 2000 1148 5923 18';
+    const emailCobranza =
+      settingsMap['empresa_email_cobranza'] || settingsMap['cotizacion_email_comprobantes'] || 'cobranza@formatex.mx';
+
     const subject = `Recordatorio Preventivo: Tu Factura ${folioFactura} está próxima a vencer - Formatex`;
     const emailBody = `Estimado(a) ${nombreCliente},
 
@@ -1246,11 +1277,11 @@ Esperamos que te encuentres excelente. En Formatex valoramos enormemente tu pref
 Te recordamos que tu factura ${folioFactura}, con un saldo pendiente de ${montoInsoluto} MXN, tiene fecha límite de vencimiento el próximo ${fechaVencimientoFormatted} (quedan ${diffDays} días naturales).
 
 DATOS DE PAGO:
-• Beneficiario: FORMA TEXTIL S. DE R.L. DE C.V.
-• Banco: BBVA Bancomer | Cuenta: 0112345678 | CLABE: 012320001123456789
+• Beneficiario: ${beneficiario}
+• Banco: ${bancoNombre} | Cuenta: ${bancoCuenta} | CLABE: ${bancoClabe}
 • Referencia: ${order.codigo} / ${folioFactura}
 
-Una vez realizado tu depósito o transferencia, te agradeceremos compartir el comprobante al correo cobranza@formatex.mx o a través de tu asesor comercial ${agenteVentas} para aplicar tu pago de inmediato y emitir tu Complemento de Pago (REP).
+Una vez realizado tu depósito o transferencia, te agradeceremos compartir el comprobante al correo ${emailCobranza} o a través de tu asesor comercial ${agenteVentas} para aplicar tu pago de inmediato y emitir tu Complemento de Pago (REP).
 
 Agradecemos de antemano tu puntualidad y quedamos a tus órdenes.
 
@@ -1258,7 +1289,123 @@ Atentamente,
 Departamento de Crédito y Cobranza
 Forma Textil S. de R.L. de C.V. | Guadalajara, Jalisco`;
 
-    // Marcar como enviada
+    const emailHtml = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 620px; margin: 0 auto; padding: 24px; color: #1e293b; background-color: #f8fafc; border-radius: 12px;">
+  <div style="background: linear-gradient(135deg, #1e3a8a, #3b82f6); padding: 24px; border-radius: 10px; color: #ffffff; text-align: center;">
+    <h1 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">FORMA TEXTIL</h1>
+    <p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.9;">Departamento de Crédito y Cobranza</p>
+  </div>
+  
+  <div style="background-color: #ffffff; padding: 28px; border-radius: 10px; margin-top: 18px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <h2 style="font-size: 18px; color: #0f172a; margin-top: 0;">Recordatorio Preventivo de Vencimiento</h2>
+    <p style="font-size: 14px; line-height: 1.6; color: #334155;">Estimado(a) <strong>${nombreCliente}</strong>,</p>
+    <p style="font-size: 14px; line-height: 1.6; color: #334155;">Esperamos que te encuentres excelente. En Formatex valoramos enormemente tu preferencia y queremos apoyarte para mantener tu cuenta al corriente y asegurar que tus pedidos futuros y disponibilidad de telas se procesen con la máxima agilidad.</p>
+    
+    <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 14px 18px; border-radius: 6px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 14px; color: #1e40af; line-height: 1.6;">
+        Factura <strong>${folioFactura}</strong> (Pedido <strong>${order.codigo}</strong>)<br/>
+        Saldo pendiente: <strong style="font-size: 16px; color: #1e3a8a;">${montoInsoluto} MXN</strong><br/>
+        Fecha límite de vencimiento: <strong>${fechaVencimientoFormatted}</strong> (${diffDays} días naturales restantes)
+      </p>
+    </div>
+    
+    <h3 style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-top: 24px; margin-bottom: 10px;">Datos Bancarios Oficiales</h3>
+    <table style="width: 100%; font-size: 13px; border-collapse: collapse; background-color: #f1f5f9; border-radius: 8px; overflow: hidden;">
+      <tr><td style="padding: 10px 14px; color: #64748b; width: 35%; border-bottom: 1px solid #e2e8f0;">Beneficiario:</td><td style="padding: 10px 14px; font-weight: 600; color: #0f172a; border-bottom: 1px solid #e2e8f0;">${beneficiario}</td></tr>
+      <tr><td style="padding: 10px 14px; color: #64748b; border-bottom: 1px solid #e2e8f0;">Banco:</td><td style="padding: 10px 14px; font-weight: 600; color: #0f172a; border-bottom: 1px solid #e2e8f0;">${bancoNombre}</td></tr>
+      <tr><td style="padding: 10px 14px; color: #64748b; border-bottom: 1px solid #e2e8f0;">Cuenta:</td><td style="padding: 10px 14px; font-weight: 600; font-family: monospace; color: #0f172a; border-bottom: 1px solid #e2e8f0;">${bancoCuenta}</td></tr>
+      <tr><td style="padding: 10px 14px; color: #64748b; border-bottom: 1px solid #e2e8f0;">CLABE:</td><td style="padding: 10px 14px; font-weight: 700; font-family: monospace; color: #1e3a8a; border-bottom: 1px solid #e2e8f0;">${bancoClabe}</td></tr>
+      <tr><td style="padding: 10px 14px; color: #64748b;">Referencia:</td><td style="padding: 10px 14px; font-weight: 600; color: #0f172a;">${order.codigo} / ${folioFactura}</td></tr>
+    </table>
+    
+    <p style="font-size: 13px; line-height: 1.6; color: #475569; margin-top: 20px;">Una vez realizado tu depósito o transferencia, te agradeceremos compartir tu comprobante al correo <a href="mailto:${emailCobranza}" style="color: #2563eb; text-decoration: none; font-weight: 600;">${emailCobranza}</a> o con tu asesor comercial <strong>${agenteVentas}</strong> para aplicar tu pago de inmediato y emitir tu Complemento de Recepción de Pagos (REP).</p>
+  </div>
+  
+  <div style="text-align: center; margin-top: 18px; font-size: 11px; color: #94a3b8;">
+    <p style="margin: 0;">FORMA TEXTIL S. DE R.L. DE C.V. · Guadalajara, Jalisco, México</p>
+  </div>
+</div>
+`;
+
+    return {
+      order,
+      folioFactura,
+      destinatarioEmail,
+      copiaVendedorEmail: order.vendor?.email,
+      emailCobranza,
+      subject,
+      emailBody,
+      emailHtml,
+    };
+  }
+
+  async previewPreventiveEmail(orderId: string) {
+    const data = await this.buildPreventiveEmailData(orderId);
+    return {
+      orderId: data.order.id,
+      codigo: data.order.codigo,
+      folioFactura: data.folioFactura,
+      destinatarioEmail: data.destinatarioEmail,
+      copiaVendedorEmail: data.copiaVendedorEmail,
+      asunto: data.subject,
+      cuerpoMensaje: data.emailBody,
+      htmlPreview: data.emailHtml,
+    };
+  }
+
+  async sendPreventiveEmail(orderId: string) {
+    const data = await this.buildPreventiveEmailData(orderId);
+
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const smtpPort = Number(process.env.SMTP_PORT || 587);
+    const smtpSecure = process.env.SMTP_SECURE === 'true' || smtpPort === 465;
+    const smtpFrom = process.env.SMTP_FROM || `"Formatex Cobranza" <${data.emailCobranza}>`;
+
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      throw new BadRequestException(
+        'El servidor de correo (SMTP) no está configurado en el backend. ' +
+        'Se requiere configurar las variables de entorno SMTP_HOST, SMTP_USER y SMTP_PASS en Render para realizar envíos reales al cliente.'
+      );
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpSecure,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      },
+    });
+
+    let sendResult: any;
+    try {
+      sendResult = await transporter.sendMail({
+        from: smtpFrom,
+        to: data.destinatarioEmail,
+        cc: data.copiaVendedorEmail ? [data.copiaVendedorEmail] : undefined,
+        replyTo: data.emailCobranza,
+        subject: data.subject,
+        text: data.emailBody,
+        html: data.emailHtml,
+      });
+
+      this.logger.log(
+        `📧 Alerta preventiva enviada con éxito para orden ${data.order.codigo} al cliente ${data.order.client?.nombre}. MessageId: ${sendResult.messageId}`
+      );
+    } catch (mailError: any) {
+      this.logger.error(
+        `❌ Error al enviar correo de alerta preventiva para orden ${data.order.codigo}: ${mailError.message}`,
+        mailError.stack
+      );
+      throw new BadRequestException(
+        `El proveedor de correo rechazó el envío a ${data.destinatarioEmail}: ${mailError.message}`
+      );
+    }
+
+    // REGISTRAR COMO ENVIADO ÚNICAMENTE TRAS LA ACEPTACIÓN CONFIRMADA DEL PROVEEDOR SMTP:
     await this.prisma.order.update({
       where: { id: orderId },
       data: {
@@ -1267,20 +1414,19 @@ Forma Textil S. de R.L. de C.V. | Guadalajara, Jalisco`;
       },
     });
 
-    this.logger.log(`📧 Alerta preventiva enviada para orden ${order.codigo} al cliente ${order.client?.nombre}`);
-
     return {
       success: true,
-      orderId: order.id,
-      codigo: order.codigo,
-      folioFactura,
-      destinatarioEmail: order.client?.email,
-      copiaVendedorEmail: order.vendor?.email,
-      asunto: subject,
-      cuerpoMensaje: emailBody,
+      messageId: sendResult.messageId,
+      orderId: data.order.id,
+      codigo: data.order.codigo,
+      folioFactura: data.folioFactura,
+      destinatarioEmail: data.destinatarioEmail,
+      copiaVendedorEmail: data.copiaVendedorEmail,
+      asunto: data.subject,
       enviadoAt: new Date(),
     };
   }
+
 
   // -----------------------------------------------------------------------
   // CATÁLOGOS SAT (para dropdowns del frontend)

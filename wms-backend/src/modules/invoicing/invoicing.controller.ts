@@ -156,6 +156,11 @@ export class InvoicingController {
     return this.invoicingService.getPreventiveAlerts();
   }
 
+  @Get('preview-preventive-email/:orderId')
+  async previewPreventiveEmail(@Param('orderId') orderId: string) {
+    return this.invoicingService.previewPreventiveEmail(orderId);
+  }
+
   @Post('send-preventive-email/:orderId')
   async sendPreventiveEmail(@Param('orderId') orderId: string) {
     return this.invoicingService.sendPreventiveEmail(orderId);

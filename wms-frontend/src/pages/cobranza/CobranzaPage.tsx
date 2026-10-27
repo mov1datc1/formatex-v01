@@ -142,7 +142,7 @@ export default function CobranzaPage() {
   };
 
   const copyEmailText = (alertItem: any) => {
-    const text = `Recordatorio Preventivo: Tu Factura ${alertItem.folioContpaqi || alertItem.codigo} está próxima a vencer - Formatex\n\nEstimado(a) ${alertItem.cliente?.nombre},\n\nTe recordamos que tu factura con saldo de $${alertItem.saldoPendiente?.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN vence el próximo ${new Date(alertItem.fechaVencimiento).toLocaleDateString('es-MX')}.\n\nDATOS DE PAGO:\n• Beneficiario: FORMA TEXTIL S. DE R.L. DE C.V.\n• Banco: BBVA | Cuenta: 0112345678 | CLABE: 012320001123456789\n• Ref: ${alertItem.codigo}`;
+    const text = `Recordatorio Preventivo: Tu Factura ${alertItem.folioContpaqi || alertItem.codigo} está próxima a vencer - Formatex\n\nEstimado(a) ${alertItem.cliente?.nombre},\n\nTe recordamos que tu factura con saldo de $${alertItem.saldoPendiente?.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN vence el próximo ${new Date(alertItem.fechaVencimiento).toLocaleDateString('es-MX')}.\n\nDATOS DE PAGO:\n• Beneficiario: FORMA TEXTIL S. DE R.L. DE C.V.\n• Banco: BBVA México | Cuenta: 0114 8592 31 | CLABE: 0123 2000 1148 5923 18\n• Referencia: ${alertItem.codigo} / ${alertItem.folioContpaqi || alertItem.codigo}\n\nFavor de compartir tu comprobante a cobranza@formatex.mx para aplicar tu pago de inmediato.`;
     navigator.clipboard.writeText(text);
     setCopiedId(alertItem.id);
     toast.success('Texto copiado al portapapeles');
