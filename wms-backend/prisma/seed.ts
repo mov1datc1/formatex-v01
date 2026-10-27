@@ -337,10 +337,26 @@ async function main() {
     { clave: 'empresa_direccion', valor: 'Rio La Barca No. 1680, Atlas C.P. 44870, Guadalajara, Jalisco', grupo: 'general' },
     { clave: 'empresa_telefono', valor: '3336505447', grupo: 'general' },
     { clave: 'empresa_email_cobranza', valor: 'cobranzafm@formatex.com.mx', grupo: 'general' },
-    { clave: 'empresa_banco', valor: 'Banco Bancomer', grupo: 'facturacion' },
-    { clave: 'empresa_clabe', valor: '012914002015155941', grupo: 'facturacion' },
+    { clave: 'empresa_banco', valor: 'BBVA México', grupo: 'facturacion' },
+    { clave: 'empresa_clabe', valor: '0123 2000 1148 5923 18', grupo: 'facturacion' },
     { clave: 'reserva_blanda_horas', valor: '24', tipo: 'number', grupo: 'reservas' },
     { clave: 'tolerancia_pedido_default', valor: '20', tipo: 'number', grupo: 'pedidos' },
+    // Cotizaciones & Cuentas Oficiales
+    { clave: 'banco_beneficiario', valor: 'FORMA TEXTIL S. DE R.L. DE C.V.', grupo: 'cotizaciones', tipo: 'string' },
+    { clave: 'banco_nombre', valor: 'BBVA México', grupo: 'cotizaciones', tipo: 'string' },
+    { clave: 'banco_cuenta', valor: '0114 8592 31', grupo: 'cotizaciones', tipo: 'string' },
+    { clave: 'banco_clabe', valor: '0123 2000 1148 5923 18', grupo: 'cotizaciones', tipo: 'string' },
+    { clave: 'banco_referencia_nota', valor: 'Folio del pedido (ej. PED-2026-1018)', grupo: 'cotizaciones', tipo: 'string' },
+    { clave: 'cotizacion_email_comprobantes', valor: 'cobranza@formatex.mx', grupo: 'cotizaciones', tipo: 'string' },
+    { clave: 'cotizacion_whatsapp_contacto', valor: '3336505447', grupo: 'cotizaciones', tipo: 'string' },
+    { clave: 'cotizacion_vigencia_horas', valor: '24', grupo: 'cotizaciones', tipo: 'number' },
+    { clave: 'cotizacion_pie_nota', valor: 'Gracias por su preferencia. En Formatex estamos comprometidos con la calidad textil de su negocio.', grupo: 'cotizaciones', tipo: 'string' },
+    { 
+      clave: 'cotizacion_terminos_condiciones', 
+      valor: '• Los precios están expresados en Moneda Nacional (MXN) e incluyen IVA (16%). Sujetos a cambio sin previo aviso.\n• Vigencia de Apartado: El inventario apartado para esta cotización se reserva físicamente por un lapso de 24 horas hábiles. Concluido este periodo sin confirmación de pago en Cobranza, el sistema libera la mercancía automáticamente.\n• Corte y Preparación: Todo proceso de corte o preparación en almacén iniciará una vez validado y liberado el pago por el departamento de Cobranza.\n• Cancelaciones: Toda tela cortada por metraje a solicitud expresa del comprador no admite cambios, devoluciones ni cancelaciones.\n• Envíos y Fletes: Las entregas foráneas se despachan por fletera convenida por cobrar a destino, viajando por cuenta y riesgo del comprador, salvo que el cliente haya contratado póliza de seguro de carga.',
+      grupo: 'cotizaciones',
+      tipo: 'string'
+    },
   ]});
 
   // =====================================================================

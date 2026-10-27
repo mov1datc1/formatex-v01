@@ -4,6 +4,7 @@ import {
   Share2, ShieldCheck, CreditCard, Clock, CheckCircle2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useApi } from '../../hooks/useApi';
 
 interface QuotationModalProps {
   order: any;
@@ -69,6 +70,32 @@ function numeroALetras(monto: number): string {
 export default function QuotationModal({ order, onClose }: QuotationModalProps) {
   const printRef = useRef<HTMLDivElement>(null);
 
+  // Cargar configuraciones oficiales dinámicas desde el backend
+  const { data: settings } = useApi<any[]>(['system-settings'], '/admin/settings');
+  const getVal = (clave: string, fallback: string) => {
+    const s = settings?.find((item: any) => item.clave === clave);
+    return s && s.valor ? s.valor : fallback;
+  };
+
+  const empresaNombre = getVal('empresa_nombre', 'FORMA TEXTIL S. DE R.L. DE C.V.');
+  const empresaRfc = getVal('empresa_rfc', 'FTE140429FP3');
+  const empresaDireccion = getVal('empresa_direccion', 'Río La Barca No. 1680, Col. Atlas, C.P. 44870, Guadalajara, Jalisco');
+  const empresaTelefono = getVal('empresa_telefono', '(33) 3650-5447');
+
+  const bancoBeneficiario = getVal('banco_beneficiario', empresaNombre);
+  const bancoNombre = getVal('banco_nombre', getVal('empresa_banco', 'BBVA México'));
+  const bancoCuenta = getVal('banco_cuenta', '0114 8592 31');
+  const bancoClabe = getVal('banco_clabe', getVal('empresa_clabe', '0123 2000 1148 5923 18'));
+  const vigenciaHoras = getVal('cotizacion_vigencia_horas', '24');
+  const emailCobranza = getVal('cotizacion_email_comprobantes', getVal('empresa_email_cobranza', 'cobranza@formatex.mx'));
+  const whatsappContacto = getVal('cotizacion_whatsapp_contacto', empresaTelefono || '3336505447');
+  const pieNota = getVal('cotizacion_pie_nota', 'Gracias por su preferencia. En Formatex estamos comprometidos con la calidad textil de su negocio.');
+  const terminosTexto = getVal('cotizacion_terminos_condiciones', `• Los precios están expresados en Moneda Nacional (MXN) e incluyen IVA (16%). Sujetos a cambio sin previo aviso.
+• Vigencia de Apartado: El inventario apartado para esta cotización se reserva físicamente por un lapso de 24 horas hábiles. Concluido este periodo sin confirmación de pago en Cobranza, el sistema libera la mercancía automáticamente.
+• Corte y Preparación: Todo proceso de corte o preparación en almacén iniciará una vez validado y liberado el pago por el departamento de Cobranza.
+• Cancelaciones: Toda tela cortada por metraje a solicitud expresa del comprador no admite cambios, devoluciones ni cancelaciones.
+• Envíos y Fletes: Las entregas foráneas se despachan por fletera convenida por cobrar a destino, viajando por cuenta y riesgo del comprador, salvo que el cliente haya contratado póliza de seguro de carga.`);
+
   if (!order) return null;
 
   const client = order.client || {};
@@ -112,14 +139,15 @@ export default function QuotationModal({ order, onClose }: QuotationModalProps) 
       `Hola *${nombreCliente}*, adjuntamos el detalle de su cotización formal:%0A%0A` +
       `📄 *Folio:* ${folio}%0A` +
       `📅 *Fecha:* ${fechaEmision}%0A` +
-      `⏱️ *Vigencia de Apartado:* 24 Horas Hábiles%0A%0A` +
+      `⏱️ *Vigencia de Apartado:* ${vigenciaHoras} Horas Hábiles%0A%0A` +
       `*Partidas:*%0A${lineasTexto}%0A%0A` +
       `💰 *Total a Liquidar:* *${totalFmt}*%0A%0A` +
-      `*Datos de Pago BBVA:*%0A` +
-      `Beneficiario: FORMA TEXTIL S. DE R.L. DE C.V.%0A` +
-      `CLABE: 0123 2000 1148 5923 18%0A` +
-      `Referencia: ${folio}%0A%0A` +
-      `Quedamos a su servicio para confirmar el surtido inmediato.`;
+      `*Datos Oficiales de Pago ${bancoNombre}:*%0A` +
+      `Beneficiario: ${bancoBeneficiario}%0A` +
+      (bancoCuenta ? `Cuenta: ${bancoCuenta}%0A` : '') +
+      `CLABE Interbancaria: ${bancoClabe}%0A` +
+      `Referencia Obligatoria: ${folio}%0A%0A` +
+      `Favor de enviar su comprobante al correo ${emailCobranza} o a este WhatsApp indicando el folio ${folio}. Quedamos a su servicio para confirmar el surtido inmediato.`;
 
     const tel = (client.telefono || '').replace(/\D/g, '');
     const url = tel && tel.length >= 10
@@ -219,16 +247,16 @@ export default function QuotationModal({ order, onClose }: QuotationModalProps) 
                   <h1 className="text-2xl font-black text-slate-950 tracking-tight">FORMA TEXTIL</h1>
                   <span className="text-xs bg-slate-900 text-white font-bold px-2 py-0.5 rounded">MÉXICO</span>
                 </div>
-                <p className="text-xs text-gray-700 font-bold mt-0.5">FORMA TEXTIL S. DE R.L. DE C.V.</p>
+                <p className="text-xs text-gray-700 font-bold mt-0.5">{empresaNombre}</p>
                 <p className="text-[11px] text-gray-500 mt-0.5">
-                  RFC: <strong className="font-mono text-gray-800 font-bold">FTE140429FP3</strong>
+                  RFC: <strong className="font-mono text-gray-800 font-bold">{empresaRfc}</strong>
                 </p>
                 <p className="text-[11px] text-gray-500 leading-tight">
-                  Río La Barca No. 1680, Col. Atlas, C.P. 44870<br />
-                  Guadalajara, Jalisco, México · Tel: (33) 3650-5447
+                  {empresaDireccion}<br />
+                  México · Tel: {empresaTelefono}
                 </p>
                 <p className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-2">
-                  <span>atc@formatex.mx</span>
+                  <span>{emailCobranza}</span>
                   <span>·</span>
                   <span>www.formatex.mx</span>
                 </p>
@@ -244,7 +272,7 @@ export default function QuotationModal({ order, onClose }: QuotationModalProps) 
                 </p>
                 <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
                   <Clock size={11} className="text-amber-700" />
-                  <span>Vigencia de Apartado: 24 Horas Hábiles</span>
+                  <span>Vigencia de Apartado: {vigenciaHoras} Horas Hábiles</span>
                 </div>
               </div>
             </div>
@@ -431,7 +459,7 @@ export default function QuotationModal({ order, onClose }: QuotationModalProps) 
               <div className="flex items-center justify-between border-b border-blue-200/80 pb-1.5">
                 <div className="flex items-center gap-1.5 font-bold text-blue-950 text-[11px] uppercase tracking-wide">
                   <CreditCard size={14} className="text-blue-700" />
-                  <span>Datos Bancarios para Pago y Transferencia</span>
+                  <span>Datos Bancarios Oficiales para Pago y Transferencia</span>
                 </div>
                 <span className="text-[10px] text-blue-800 font-semibold">
                   Referencia Obligatoria: <strong className="font-mono font-bold text-blue-950">{order.codigo}</strong>
@@ -440,20 +468,20 @@ export default function QuotationModal({ order, onClose }: QuotationModalProps) 
               <div className="grid grid-cols-3 gap-3 text-[11px] text-slate-800">
                 <div>
                   <span className="block text-gray-500 text-[10px]">Beneficiario:</span>
-                  <strong className="font-bold">FORMA TEXTIL S. DE R.L. DE C.V.</strong>
+                  <strong className="font-bold">{bancoBeneficiario}</strong>
                 </div>
                 <div>
                   <span className="block text-gray-500 text-[10px]">Banco:</span>
-                  <strong className="font-bold">BBVA México</strong>
-                  <span className="text-gray-600 block text-[10px]">Cuenta: 0114 8592 31</span>
+                  <strong className="font-bold">{bancoNombre}</strong>
+                  {bancoCuenta && <span className="text-gray-600 block text-[10px]">Cuenta: {bancoCuenta}</span>}
                 </div>
                 <div>
                   <span className="block text-gray-500 text-[10px]">CLABE Interbancaria (SPEI):</span>
-                  <strong className="font-mono font-bold text-blue-950">0123 2000 1148 5923 18</strong>
+                  <strong className="font-mono font-bold text-blue-950">{bancoClabe}</strong>
                 </div>
               </div>
               <p className="text-[10px] text-blue-900/80 pt-1 border-t border-blue-200/50">
-                Favor de enviar su comprobante de pago al correo <strong>cobranza@formatex.mx</strong> o al WhatsApp de Atención al Cliente indicando el número de cotización <strong>{order.codigo}</strong>.
+                Favor de enviar su comprobante de pago al correo <strong>{emailCobranza}</strong> o al WhatsApp <strong>{whatsappContacto}</strong> indicando el folio <strong>{order.codigo}</strong>.
               </p>
             </div>
 
@@ -461,18 +489,23 @@ export default function QuotationModal({ order, onClose }: QuotationModalProps) 
             <div className="text-[9.5px] text-gray-500 space-y-1 border-t border-gray-200 pt-3 leading-relaxed">
               <p className="font-bold text-gray-700 uppercase">Términos y Condiciones Comerciales:</p>
               <ul className="list-disc pl-4 space-y-0.5">
-                <li>Los precios están expresados en Moneda Nacional (MXN) e incluyen IVA (16%). Sujetos a cambio sin previo aviso.</li>
-                <li><strong>Vigencia de Apartado:</strong> El inventario apartado para esta cotización se reserva físicamente por un lapso de <strong>24 horas hábiles</strong>. Concluido este periodo sin confirmación de pago, el sistema libera la mercancía automáticamente.</li>
-                <li><strong>Corte y Preparación:</strong> Todo proceso de corte o preparación en almacén iniciará una vez validado y liberado el pago por el departamento de Cobranza.</li>
-                <li><strong>Cancelaciones:</strong> Toda tela cortada por metraje a solicitud expresa del comprador no admite cambios, devoluciones ni cancelaciones.</li>
-                <li><strong>Envíos y Fletes:</strong> Las entregas foráneas se despachan por fletera convenida por cobrar a destino, viajando por cuenta y riesgo del comprador, salvo que el cliente haya contratado póliza de seguro de carga.</li>
+                {terminosTexto.split('\n').filter(Boolean).map((line, idx) => (
+                  <li key={idx}>
+                    {line.replace(/^[•\-\*]\s*/, '')}
+                  </li>
+                ))}
               </ul>
+              {pieNota && (
+                <p className="text-[10px] text-gray-600 italic pt-1 border-t border-gray-100 mt-1">
+                  {pieNota}
+                </p>
+              )}
             </div>
 
             {/* Pie de Firma / Aceptación */}
             <div className="grid grid-cols-2 gap-8 pt-6 text-center text-xs text-gray-600">
               <div className="border-t border-gray-400 pt-2">
-                <p className="font-bold text-slate-900">FORMA TEXTIL S. DE R.L. DE C.V.</p>
+                <p className="font-bold text-slate-900">{bancoBeneficiario || empresaNombre}</p>
                 <p className="text-[10px] text-gray-500">Atención al Cliente y Ventas</p>
               </div>
               <div className="border-t border-gray-400 pt-2">
