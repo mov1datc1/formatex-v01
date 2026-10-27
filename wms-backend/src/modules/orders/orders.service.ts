@@ -16,7 +16,11 @@ export class OrdersService {
     const skip = (page - 1) * limit;
     const where: any = {};
     if (estado) {
-      if (estado.includes(',')) {
+      if (estado === 'COTIZACIONES') {
+        where.estado = { in: ['COTIZADO', 'POR_PAGAR'] };
+      } else if (estado === 'PEDIDOS') {
+        where.estado = { in: ['PAGO_RECIBIDO', 'POR_SURTIR', 'EN_SURTIDO', 'EN_CORTE', 'EMPACADO', 'FACTURADO', 'DESPACHADO'] };
+      } else if (estado.includes(',')) {
         where.estado = { in: estado.split(',').map((s) => s.trim()) };
       } else {
         where.estado = estado;
@@ -849,6 +853,33 @@ export class OrdersService {
       this.prisma.order.count({ where: { estado: 'DESPACHADO' } }),
     ]);
     return { total, cotizados, porPagar, porSurtir, enProceso, empacados, facturados, despachados };
+  }
+
+  async getStatusCounts() {
+    const groups = await this.prisma.order.groupBy({
+      by: ['estado'],
+      _count: { id: true },
+    });
+    const counts: Record<string, number> = {
+      COTIZADO: 0,
+      POR_PAGAR: 0,
+      PAGO_RECIBIDO: 0,
+      POR_SURTIR: 0,
+      EN_SURTIDO: 0,
+      EN_CORTE: 0,
+      EMPACADO: 0,
+      FACTURADO: 0,
+      DESPACHADO: 0,
+      CANCELADO: 0,
+    };
+    let total = 0;
+    for (const g of groups) {
+      counts[g.estado] = g._count.id;
+      total += g._count.id;
+    }
+    const cotizaciones = (counts.COTIZADO || 0) + (counts.POR_PAGAR || 0);
+    const pedidos = total - cotizaciones - (counts.CANCELADO || 0);
+    return { counts, total, cotizaciones, pedidos };
   }
 
   // =========================================================================

@@ -9,7 +9,7 @@ import {
   X, Plus, Phone, AlertCircle, ShieldCheck, FileText, Download, Mail,
   Printer, Loader2, Info, Zap, MapPin, Truck, Clock, Shield,
   CheckCircle2, Check, Lock, Building2, Package, Layers, Calendar,
-  ArrowUpDown, ChevronRight, Filter, Sparkles, RefreshCw, AlertTriangle,
+  ArrowUpDown, ChevronRight, ChevronLeft, Filter, Sparkles, RefreshCw, AlertTriangle,
   CreditCard, Split, PackageCheck, Ship, ArrowRight, ArrowLeft, Ban, Eye,
 } from 'lucide-react';
 import type { FC } from 'react';
@@ -66,7 +66,47 @@ export default function PedidosPage() {
   const [quotationOrder, setQuotationOrder] = useState<any>(null);
   const { canCreate, canUpdate, isAdmin, isSupervisor, user } = usePermission();
 
-  const { data: resp, isLoading } = useApi<PaginatedResponse<Order>>(['orders', search, filterEstado], '/orders', { search: search || undefined, estado: filterEstado || undefined, limit: 20 });
+  // Tab principal y sub-filtros de navegación
+  type MainTab = 'cotizaciones' | 'pedidos' | 'pipeline' | 'backorder';
+  const [activeMainTab, setActiveMainTab] = useState<MainTab>('cotizaciones');
+  const [subFilterCotizaciones, setSubFilterCotizaciones] = useState<'ALL' | 'COTIZADO' | 'POR_PAGAR'>('ALL');
+  const [subFilterPedidos, setSubFilterPedidos] = useState<string>('ALL');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  const { data: statusCountsData, refetch: refetchStatusCounts } = useApi<{
+    counts: Record<string, number>;
+    total: number;
+    cotizaciones: number;
+    pedidos: number;
+  }>(['order-status-counts'], '/orders/status-counts');
+
+  const effectiveEstado = useMemo(() => {
+    if (activeMainTab === 'cotizaciones') {
+      return subFilterCotizaciones === 'ALL' ? 'COTIZACIONES' : subFilterCotizaciones;
+    }
+    if (activeMainTab === 'pedidos') {
+      return subFilterPedidos === 'ALL' ? 'PEDIDOS' : subFilterPedidos;
+    }
+    if (activeMainTab === 'pipeline') {
+      return filterEstado || undefined;
+    }
+    return undefined;
+  }, [activeMainTab, subFilterCotizaciones, subFilterPedidos, filterEstado]);
+
+  const { data: resp, isLoading, refetch: refetchOrders } = useApi<PaginatedResponse<Order>>(
+    ['orders', search, effectiveEstado, page, limit],
+    '/orders',
+    { search: search || undefined, estado: effectiveEstado, page, limit }
+  );
+  const totalPages = Math.max(1, Math.ceil((resp?.total || 0) / limit));
+
+  const handleTabChange = (tab: MainTab) => {
+    setActiveMainTab(tab);
+    setPage(1);
+    setSelectedOrder(null);
+  };
+
   const { data: detail, refetch: refetchDetail } = useApi<any>(['order-detail', selectedOrder], `/orders/${selectedOrder}`, {}, !!selectedOrder);
   const { data: clients } = useApi<PaginatedResponse<any>>(['clients'], '/catalog/clients', { limit: 500 });
   const { data: skus } = useApi<PaginatedResponse<any>>(['skus-order'], '/catalog/skus', { limit: 5000 });
@@ -93,7 +133,7 @@ export default function PedidosPage() {
     if (newSku) {
       setLineas([{ skuId: newSku, metrajeRequerido: 50, precioUnitario: 0, listaPrecios: '', descuentoPct: 0, selectedHUs: [] }]);
       setShowForm(true);
-      setActiveMainTab('pipeline');
+      setActiveMainTab('cotizaciones');
     }
   }, [searchParams]);
 
@@ -105,9 +145,6 @@ export default function PedidosPage() {
   const [deliverySchedule, setDeliverySchedule] = useState('');
   const [fletera, setFletera] = useState('Transportes Castores');
   const [envioAsegurado, setEnvioAsegurado] = useState(false);
-
-  // Tab principal: Flujo de Pedidos (Pipeline) vs Cola de Backorders (FIFO)
-  const [activeMainTab, setActiveMainTab] = useState<'pipeline' | 'backorder'>('pipeline');
   const [backorderContainerFilter, setBackorderContainerFilter] = useState('');
   const [backorderModal, setBackorderModal] = useState<{
     order: any;
@@ -479,6 +516,8 @@ export default function PedidosPage() {
       setCondicionBackorder('CONTADO_ANTICIPO');
       setLineas([{ skuId: '', metrajeRequerido: 50, precioUnitario: 0, listaPrecios: '', descuentoPct: 0, selectedHUs: [] }]);
       refetchBackorderQueue();
+      refetchOrders();
+      refetchStatusCounts();
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Error al procesar pedido');
     }
@@ -496,6 +535,8 @@ export default function PedidosPage() {
       setBackorderModal(null);
       setBackorderNotes('');
       refetchBackorderQueue();
+      refetchOrders();
+      refetchStatusCounts();
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Error al confirmar vigencia');
     } finally {
@@ -518,6 +559,8 @@ export default function PedidosPage() {
       setBackorderModal(null);
       setBackorderNotes('');
       refetchBackorderQueue();
+      refetchOrders();
+      refetchStatusCounts();
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Error al cancelar y recorrer cola');
     } finally {
@@ -545,6 +588,8 @@ export default function PedidosPage() {
       await api.put(`/orders/${orderId}/status`, { estado: transition.next });
       toast.success(`Pedido avanzado a: ${STATUS_MAP[transition.next]?.label}`);
       refetchDetail();
+      refetchOrders();
+      refetchStatusCounts();
       setConfirmModal(null);
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Error al cambiar estado');
@@ -557,293 +602,39 @@ export default function PedidosPage() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <WmsIcon.Quote className="w-5 h-5 text-white" strokeWidth={1.75} />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Pedidos — Flujo Formatex</h1>
-            <p className="text-gray-500 text-sm">Cotización → Cobranza → Almacén → Facturación → Despacho</p>
-          </div>
-        </div>
-        {canCreate('orders') && (
-          <button onClick={() => setShowForm(!showForm)} className="px-4 py-2.5 bg-primary-500 text-white rounded-xl hover:bg-primary-600 text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
-            {showForm ? <><X size={16} /> Cerrar</> : <><Plus size={16} /> Nueva Cotización</>}
-          </button>
-        )}
-      </div>
-
-      {/* Banner de Tareas: Confirmación de Entrega (Asignado a ATC creador / Supervisora Alma) */}
-      {pendingDeliveries && pendingDeliveries.length > 0 && (
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 rounded-2xl p-4 shadow-sm animate-fade-in">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-700 flex items-center justify-center font-bold">
-                <Truck size={18} />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-amber-950 flex items-center gap-2">
-                  <span>{isSupervisor ? 'Validación de Entregas — Vista Supervisora (Alma / Gerencia)' : 'Tus Pedidos por Confirmar Entrega (ATC)'}</span>
-                </h3>
-                <p className="text-xs text-amber-800">
-                  {pendingDeliveries.length} pedido{pendingDeliveries.length > 1 ? 's' : ''} en surtido o corte requieren validar destino, receptor y fletera antes de empaque
-                </p>
-              </div>
-            </div>
-            <span className="text-xs font-mono font-bold bg-amber-200/90 text-amber-900 px-3 py-1 rounded-full">
-              {pendingDeliveries.length} por validar
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {pendingDeliveries.slice(0, 6).map((pOrder: any) => (
-              <div key={pOrder.id} className="bg-white/95 border border-amber-200 rounded-xl p-3 flex flex-col justify-between shadow-xs hover:border-amber-400 transition-all">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-mono text-xs font-bold text-gray-900">{pOrder.codigo}</span>
-                    <span className="text-[10px] bg-indigo-50 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">
-                      {STATUS_MAP[pOrder.estado]?.label || pOrder.estado}
-                    </span>
-                  </div>
-                  <p className="text-xs font-medium text-gray-800 truncate">{pOrder.client?.nombre}</p>
-                  <p className="text-[11px] text-gray-500 mt-0.5">
-                    Cotizado por: <strong className="text-gray-700">{pOrder.creadoPor || 'ATC'}</strong>
-                  </p>
-                  <p className="text-[11px] text-gray-500">
-                    Total: <strong className="text-emerald-700">${Number(pOrder.total).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong>
-                  </p>
-                </div>
-                <button
-                  onClick={() => openDeliveryModal(pOrder)}
-                  className="mt-3 w-full py-1.5 px-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <MapPin size={13} /> Validar Datos de Entrega
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Switcher de Vistas Principales: Pipeline Regular vs Cola de Backorders (Tránsito) */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-2 rounded-2xl border border-gray-200/80 shadow-xs">
-        <div className="flex items-center gap-1 bg-gray-100/80 p-1 rounded-xl">
-          <button
-            type="button"
-            onClick={() => setActiveMainTab('pipeline')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-              activeMainTab === 'pipeline'
-                ? 'bg-white text-gray-900 shadow-xs'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Layers size={15} className={activeMainTab === 'pipeline' ? 'text-primary-600' : 'text-gray-400'} />
-            <span>Flujo Operativo (Pipeline)</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
-              activeMainTab === 'pipeline' ? 'bg-primary-50 text-primary-700 font-bold' : 'bg-gray-200 text-gray-600'
-            }`}>
-              {resp?.data?.length || 0}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveMainTab('backorder')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all relative ${
-              activeMainTab === 'backorder'
-                ? 'bg-white text-gray-900 shadow-xs'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Truck size={15} className={activeMainTab === 'backorder' ? 'text-blue-600' : 'text-gray-400'} />
-            <span>Cola de Backorders (Tránsito / Telar)</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
-              activeMainTab === 'backorder' ? 'bg-blue-50 text-blue-700 font-bold' : 'bg-gray-200 text-gray-600'
-            }`}>
-              {backorderQueue?.length || 0}
-            </span>
-            {backorderQueue?.some((b: any) => b.semaforo === 'AMBAR_15D' || b.semaforo === 'ROJO_5D') && (
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping absolute -top-1 -right-1" />
-            )}
-          </button>
-        </div>
-
-        {activeMainTab === 'backorder' && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-gray-500 hidden sm:inline">Filtrar Contenedor:</span>
-            <select
-              value={backorderContainerFilter}
-              onChange={e => setBackorderContainerFilter(e.target.value)}
-              className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-700 focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Todos los Contenedores en Tránsito</option>
-              {containersList?.map((c: any) => (
-                <option key={c.id} value={c.numeroContenedor || c.codigo}>
-                  {c.numeroContenedor || c.codigo} ({c.ordersCount || 0} pedidos)
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
-
-      {/* Modal de Estado del Cliente y Facturas Pendientes (César / Cobranza / ATC) */}
-      {showPendingInvoicesModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between border-b pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2.5 bg-blue-100 text-blue-700 rounded-xl">
-                  <CreditCard size={20} />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-gray-900">Estado de Cuenta y Facturas del Cliente</h3>
-                  <p className="text-xs text-gray-500">
-                    Cliente: <strong>{clients?.data?.find((c: any) => c.id === clientId)?.nombre}</strong> ({clients?.data?.find((c: any) => c.id === clientId)?.codigo}) · RFC: {clients?.data?.find((c: any) => c.id === clientId)?.rfc || '—'}
-                  </p>
-                </div>
-              </div>
-              <button onClick={() => setShowPendingInvoicesModal(false)} className="p-1 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600">
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Alerta si el cliente está bloqueado */}
-            {clientCreditStatus?.creditConfig?.bloqueado && (
-              <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3.5 text-xs text-red-900 flex items-start gap-2.5 shadow-xs">
-                <Ban size={18} className="text-red-600 shrink-0 mt-0.5" />
-                <div>
-                  <strong className="text-sm block">⛔ CLIENTE BLOQUEADO PARA NUEVOS PEDIDOS (Cobranza)</strong>
-                  <p className="mt-0.5 font-medium">Motivo: {clientCreditStatus.creditConfig.motivoBloqueo || 'Bloqueado administrativamente por César.'}</p>
-                  <p className="text-[11px] text-red-700 mt-1">Para liberar pedidos a este cliente, se requiere que César retire el bloqueo o autorice la excepción.</p>
-                </div>
-              </div>
-            )}
-
-            {/* Métricas de Crédito */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
-                <p className="text-[11px] text-gray-500 font-medium">Línea de Crédito</p>
-                <p className="text-base font-bold text-gray-900 mt-0.5">
-                  {clientCreditStatus?.creditConfig?.creditoHabilitado
-                    ? `$${Number(clientCreditStatus.creditConfig.montoMaximo || 0).toLocaleString('es-MX')} MXN`
-                    : 'Sin Crédito (Contado)'}
-                </p>
-                <p className="text-[10px] text-gray-400 mt-0.5">
-                  {clientCreditStatus?.creditConfig?.creditoHabilitado
-                    ? `Plazo: ${clientCreditStatus.creditConfig.plazoDefault} días · Desc. máx: ${clientCreditStatus.creditConfig.descuentoMaximo}%`
-                    : 'CFDI PUE Inmediato'}
-                </p>
-              </div>
-
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
-                <p className="text-[11px] text-gray-500 font-medium">Saldo Total Pendiente</p>
-                <p className="text-base font-bold text-gray-900 mt-0.5">
-                  ${clientPendingInvoices.reduce((sum: number, inv: any) => sum + Number(inv.saldoPendiente || inv.total || 0), 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                </p>
-                <p className="text-[10px] text-gray-500 mt-0.5">{clientPendingInvoices.length} factura(s) por liquidar</p>
-              </div>
-
-              <div className={`border rounded-xl p-3 ${
-                clientPendingInvoices.some((i: any) => i.fechaVencimiento && new Date(i.fechaVencimiento) < new Date())
-                  ? 'bg-red-50/80 border-red-200 text-red-900'
-                  : 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
-              }`}>
-                <p className="text-[11px] font-medium">Saldo Vencido Fuera de Plazo</p>
-                <p className="text-base font-bold mt-0.5">
-                  ${clientPendingInvoices
-                    .filter((i: any) => i.fechaVencimiento && new Date(i.fechaVencimiento) < new Date())
-                    .reduce((sum: number, inv: any) => sum + Number(inv.saldoPendiente || inv.total || 0), 0)
-                    .toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                </p>
-                <p className="text-[10px] mt-0.5 font-semibold">
-                  {clientPendingInvoices.filter((i: any) => i.fechaVencimiento && new Date(i.fechaVencimiento) < new Date()).length > 0
-                    ? `🔴 ${clientPendingInvoices.filter((i: any) => i.fechaVencimiento && new Date(i.fechaVencimiento) < new Date()).length} factura(s) vencida(s)`
-                    : '🟢 Al corriente (0 vencidas)'}
-                </p>
-              </div>
-            </div>
-
-            {/* Criterio de Negociación César */}
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 flex items-start gap-2.5">
-              <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <strong>Criterio de Negociación y Desbloqueo (César):</strong> Si el cliente tiene facturas vencidas o adeudo elevado, se puede acordar liquidar o abonar 1 o 2 facturas pendientes hoy para que César libere la orden a corte en el WMS.
-              </div>
-            </div>
-
-            {/* Tabla de Facturas */}
-            <div className="overflow-y-auto flex-1 border border-gray-100 rounded-xl min-h-[160px]">
-              {loadingPendingInvoices ? (
-                <div className="p-8 text-center text-xs text-gray-400 flex items-center justify-center gap-2">
-                  <Loader2 size={16} className="animate-spin text-primary-500" /> Consultando facturas en Facturapi...
-                </div>
-              ) : clientPendingInvoices.length === 0 ? (
-                <div className="p-8 text-center text-xs text-gray-400">
-                  <CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-400" />
-                  <p className="font-semibold text-gray-700">Sin facturas pendientes</p>
-                  <p className="text-gray-400 text-[11px] mt-0.5">Este cliente se encuentra al 100% al corriente en cobranza.</p>
-                </div>
-              ) : (
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-gray-50 text-gray-600 font-semibold border-b sticky top-0">
-                    <tr>
-                      <th className="p-2.5">Pedido / Folio</th>
-                      <th className="p-2.5">Emisión</th>
-                      <th className="p-2.5">Vencimiento</th>
-                      <th className="p-2.5 text-right">Total Factura</th>
-                      <th className="p-2.5 text-right">Saldo Insoluto</th>
-                      <th className="p-2.5 text-center">Estatus</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {clientPendingInvoices.map((inv: any) => {
-                      const isVencida = inv.fechaVencimiento && new Date(inv.fechaVencimiento) < new Date();
-                      return (
-                        <tr key={inv.id} className="hover:bg-gray-50/80 transition-colors">
-                          <td className="p-2.5 font-mono font-bold text-gray-800">{inv.codigo}</td>
-                          <td className="p-2.5 text-gray-500">{inv.facturadaAt ? new Date(inv.facturadaAt).toLocaleDateString('es-MX') : '—'}</td>
-                          <td className="p-2.5 text-gray-500">{inv.fechaVencimiento ? new Date(inv.fechaVencimiento).toLocaleDateString('es-MX') : '—'}</td>
-                          <td className="p-2.5 text-right font-mono text-gray-600">
-                            ${Number(inv.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                          </td>
-                          <td className="p-2.5 text-right font-mono font-bold text-red-600">
-                            ${Number(inv.saldoPendiente || inv.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                          </td>
-                          <td className="p-2.5 text-center">
-                            {isVencida ? (
-                              <span className="px-2 py-0.5 bg-red-100 text-red-700 font-bold rounded text-[10px]">🔴 Vencida</span>
-                            ) : (
-                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 font-semibold rounded text-[10px]">🔵 En Plazo</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between pt-3 border-t">
-              <span className="text-xs text-gray-400">
-                Total Facturas: <strong>{clientPendingInvoices.length}</strong>
-              </span>
+      {/* Create Form — WIZARD INTUITIVO DE 3 PASOS EN VISTA AISLADA */}
+      {showForm ? (
+        <div className="space-y-4 animate-fade-in">
+          {/* Top Bar para regresar al listado */}
+          <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setShowPendingInvoicesModal(false)}
-                className="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold transition-colors"
+                onClick={() => { setShowForm(false); setWizardStep(1); }}
+                className="flex items-center gap-2 px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
               >
-                Entendido / Continuar con Pedido
+                <ArrowLeft size={16} /> Volver a Pedidos
               </button>
+              <div>
+                <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                  <span>Nueva Cotización / Asistente de Pedidos</span>
+                  <span className="text-[10px] font-mono uppercase bg-primary-50 text-primary-700 px-2.5 py-0.5 rounded-full font-bold">
+                    Formatex WMS
+                  </span>
+                </h2>
+                <p className="text-xs text-gray-500">Paso {wizardStep} de 3 · Captura guiada, validación fiscal SAT y sugerencia de inventario en almacén y telares</p>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Create Form — WIZARD INTUITIVO DE 3 PASOS */}
-      {showForm && (
+            <button
+              type="button"
+              onClick={() => { setShowForm(false); setWizardStep(1); }}
+              className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              title="Cancelar y volver"
+            >
+              <X size={15} /> Cancelar
+            </button>
+          </div>
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
           {/* Header & Stepper */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
@@ -1495,121 +1286,460 @@ export default function PedidosPage() {
             </div>
           )}
         </div>
-      )}
+      </div>
+    ) : (
+      <div className="space-y-4 animate-fade-in">
+        {/* Header y Acción Principal */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <WmsIcon.Quote className="w-5 h-5 text-white" strokeWidth={1.75} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Pedidos — Flujo Formatex</h1>
+              <p className="text-gray-500 text-sm">Cotización → Cobranza → Almacén → Facturación → Despacho</p>
+            </div>
+          </div>
+          {canCreate('orders') && (
+            <button
+              type="button"
+              onClick={() => { setShowForm(true); setWizardStep(1); }}
+              className="px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-semibold transition-all shadow-sm shadow-primary-500/20 flex items-center gap-2 cursor-pointer active:scale-98"
+            >
+              <Plus size={16} /> Nueva Cotización
+            </button>
+          )}
+        </div>
 
-      {/* VISTA 1: PIPELINE OPERATIVO REGULAR */}
-      {activeMainTab === 'pipeline' && (
-        <>
-          {/* Pipeline visual */}
-          <div className="grid grid-cols-5 lg:grid-cols-9 gap-1.5">
-            {Object.entries(STATUS_MAP).filter(([k]) => k !== 'CANCELADO').map(([key, s]) => {
-              const Icon = s.icon;
-              const count = resp?.data?.filter((o: any) => o.estado === key).length || 0;
-              return (
-                <button key={key} onClick={() => setFilterEstado(filterEstado === key ? '' : key)} className={`text-center p-2.5 rounded-xl text-xs transition-all ${filterEstado === key ? 'ring-2 ring-primary-400 shadow-md scale-[1.02]' : 'hover:shadow-sm'} ${s.color}`}>
-                  <PipelineIcon icon={Icon} bgClass={s.iconBg} iconClass={s.iconColor} size={16} />
-                  <div className="font-bold text-base mt-1.5">{count}</div>
-                  <div className="truncate font-medium">{s.label}</div>
-                </button>
-              );
-            })}
+        {/* Banner de Tareas: Confirmación de Entrega (Asignado a ATC creador / Supervisora Alma) */}
+        {pendingDeliveries && pendingDeliveries.length > 0 && (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 rounded-2xl p-4 shadow-sm animate-fade-in">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-700 flex items-center justify-center font-bold">
+                  <Truck size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-amber-950 flex items-center gap-2">
+                    <span>{isSupervisor ? 'Validación de Entregas — Vista Supervisora (Alma / Gerencia)' : 'Tus Pedidos por Confirmar Entrega (ATC)'}</span>
+                  </h3>
+                  <p className="text-xs text-amber-800">
+                    {pendingDeliveries.length} pedido{pendingDeliveries.length > 1 ? 's' : ''} en surtido o corte requieren validar destino, receptor y fletera antes de empaque
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-mono font-bold bg-amber-200/90 text-amber-900 px-3 py-1 rounded-full">
+                {pendingDeliveries.length} por validar
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {pendingDeliveries.slice(0, 6).map((pOrder: any) => (
+                <div key={pOrder.id} className="bg-white/95 border border-amber-200 rounded-xl p-3 flex flex-col justify-between shadow-xs hover:border-amber-400 transition-all">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-mono text-xs font-bold text-gray-900">{pOrder.codigo}</span>
+                      <span className="text-[10px] bg-indigo-50 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">
+                        {STATUS_MAP[pOrder.estado]?.label || pOrder.estado}
+                      </span>
+                    </div>
+                    <p className="text-xs font-medium text-gray-800 truncate">{pOrder.client?.nombre}</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      Cotizado por: <strong className="text-gray-700">{pOrder.creadoPor || 'ATC'}</strong>
+                    </p>
+                    <p className="text-[11px] text-gray-500">
+                      Total: <strong className="text-emerald-700">${Number(pOrder.total).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => openDeliveryModal(pOrder)}
+                    className="mt-3 w-full py-1.5 px-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <MapPin size={13} /> Validar Datos de Entrega
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Switcher de Vistas Principales: 4 Tabs */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-2 rounded-2xl border border-gray-200/80 shadow-xs">
+          <div className="flex items-center gap-1 bg-gray-100/80 p-1 rounded-xl overflow-x-auto scrollbar-none">
+            <button
+              type="button"
+              onClick={() => handleTabChange('cotizaciones')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                activeMainTab === 'cotizaciones'
+                  ? 'bg-white text-gray-900 shadow-xs ring-1 ring-black/5'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <FileText size={15} className={activeMainTab === 'cotizaciones' ? 'text-primary-600' : 'text-gray-400'} />
+              <span>Cotizaciones</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
+                activeMainTab === 'cotizaciones' ? 'bg-primary-50 text-primary-700 font-bold' : 'bg-gray-200 text-gray-600'
+              }`}>
+                {statusCountsData?.cotizaciones ?? 0}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleTabChange('pedidos')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                activeMainTab === 'pedidos'
+                  ? 'bg-white text-gray-900 shadow-xs ring-1 ring-black/5'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <PackageCheck size={15} className={activeMainTab === 'pedidos' ? 'text-emerald-600' : 'text-gray-400'} />
+              <span>Pedidos en Firme</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
+                activeMainTab === 'pedidos' ? 'bg-emerald-50 text-emerald-700 font-bold' : 'bg-gray-200 text-gray-600'
+              }`}>
+                {statusCountsData?.pedidos ?? 0}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleTabChange('pipeline')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                activeMainTab === 'pipeline'
+                  ? 'bg-white text-gray-900 shadow-xs ring-1 ring-black/5'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Layers size={15} className={activeMainTab === 'pipeline' ? 'text-indigo-600' : 'text-gray-400'} />
+              <span>Pipeline General</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
+                activeMainTab === 'pipeline' ? 'bg-indigo-50 text-indigo-700 font-bold' : 'bg-gray-200 text-gray-600'
+              }`}>
+                {statusCountsData?.total ?? 0}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleTabChange('backorder')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap relative cursor-pointer ${
+                activeMainTab === 'backorder'
+                  ? 'bg-white text-gray-900 shadow-xs ring-1 ring-black/5'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Truck size={15} className={activeMainTab === 'backorder' ? 'text-blue-600' : 'text-gray-400'} />
+              <span>Cola de Backorders</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
+                activeMainTab === 'backorder' ? 'bg-blue-50 text-blue-700 font-bold' : 'bg-gray-200 text-gray-600'
+              }`}>
+                {backorderQueue?.length ?? 0}
+              </span>
+              {backorderQueue?.some((b: any) => b.semaforo === 'AMBAR_15D' || b.semaforo === 'ROJO_5D') && (
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping absolute -top-1 -right-1" />
+              )}
+            </button>
           </div>
 
-          {/* Filters */}
-      <div className="flex gap-3">
-        <div className="relative flex-1 max-w-xs">
-          <WmsIcon.Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar pedido, folio, cliente..." className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm" />
-        </div>
-        {filterEstado && (
-          <button onClick={() => setFilterEstado('')} className="px-3 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-medium hover:bg-red-100 flex items-center gap-1">
-            <X size={14} /> Limpiar filtro
-          </button>
-        )}
-      </div>
-
-      {/* Orders List + Detail */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2">
-          {isLoading ? <div className="p-8 text-center text-gray-400">Cargando...</div> : !resp?.data?.length ? (
-            <div className="bg-white rounded-xl border p-12 text-center text-gray-400">
-              <WmsIcon.Quote size={48} className="mx-auto mb-3 text-gray-300" />
-              <p className="font-medium text-gray-500">No hay pedidos {filterEstado && `en estado "${STATUS_MAP[filterEstado]?.label}"`}</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {resp.data.map((o: any) => {
-                const status = STATUS_MAP[o.estado];
-                const StatusIcon = status?.icon || WmsIcon.Quote;
-                const prio = PRIORITY_MAP[o.prioridad];
-                return (
-                  <div key={o.id} onClick={() => setSelectedOrder(o.id)} className={`bg-white rounded-xl border p-4 cursor-pointer transition-all hover:shadow-md ${selectedOrder === o.id ? 'border-primary-400 ring-1 ring-primary-200' : 'border-gray-100'}`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <span className="font-mono text-sm font-semibold text-primary-600">{o.codigo}</span>
-                        {o.folioContpaqi && <span className="text-xs text-gray-400 font-mono">({o.folioContpaqi})</span>}
-                        <StatusBadge icon={StatusIcon} label={status?.label || o.estado} bgClass={status?.color?.split(' ')[0] || 'bg-gray-100'} textClass={status?.color?.split(' ')[1] || 'text-gray-600'} />
-                        {o.esBackorder && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                            <Truck size={10} /> Backorder {o.contenedorNumero ? `· ${o.contenedorNumero}` : ''} (#{o.posicionCola || 1})
-                          </span>
-                        )}
-                        {prio && o.prioridad <= 2 && (
-                          <span className={`inline-flex items-center gap-1 text-xs font-semibold ${prio.color}`}>
-                            <AlertCircle size={12} /> {prio.label}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-right flex flex-col items-end gap-1">
-                        <span className="text-sm font-bold text-emerald-600">${Number(o.total || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</span>
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs text-gray-400">{new Date(o.fechaPedido).toLocaleDateString()}</p>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              api.get(`/orders/${o.id}`).then((res) => setQuotationOrder(res.data)).catch(() => setQuotationOrder(o));
-                            }}
-                            className="px-2 py-0.5 text-[10px] font-bold text-blue-700 hover:text-white bg-blue-50 hover:bg-blue-600 rounded-md border border-blue-200 transition-all flex items-center gap-1 active:scale-95"
-                            title="Descargar o Imprimir Cotización para Cliente"
-                          >
-                            <FileText size={11} />
-                            <span>Cotización PDF</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between">
-                      <span className="text-sm text-gray-700">{o.client?.nombre}</span>
-                      <div className="flex items-center gap-3 text-xs text-gray-400">
-                        {o.vendor && <span className="flex items-center gap-1"><Phone size={10} /> {o.vendor.nombre}</span>}
-                        {o.lineas?.some((l: any) => !l.assignments?.length) && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-amber-50 text-amber-700 font-medium border border-amber-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" /> En piso
-                          </span>
-                        )}
-                        <span>{o._count?.lineas || o.lineas?.length} líneas</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+          {activeMainTab === 'backorder' && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-gray-500 hidden sm:inline">Filtrar Contenedor:</span>
+              <select
+                value={backorderContainerFilter}
+                onChange={e => setBackorderContainerFilter(e.target.value)}
+                className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-700 focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Todos los Contenedores en Tránsito</option>
+                {containersList?.map((c: any) => (
+                  <option key={c.id} value={c.numeroContenedor || c.codigo}>
+                    {c.numeroContenedor || c.codigo} ({c.ordersCount || 0} pedidos)
+                  </option>
+                ))}
+              </select>
             </div>
           )}
         </div>
 
-        {/* Detail Panel */}
-        <div className="bg-white rounded-xl border p-5">
-          {!selectedOrder ? (
-            <div className="text-center text-gray-400 py-12">
-              <WmsIcon.Quote size={40} className="mx-auto mb-3 text-gray-300" />
-              <p className="text-sm font-medium text-gray-500">Selecciona un pedido</p>
-              <p className="text-xs mt-1">para ver detalles y avanzar estado</p>
+        {/* Sub-filtros para Cotizaciones */}
+        {activeMainTab === 'cotizaciones' && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {[
+              { key: 'ALL', label: 'Todas las Cotizaciones', count: statusCountsData?.cotizaciones ?? 0 },
+              { key: 'COTIZADO', label: 'En Cotización (ATC)', count: statusCountsData?.counts?.COTIZADO ?? 0 },
+              { key: 'POR_PAGAR', label: 'Por Pagar (Espera Cobro)', count: statusCountsData?.counts?.POR_PAGAR ?? 0 },
+            ].map(f => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => { setSubFilterCotizaciones(f.key as any); setPage(1); }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
+                  subFilterCotizaciones === f.key
+                    ? 'bg-primary-600 text-white shadow-xs'
+                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <span>{f.label}</span>
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
+                  subFilterCotizaciones === f.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'
+                }`}>
+                  {f.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Sub-filtros para Pedidos en Firme */}
+        {activeMainTab === 'pedidos' && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {[
+              { key: 'ALL', label: 'Todos los Pedidos en Firme', count: statusCountsData?.pedidos ?? 0 },
+              { key: 'PAGO_RECIBIDO', label: 'Pago Recibido', count: statusCountsData?.counts?.PAGO_RECIBIDO ?? 0 },
+              { key: 'POR_SURTIR', label: 'Por Surtir', count: statusCountsData?.counts?.POR_SURTIR ?? 0 },
+              { key: 'EN_SURTIDO', label: 'En Surtido', count: statusCountsData?.counts?.EN_SURTIDO ?? 0 },
+              { key: 'EN_CORTE', label: 'En Corte', count: statusCountsData?.counts?.EN_CORTE ?? 0 },
+              { key: 'EMPACADO', label: 'Empacado', count: statusCountsData?.counts?.EMPACADO ?? 0 },
+              { key: 'FACTURADO', label: 'Facturado', count: statusCountsData?.counts?.FACTURADO ?? 0 },
+              { key: 'DESPACHADO', label: 'Despachado', count: statusCountsData?.counts?.DESPACHADO ?? 0 },
+            ].map(f => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => { setSubFilterPedidos(f.key as any); setPage(1); }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                  subFilterPedidos === f.key
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <span>{f.label}</span>
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
+                  subFilterPedidos === f.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'
+                }`}>
+                  {f.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Vista Pipeline General (9 Tarjetas de Estado) */}
+        {activeMainTab === 'pipeline' && (
+          <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-1.5">
+            {Object.entries(STATUS_MAP).filter(([k]) => k !== 'CANCELADO').map(([key, s]) => {
+              const Icon = s.icon;
+              const count = statusCountsData?.counts?.[key] ?? 0;
+              const isSelected = filterEstado === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => { setFilterEstado(isSelected ? '' : key); setPage(1); }}
+                  className={`text-center p-2.5 rounded-xl text-xs transition-all cursor-pointer ${
+                    isSelected
+                      ? 'ring-2 ring-primary-500 shadow-md scale-[1.02] bg-white'
+                      : 'hover:shadow-sm bg-white border border-gray-200/80'
+                  } ${s.color}`}
+                >
+                  <PipelineIcon icon={Icon} bgClass={s.iconBg} iconClass={s.iconColor} size={16} />
+                  <div className="font-bold text-base mt-1.5">{count}</div>
+                  <div className="truncate font-medium text-[11px]">{s.label}</div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* VISTA SPLIT: LISTA DE PEDIDOS + PANEL DETALLE STICKY (para Cotizaciones, Pedidos y Pipeline) */}
+        {activeMainTab !== 'backorder' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+            {/* Columna Izquierda: Búsqueda + Lista de Pedidos + Paginación */}
+            <div className="lg:col-span-7 xl:col-span-8 space-y-3">
+              {/* Barra de Búsqueda */}
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <WmsIcon.Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    value={search}
+                    onChange={e => { setSearch(e.target.value); setPage(1); }}
+                    placeholder="Buscar por folio, cliente, vendedor..."
+                    className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:border-primary-500 shadow-xs"
+                  />
+                  {search && (
+                    <button
+                      onClick={() => { setSearch(''); setPage(1); }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {(search || filterEstado || (activeMainTab === 'cotizaciones' && subFilterCotizaciones !== 'ALL') || (activeMainTab === 'pedidos' && subFilterPedidos !== 'ALL')) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('');
+                      setFilterEstado('');
+                      setSubFilterCotizaciones('ALL');
+                      setSubFilterPedidos('ALL');
+                      setPage(1);
+                    }}
+                    className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer"
+                  >
+                    <X size={14} /> Limpiar filtro
+                  </button>
+                )}
+              </div>
+
+              {/* Listado de Pedidos */}
+              {isLoading ? (
+                <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center text-gray-400">
+                  <Loader2 size={32} className="animate-spin mx-auto text-primary-500 mb-2" />
+                  <p className="text-xs font-medium">Cargando registros...</p>
+                </div>
+              ) : !resp?.data?.length ? (
+                <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center text-gray-400">
+                  <WmsIcon.Quote size={44} className="mx-auto mb-3 text-gray-300" />
+                  <p className="font-semibold text-gray-700 text-sm">No se encontraron registros</p>
+                  <p className="text-xs text-gray-400 mt-1">Prueba cambiando de pestaña, término de búsqueda o filtros.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {resp.data.map((o: any) => {
+                    const status = STATUS_MAP[o.estado];
+                    const StatusIcon = status?.icon || WmsIcon.Quote;
+                    const prio = PRIORITY_MAP[o.prioridad];
+                    return (
+                      <div
+                        key={o.id}
+                        onClick={() => setSelectedOrder(o.id)}
+                        className={`bg-white rounded-xl border p-4 cursor-pointer transition-all hover:shadow-md ${
+                          selectedOrder === o.id
+                            ? 'border-primary-400 ring-2 ring-primary-200 bg-primary-50/20 shadow-xs'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className="font-mono text-sm font-bold text-primary-600">{o.codigo}</span>
+                            {o.folioContpaqi && <span className="text-xs text-gray-400 font-mono">({o.folioContpaqi})</span>}
+                            <StatusBadge icon={StatusIcon} label={status?.label || o.estado} bgClass={status?.color?.split(' ')[0] || 'bg-gray-100'} textClass={status?.color?.split(' ')[1] || 'text-gray-600'} />
+                            {o.esBackorder && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                                <Truck size={10} /> Backorder {o.contenedorNumero ? `· ${o.contenedorNumero}` : ''} (#{o.posicionCola || 1})
+                              </span>
+                            )}
+                            {prio && o.prioridad <= 2 && (
+                              <span className={`inline-flex items-center gap-1 text-xs font-semibold ${prio.color}`}>
+                                <AlertCircle size={12} /> {prio.label}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-right flex flex-col items-end gap-1">
+                            <span className="text-sm font-bold text-emerald-600">${Number(o.total || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</span>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs text-gray-400">{new Date(o.fechaPedido).toLocaleDateString()}</p>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  api.get(`/orders/${o.id}`).then((res) => setQuotationOrder(res.data)).catch(() => setQuotationOrder(o));
+                                }}
+                                className="px-2 py-0.5 text-[10px] font-bold text-blue-700 hover:text-white bg-blue-50 hover:bg-blue-600 rounded-md border border-blue-200 transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+                                title="Descargar o Imprimir Cotización para Cliente"
+                              >
+                                <FileText size={11} />
+                                <span>Cotización PDF</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-1 flex items-center justify-between">
+                          <span className="text-sm text-gray-700 font-medium">{o.client?.nombre}</span>
+                          <div className="flex items-center gap-3 text-xs text-gray-400">
+                            {o.vendor && <span className="flex items-center gap-1"><Phone size={10} /> {o.vendor.nombre}</span>}
+                            {o.lineas?.some((l: any) => !l.assignments?.length) && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-amber-50 text-amber-700 font-medium border border-amber-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" /> En piso
+                              </span>
+                            )}
+                            <span>{o._count?.lineas || o.lineas?.length} líneas</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Paginación */}
+              {resp && resp.total > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-gray-200/80 shadow-xs text-xs text-gray-600">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span>
+                      Mostrando <strong className="text-gray-900">{((page - 1) * limit) + 1}</strong> a <strong className="text-gray-900">{Math.min(page * limit, resp.total)}</strong> de <strong className="text-gray-900">{resp.total}</strong> {activeMainTab === 'cotizaciones' ? 'cotizaciones' : 'pedidos'}
+                    </span>
+                    <span className="text-gray-300 hidden sm:inline">|</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-gray-400">Mostrar:</span>
+                      <select
+                        value={limit}
+                        onChange={e => { setLimit(Number(e.target.value)); setPage(1); }}
+                        className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 focus:ring-1 focus:ring-primary-500 cursor-pointer"
+                      >
+                        <option value={10}>10 por pág</option>
+                        <option value={20}>20 por pág</option>
+                        <option value={50}>50 por pág</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                      className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-gray-50 border border-gray-200 rounded-xl font-bold flex items-center gap-1 transition-colors cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft size={14} /> Anterior
+                    </button>
+                    <span className="font-semibold text-gray-700 px-1">
+                      Página {page} de {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages}
+                      className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-gray-50 border border-gray-200 rounded-xl font-bold flex items-center gap-1 transition-colors cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      Siguiente <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          ) : !detail ? (
-            <div className="text-center text-gray-400 py-12">Cargando...</div>
-          ) : (
-            <div className="space-y-4">
+
+            {/* Columna Derecha: Sticky Detail Panel */}
+            <div className="lg:col-span-5 xl:col-span-4 lg:sticky lg:top-4 max-h-[calc(100vh-100px)] overflow-y-auto pr-1 scrollbar-thin">
+              {!selectedOrder ? (
+                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center text-gray-400 space-y-3 shadow-xs">
+                  <div className="w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center mx-auto text-gray-400">
+                    <WmsIcon.Quote size={28} />
+                  </div>
+                  <h4 className="font-bold text-gray-800 text-sm">Selecciona una cotización o pedido</h4>
+                  <p className="text-xs text-gray-500 leading-relaxed max-w-xs mx-auto">
+                    Haz clic en cualquier tarjeta de la lista izquierda para consultar partidas, avanzar estado, descargar cotización PDF, generar packing list o emitir factura CFDI 4.0.
+                  </p>
+                </div>
+              ) : !detail ? (
+                <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center text-gray-400">
+                  <Loader2 size={32} className="animate-spin mx-auto text-primary-500 mb-2" />
+                  <p className="text-xs font-medium">Cargando detalle del pedido...</p>
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-4">
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="font-bold text-lg">{detail.codigo}</h3>
@@ -2111,8 +2241,7 @@ export default function PedidosPage() {
           )}
         </div>
       </div>
-    </>
-  )}
+    )}
 
       {/* VISTA 2: COLA DE BACKORDERS (FIFO) Y ALERTAS DE CONTENEDORES */}
       {activeMainTab === 'backorder' && (
@@ -2473,6 +2602,163 @@ export default function PedidosPage() {
         </div>
       )}
 
+      </div>
+    )}
+
+      {/* === Modal de Estado del Cliente y Facturas Pendientes (César / Cobranza / ATC) === */}
+      {showPendingInvoicesModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 bg-blue-100 text-blue-700 rounded-xl">
+                  <CreditCard size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Estado de Cuenta y Facturas del Cliente</h3>
+                  <p className="text-xs text-gray-500">
+                    Cliente: <strong>{clients?.data?.find((c: any) => c.id === clientId)?.nombre}</strong> ({clients?.data?.find((c: any) => c.id === clientId)?.codigo}) · RFC: {clients?.data?.find((c: any) => c.id === clientId)?.rfc || '—'}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setShowPendingInvoicesModal(false)} className="p-1 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Alerta si el cliente está bloqueado */}
+            {clientCreditStatus?.creditConfig?.bloqueado && (
+              <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3.5 text-xs text-red-900 flex items-start gap-2.5 shadow-xs">
+                <Ban size={18} className="text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-sm block">⛔ CLIENTE BLOQUEADO PARA NUEVOS PEDIDOS (Cobranza)</strong>
+                  <p className="mt-0.5 font-medium">Motivo: {clientCreditStatus.creditConfig.motivoBloqueo || 'Bloqueado administrativamente por César.'}</p>
+                  <p className="text-[11px] text-red-700 mt-1">Para liberar pedidos a este cliente, se requiere que César retire el bloqueo o autorice la excepción.</p>
+                </div>
+              </div>
+            )}
+
+            {/* Métricas de Crédito */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
+                <p className="text-[11px] text-gray-500 font-medium">Línea de Crédito</p>
+                <p className="text-base font-bold text-gray-900 mt-0.5">
+                  {clientCreditStatus?.creditConfig?.creditoHabilitado
+                    ? `$${Number(clientCreditStatus.creditConfig.montoMaximo || 0).toLocaleString('es-MX')} MXN`
+                    : 'Sin Crédito (Contado)'}
+                </p>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  {clientCreditStatus?.creditConfig?.creditoHabilitado
+                    ? `Plazo: ${clientCreditStatus.creditConfig.plazoDefault} días · Desc. máx: ${clientCreditStatus.creditConfig.descuentoMaximo}%`
+                    : 'CFDI PUE Inmediato'}
+                </p>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
+                <p className="text-[11px] text-gray-500 font-medium">Saldo Total Pendiente</p>
+                <p className="text-base font-bold text-gray-900 mt-0.5">
+                  ${clientPendingInvoices.reduce((sum: number, inv: any) => sum + Number(inv.saldoPendiente || inv.total || 0), 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                </p>
+                <p className="text-[10px] text-gray-500 mt-0.5">{clientPendingInvoices.length} factura(s) por liquidar</p>
+              </div>
+
+              <div className={`border rounded-xl p-3 ${
+                clientPendingInvoices.some((i: any) => i.fechaVencimiento && new Date(i.fechaVencimiento) < new Date())
+                  ? 'bg-red-50/80 border-red-200 text-red-900'
+                  : 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+              }`}>
+                <p className="text-[11px] font-medium">Saldo Vencido Fuera de Plazo</p>
+                <p className="text-base font-bold mt-0.5">
+                  ${clientPendingInvoices
+                    .filter((i: any) => i.fechaVencimiento && new Date(i.fechaVencimiento) < new Date())
+                    .reduce((sum: number, inv: any) => sum + Number(inv.saldoPendiente || inv.total || 0), 0)
+                    .toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                </p>
+                <p className="text-[10px] mt-0.5 font-semibold">
+                  {clientPendingInvoices.filter((i: any) => i.fechaVencimiento && new Date(i.fechaVencimiento) < new Date()).length > 0
+                    ? `🔴 ${clientPendingInvoices.filter((i: any) => i.fechaVencimiento && new Date(i.fechaVencimiento) < new Date()).length} factura(s) vencida(s)`
+                    : '🟢 Al corriente (0 vencidas)'}
+                </p>
+              </div>
+            </div>
+
+            {/* Criterio de Negociación César */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 flex items-start gap-2.5">
+              <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <strong>Criterio de Negociación y Desbloqueo (César):</strong> Si el cliente tiene facturas vencidas o adeudo elevado, se puede acordar liquidar o abonar 1 o 2 facturas pendientes hoy para que César libere la orden a corte en el WMS.
+              </div>
+            </div>
+
+            {/* Tabla de Facturas */}
+            <div className="overflow-y-auto flex-1 border border-gray-100 rounded-xl min-h-[160px]">
+              {loadingPendingInvoices ? (
+                <div className="p-8 text-center text-xs text-gray-400 flex items-center justify-center gap-2">
+                  <Loader2 size={16} className="animate-spin text-primary-500" /> Consultando facturas en Facturapi...
+                </div>
+              ) : clientPendingInvoices.length === 0 ? (
+                <div className="p-8 text-center text-xs text-gray-400">
+                  <CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-400" />
+                  <p className="font-semibold text-gray-700">Sin facturas pendientes</p>
+                  <p className="text-gray-400 text-[11px] mt-0.5">Este cliente se encuentra al 100% al corriente en cobranza.</p>
+                </div>
+              ) : (
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-gray-50 text-gray-600 font-semibold border-b sticky top-0">
+                    <tr>
+                      <th className="p-2.5">Pedido / Folio</th>
+                      <th className="p-2.5">Emisión</th>
+                      <th className="p-2.5">Vencimiento</th>
+                      <th className="p-2.5 text-right">Total Factura</th>
+                      <th className="p-2.5 text-right">Saldo Insoluto</th>
+                      <th className="p-2.5 text-center">Estatus</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {clientPendingInvoices.map((inv: any) => {
+                      const isVencida = inv.fechaVencimiento && new Date(inv.fechaVencimiento) < new Date();
+                      return (
+                        <tr key={inv.id} className="hover:bg-gray-50/80 transition-colors">
+                          <td className="p-2.5 font-mono font-bold text-gray-800">{inv.codigo}</td>
+                          <td className="p-2.5 text-gray-500">{inv.facturadaAt ? new Date(inv.facturadaAt).toLocaleDateString('es-MX') : '—'}</td>
+                          <td className="p-2.5 text-gray-500">{inv.fechaVencimiento ? new Date(inv.fechaVencimiento).toLocaleDateString('es-MX') : '—'}</td>
+                          <td className="p-2.5 text-right font-mono text-gray-600">
+                            ${Number(inv.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="p-2.5 text-right font-mono font-bold text-red-600">
+                            ${Number(inv.saldoPendiente || inv.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="p-2.5 text-center">
+                            {isVencida ? (
+                              <span className="px-2 py-0.5 bg-red-100 text-red-700 font-bold rounded text-[10px]">🔴 Vencida</span>
+                            ) : (
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 font-semibold rounded text-[10px]">🔵 En Plazo</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t">
+              <span className="text-xs text-gray-400">
+                Total Facturas: <strong>{clientPendingInvoices.length}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowPendingInvoicesModal(false)}
+                className="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold transition-colors"
+              >
+                Entendido / Continuar con Pedido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* === Custom Confirmation Modal === */}
       {confirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setConfirmModal(null)}>
@@ -2621,6 +2907,8 @@ export default function PedidosPage() {
                     toast.success(`Factura timbrada exitosamente — UUID: ${data.uuid?.substring(0, 8)}...`);
                     setInvoiceModal(null);
                     refetchDetail();
+                    refetchOrders();
+                    refetchStatusCounts();
                   } catch (e: any) {
                     toast.error(e?.response?.data?.message || 'Error al facturar');
                   }

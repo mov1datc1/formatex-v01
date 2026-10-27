@@ -14,6 +14,10 @@ export class OrdersController {
   @ApiOperation({ summary: 'Estadísticas de pedidos' })
   getStats() { return this.ordersService.getOrderStats(); }
 
+  @Get('status-counts')
+  @ApiOperation({ summary: 'Conteo en tiempo real por cada estado del pipeline Formatex' })
+  getStatusCounts() { return this.ordersService.getStatusCounts(); }
+
   @Get('pending-delivery-confirmations')
   @ApiOperation({ summary: 'Listar pedidos en surtido pendientes de confirmación de entrega (ATC y Supervisora)' })
   getPendingDeliveryConfirmations(@Req() req: any) {
