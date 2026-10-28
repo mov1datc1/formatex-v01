@@ -31,7 +31,7 @@ const menuSections: MenuSection[] = [
     title: 'General',
     items: [
       { label: 'Dashboard', path: '/', icon: LayoutDashboard, excludeRoles: ['ATC', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'CHOFER'] },
-      { label: 'Catálogos', path: '/catalogos', icon: ClipboardList, permission: 'catalogs', excludeRoles: ['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR'] },
+      { label: 'Catálogos', path: '/catalogos', icon: ClipboardList, permission: 'catalogs', excludeRoles: ['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR', 'COORDINADOR_ALMACEN', 'JEFE_ALMACEN', 'SUPERVISOR', 'CHOFER'] },
       { label: 'Alertas', path: '/alertas', icon: Bell, permission: 'alerts', excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR'] },
     ],
   },
@@ -137,7 +137,7 @@ export const Sidebar = () => {
     const isWarehouseLeader = ['COORDINADOR_ALMACEN', 'JEFE_ALMACEN', 'SUPERVISOR'].includes(userRole);
     if (isWarehouseLeader) {
       const warehouseLeaderPermissions = [
-        'dashboard', 'catalogs', 'alerts',
+        'dashboard', 'alerts',
         'warehouse', 'picking', 'cutting', 'packing', 'shipping', 'transfers',
         'reception', 'labeling', 'inventory'
       ];

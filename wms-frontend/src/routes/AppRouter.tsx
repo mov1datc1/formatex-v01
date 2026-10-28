@@ -153,7 +153,7 @@ export function AppRouter() {
           <Route path="inventario/retazos" element={<RoleGuard excludeRoles={['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR']}><RetazosPage /></RoleGuard>} />
 
           {/* Sistema / Catálogos */}
-          <Route path="catalogos" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR']}><CatalogosPage /></RoleGuard>} />
+          <Route path="catalogos" element={<RoleGuard excludeRoles={['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR', 'COORDINADOR_ALMACEN', 'JEFE_ALMACEN', 'SUPERVISOR', 'CHOFER']}><CatalogosPage /></RoleGuard>} />
           <Route path="almacen-config" element={<RoleGuard excludeRoles={['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR']}><AlmacenPage /></RoleGuard>} />
 
           {/* Admin */}

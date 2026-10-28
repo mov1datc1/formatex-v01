@@ -1,15 +1,21 @@
 import { useApi } from '../hooks/useApi';
 import { Link } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store';
 import { WmsIcon, KpiIcon, PipelineIcon } from '../components/icons/WmsIcons';
 
 export default function Dashboard() {
+  const user = useSelector((state: RootState) => state.auth.user);
+  const userRole = (user?.role?.nombre || user?.role || '').toUpperCase();
+  const isWarehouseRole = ['COORDINADOR_ALMACEN', 'JEFE_ALMACEN', 'SUPERVISOR', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'CHOFER'].includes(userRole);
+
   const { data: invStats } = useApi<any>(['inv-stats'], '/inventory/stats');
   const { data: orderStats } = useApi<any>(['order-stats'], '/orders/stats');
   const { data: cutStats } = useApi<any>(['cut-stats'], '/cutting/stats');
   const { data: transitStats } = useApi<any>(['transit-stats-dash'], '/transit/stats');
 
   const kpis = [
-    { label: 'Rollos en Stock', value: invStats?.totalHUs || 0, icon: WmsIcon.Rolls, gradient: 'from-blue-500 to-blue-600', sub: `${invStats?.totalEnteros || 0} enteros / ${invStats?.totalRetazos || 0} retazos` },
+    { label: 'Rollos en Stock', value: invStats?.totalHUs || 0, icon: WmsIcon.Rolls, gradient: 'from-blue-500 to-blue-600', sub: `${invStats?.totalEnteros || 0} enteros / ${invStats?.totalRetazos || 0} remanentes` },
     { label: 'Metros Totales', value: `${Math.round(invStats?.metrajeTotal || 0).toLocaleString()}m`, icon: WmsIcon.Ruler, gradient: 'from-emerald-500 to-teal-600', sub: `${invStats?.totalDisponibles || 0} HUs disponibles` },
     { label: 'Cortes Realizados', value: cutStats?.totalCortes || 0, icon: WmsIcon.Cut, gradient: 'from-amber-500 to-orange-600', sub: `~${Math.round(cutStats?.metrajePromedioCortado || 0)}m promedio` },
     { label: 'En Tránsito', value: transitStats?.totalEmbarques || 0, icon: WmsIcon.Transit, gradient: 'from-violet-500 to-purple-600', sub: `${(transitStats?.metrajeEsperado || 0).toLocaleString()}m esperados` },
@@ -25,14 +31,23 @@ export default function Dashboard() {
     { key: 'despachados', label: 'Despachados', icon: WmsIcon.Dispatched, bg: 'bg-gray-50', iconBg: 'bg-gray-200', iconColor: 'text-gray-600' },
   ];
 
-  const quickActions = [
-    { label: 'Nueva Cotización', icon: WmsIcon.Quote, href: '/pedidos', color: 'text-blue-600 bg-blue-50 hover:bg-blue-100' },
-    { label: 'Disponibilidad', icon: WmsIcon.Search, href: '/disponibilidad', color: 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' },
-    { label: 'Recepción', icon: WmsIcon.Reception, href: '/recepcion', color: 'text-purple-600 bg-purple-50 hover:bg-purple-100' },
-    { label: 'En Tránsito', icon: WmsIcon.Transit, href: '/transito', color: 'text-amber-600 bg-amber-50 hover:bg-amber-100' },
-    { label: 'Corte', icon: WmsIcon.Cut, href: '/corte', color: 'text-red-600 bg-red-50 hover:bg-red-100' },
-    { label: 'Inventario', icon: WmsIcon.Stock, href: '/inventario/rollos', color: 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100' },
-  ];
+  const quickActions = isWarehouseRole
+    ? [
+        { label: 'Ubicaciones', icon: WmsIcon.Warehouse, href: '/almacen', color: 'text-blue-600 bg-blue-50 hover:bg-blue-100' },
+        { label: 'Inventario', icon: WmsIcon.Stock, href: '/inventario', color: 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100' },
+        { label: 'Recepción', icon: WmsIcon.Reception, href: '/recepcion', color: 'text-purple-600 bg-purple-50 hover:bg-purple-100' },
+        { label: 'Picking', icon: WmsIcon.ToFulfill, href: '/picking', color: 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' },
+        { label: 'Corte', icon: WmsIcon.Cut, href: '/corte', color: 'text-red-600 bg-red-50 hover:bg-red-100' },
+        { label: 'Transferencias', icon: WmsIcon.Transit, href: '/transferencias', color: 'text-amber-600 bg-amber-50 hover:bg-amber-100' },
+      ]
+    : [
+        { label: 'Nueva Cotización', icon: WmsIcon.Quote, href: '/pedidos', color: 'text-blue-600 bg-blue-50 hover:bg-blue-100' },
+        { label: 'Disponibilidad', icon: WmsIcon.Search, href: '/disponibilidad', color: 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' },
+        { label: 'Recepción', icon: WmsIcon.Reception, href: '/recepcion', color: 'text-purple-600 bg-purple-50 hover:bg-purple-100' },
+        { label: 'En Tránsito', icon: WmsIcon.Transit, href: '/transito', color: 'text-amber-600 bg-amber-50 hover:bg-amber-100' },
+        { label: 'Corte', icon: WmsIcon.Cut, href: '/corte', color: 'text-red-600 bg-red-50 hover:bg-red-100' },
+        { label: 'Inventario', icon: WmsIcon.Stock, href: '/inventario', color: 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100' },
+      ];
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -59,7 +74,9 @@ export default function Dashboard() {
       <div className="bg-white rounded-xl border p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Pipeline de Pedidos</h2>
-          <Link to="/pedidos" className="text-sm text-primary-500 hover:text-primary-600 font-medium">Ver todos →</Link>
+          {!isWarehouseRole && (
+            <Link to="/pedidos" className="text-sm text-primary-500 hover:text-primary-600 font-medium">Ver todos →</Link>
+          )}
         </div>
         <div className="grid grid-cols-7 gap-2">
           {pipeline.map(p => {
