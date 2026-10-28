@@ -8,6 +8,8 @@ export default function Dashboard() {
   const user = useSelector((state: RootState) => state.auth.user);
   const userRole = (user?.role?.nombre || user?.role || '').toUpperCase();
   const isWarehouseRole = ['COORDINADOR_ALMACEN', 'JEFE_ALMACEN', 'SUPERVISOR', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'CHOFER'].includes(userRole);
+  const isPurchasingRole = ['DIRECTOR_COMPRAS', 'COMPRAS'].includes(userRole);
+  const isBillingOrCollections = ['FACTURACION', 'COBRANZA'].includes(userRole);
 
   const { data: invStats } = useApi<any>(['inv-stats'], '/inventory/stats');
   const { data: orderStats } = useApi<any>(['order-stats'], '/orders/stats');
@@ -31,7 +33,19 @@ export default function Dashboard() {
     { key: 'despachados', label: 'Despachados', icon: WmsIcon.Dispatched, bg: 'bg-gray-50', iconBg: 'bg-gray-200', iconColor: 'text-gray-600' },
   ];
 
-  const quickActions = isWarehouseRole
+  const quickActions = isPurchasingRole
+    ? [
+        { label: 'Órdenes de Compra', icon: WmsIcon.Quote, href: '/compras', color: 'text-blue-600 bg-blue-50 hover:bg-blue-100' },
+        { label: 'Tránsito & Costeo', icon: WmsIcon.Transit, href: '/transito?view=costeo', color: 'text-purple-600 bg-purple-50 hover:bg-purple-100' },
+        { label: 'Plan de Resurtido', icon: WmsIcon.Layers, href: '/planificacion', color: 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' },
+        { label: 'Alertas', icon: WmsIcon.Clock, href: '/alertas', color: 'text-amber-600 bg-amber-50 hover:bg-amber-100' },
+      ]
+    : isBillingOrCollections
+    ? [
+        { label: 'Facturación', icon: WmsIcon.Invoiced, href: '/facturacion', color: 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' },
+        { label: 'Cobranza', icon: WmsIcon.Dollar, href: '/cobranza', color: 'text-blue-600 bg-blue-50 hover:bg-blue-100' },
+      ]
+    : isWarehouseRole
     ? [
         { label: 'Ubicaciones', icon: WmsIcon.Warehouse, href: '/almacen', color: 'text-blue-600 bg-blue-50 hover:bg-blue-100' },
         { label: 'Inventario', icon: WmsIcon.Stock, href: '/inventario', color: 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100' },
@@ -74,7 +88,7 @@ export default function Dashboard() {
       <div className="bg-white rounded-xl border p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Pipeline de Pedidos</h2>
-          {!isWarehouseRole && (
+          {!isWarehouseRole && !isPurchasingRole && !isBillingOrCollections && (
             <Link to="/pedidos" className="text-sm text-primary-500 hover:text-primary-600 font-medium">Ver todos →</Link>
           )}
         </div>

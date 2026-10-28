@@ -176,14 +176,14 @@ async function main() {
     { name: 'JEFE_ATC', desc: 'Jefa de Atención al Cliente — supervisión comercial, catálogos y pedidos', nivel: 2, mods: ['dashboard','catalogs','orders','availability','reservations','transit'] },
     { name: 'ATC', desc: 'Atención al Cliente — levanta pedidos', nivel: 3, mods: ['orders','availability','reservations','transit'] },
     { name: 'COBRANZA', desc: 'Cobranza — verifica pagos', nivel: 3, mods: ['dashboard','orders','cobranza'] },
-    { name: 'FACTURACION', desc: 'Facturación — emite factura', nivel: 3, mods: ['dashboard','orders','facturacion'] },
+    { name: 'FACTURACION', desc: 'Facturación — emite factura y cobranza', nivel: 3, mods: ['dashboard','orders','facturacion','cobranza'] },
     { name: 'PICKER', desc: 'Picker almacén — Zebra TC22', nivel: 4, mods: ['dashboard','inventory','orders','labeling'] },
     { name: 'CORTADOR', desc: 'Cortador — corta y genera retazos', nivel: 4, mods: ['dashboard','inventory','cutting','orders','labeling'] },
     { name: 'EMPACADOR', desc: 'Empacador — empaca pedidos', nivel: 4, mods: ['dashboard','orders'] },
     { name: 'DESPACHADOR', desc: 'Despachador — envíos', nivel: 4, mods: ['dashboard','orders'] },
     { name: 'COORDINADOR_ALMACEN', desc: 'Coordinador almacén', nivel: 2, mods: ['dashboard','inventory','orders','cutting','reception','labeling','warehouse','reservations','transit'] },
-    { name: 'DIRECTOR_COMPRAS', desc: 'Director de Planeación de Compras', nivel: 1, mods: ['dashboard','inventory','orders','supply-planning','transit','catalogs','availability','compras'] },
-    { name: 'COMPRAS', desc: 'Personal operativo de Compras', nivel: 3, mods: ['dashboard','compras','catalogs','inventory','supply-planning','transit','availability'] },
+    { name: 'DIRECTOR_COMPRAS', desc: 'Director de Planeación de Compras', nivel: 2, mods: ['dashboard','alerts','supply-planning','transit','compras'] },
+    { name: 'COMPRAS', desc: 'Personal operativo de Compras', nivel: 3, mods: ['dashboard','alerts','compras','supply-planning','transit'] },
   ];
 
   const roles: Record<string, any> = {};
