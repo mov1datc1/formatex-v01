@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.7] - 2026-10-28
+
+### Security & RBAC
+- **Reestructuración de Privilegios y Aislamiento Departamental de Roles:**
+  - **Aislamiento Estricto de `DIRECTOR_COMPRAS` (Elba Vázquez / Fernando):**
+    - Eliminación del bypass jerárquico por nivel (`nivel <= 1` o `nivel <= 2`) que le otorgaba erróneamente privilegios de superadministrador sobre toda la plataforma y acceso al módulo de Administración (`/admin`).
+    - Bloqueo y remoción completa de visibilidad y acceso a módulos ajenos: Almacén (`/almacen`, `/picking`, `/corte`, `/empaque`, `/envio`, `/transferencias`), Ventas/ATC (`/pedidos`, `/disponibilidad`, `/comisiones`), Cobranza (`/cobranza`), Facturación (`/facturacion`), Inventario (`/inventario`, `/recepcion`, `/etiquetas`) y Catálogos (`/catalogos`).
+    - Navegación lateral acotada exclusivamente a:
+      - **General**: *Dashboard* (modo solo lectura, métricas globales de stock y pipeline informativo) y *Alertas*.
+      - **Compras & Importaciones**: *Órdenes de Compra*, *Tránsito & Costeo* y *Plan de Resurtido*.
+    - Adaptación del `Dashboard.tsx`: Acciones rápidas reconfiguradas para operaciones de compras (`Órdenes de Compra`, `Tránsito & Costeo`, `Plan de Resurtido`, `Alertas`), suprimiendo botones de ventas (`Nueva Cotización`) y ocultando el enlace de redirección a pedidos (`Ver todos →`).
+    - Depuración directa en base de datos Supabase (`RolePermission`): Eliminación de 16 registros de permisos indebidos (`inventory`, `orders`, `catalogs`, `availability`) y fijación estricta de permisos autorizados (`dashboard` en read, `alerts` en read, `compras`, `supply-planning` y `transit`).
+  - **Módulo Dual de Cobranza para `FACTURACION` (Luis Moreno):**
+    - Habilitación integral del módulo de Cobranza (`/cobranza`) para el perfil `FACTURACION` debido a la operación unificada de ambas áreas en una sola persona física mientras no se divida el puesto.
+    - Registro de permisos granulares `cobranza` (`read`, `create`, `update`, `delete`) en `RolePermission` de Supabase para el rol `FACTURACION`.
+    - Configuración de fallback garantizado en `Sidebar.tsx` y autorización en `AppRouter.tsx` para ambas rutas (`/facturacion` y `/cobranza`).
+  - **Restricción de Catálogos para Líderes de Almacén:**
+    - Exclusión del módulo de Catálogos (`/catalogos`) para los roles `COORDINADOR_ALMACEN`, `JEFE_ALMACEN` y `SUPERVISOR`, manteniendo su acceso operativo a Almacén, Inventario, Dashboard y Alertas.
+  - **Hardening de `RoleGuard` y Enrutamiento Inteligente (`AppRouter.tsx`):**
+    - `isAdmin` restringido estrictamente a `['ADMIN', 'DIRECTOR_OPERACIONES']`.
+    - Eliminación del fallback genérico ciego que enviaba a cualquier usuario no autorizado a `/pedidos`. Implementación de redirección inteligente por rol (`DIRECTOR_COMPRAS` ➔ `/compras`, `FACTURACION` ➔ `/facturacion`, `COBRANZA` ➔ `/cobranza`, personal de ventas ➔ `/pedidos`).
+    - Blindaje de rutas sensibles `/admin` y `/config` con `allowedRoles={['ADMIN', 'DIRECTOR_OPERACIONES']}`.
+  - **Sincronización de Base de Datos y Semilla (`prisma/seed.ts`):**
+    - Ajuste de `rolesConfig` en `seed.ts` para que `DIRECTOR_COMPRAS` tenga `nivel: 2` y módulos acotados a `['dashboard','alerts','supply-planning','transit','compras']`, y `FACTURACION` incluya `['dashboard','orders','facturacion','cobranza']`.
+
 ## [1.4.6] - 2026-10-21
 
 ### Added

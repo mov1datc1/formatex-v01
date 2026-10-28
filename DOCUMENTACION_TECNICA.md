@@ -922,37 +922,38 @@ Permite mover HUs entre almacenes (Nave Formatex → Bodega Virtual Liverpool). 
 
 ### RBAC (Role-Based Access Control)
 
-**9 Roles pre-configurados:**
+**12 Roles configurados en producción:**
 
-| Rol | Nivel | Módulos |
-|-----|-------|---------|
-| `DIRECTOR_OPERACIONES` | 1 | Todos (13 módulos) |
-| `COORDINADOR_ALMACEN` | 2 | dashboard, inventory, orders, cutting, reception, labeling, warehouse, reservations, transit |
-| `ATC` | 3 | dashboard, orders, catalogs, inventory, reservations, transit |
+| Rol | Nivel | Módulos Autorizados |
+|-----|-------|---------------------|
+| `ADMIN` / `DIRECTOR_OPERACIONES` | 1 | Acceso total a todos los módulos y configuración del sistema |
+| `JEFE_ATC` | 2 | dashboard, catalogs, orders, availability, reservations, transit |
+| `COORDINADOR_ALMACEN` / `JEFE_ALMACEN` | 2 | dashboard, inventory, orders, cutting, reception, labeling, warehouse, reservations, transit, alerts |
+| `DIRECTOR_COMPRAS` | 2 | dashboard (read), alerts (read), supply-planning, transit (costeo), compras |
+| `COMPRAS` | 3 | dashboard, alerts, compras, supply-planning, transit |
+| `ATC` / `VENDEDOR` | 3 | orders, availability, reservations, transit |
 | `COBRANZA` | 3 | dashboard, orders, cobranza |
-| `FACTURACION` | 3 | dashboard, orders, facturacion |
-| `PICKER` | 4 | dashboard, inventory, orders, labeling |
+| `FACTURACION` | 3 | dashboard, orders, facturacion, cobranza |
+| `PICKER` | 4 | dashboard, inventory, orders, labeling, picking |
 | `CORTADOR` | 4 | dashboard, inventory, cutting, orders, labeling |
-| `EMPACADOR` | 4 | dashboard, orders |
-| `DESPACHADOR` | 4 | dashboard, orders |
+| `EMPACADOR` | 4 | dashboard, orders, packing |
+| `DESPACHADOR` / `CHOFER` | 4 | dashboard, orders, shipping |
 
-**Regla de visibilidad del Sidebar:** Nivel ≤ 2 ven todos los módulos. Nivel 3-4 ven solo los módulos asignados.
+**Regla de Visibilidad y Bypass Departamental:**
+- **Bypass Global:** Reservado exclusivamente para `ADMIN` y `DIRECTOR_OPERACIONES`.
+- **Directores Departamentales:** (`DIRECTOR_COMPRAS`, etc.) no tienen bypass global ni acceso a `/admin` o `/config`; están acotados a su división funcional, dashboard de lectura y alertas.
+- **Facturación / Cobranza:** El perfil `FACTURACION` tiene acceso concurrente a `facturacion` y `cobranza`.
+- **Enrutamiento Inteligente:** `RoleGuard` redirige automáticamente a la pantalla operativa del rol (`/compras`, `/facturacion`, `/cobranza`, etc.) impidiendo que usuarios no comerciales caigan en cotizaciones.
 
-**Permisos granulares:** Cada módulo tiene 4 acciones: `read`, `create`, `update`, `delete`.
+### Usuarios Clave en Producción
 
-### Usuarios Seed
-
-| Username | Password | Rol |
-|----------|----------|-----|
-| `admin` | `admin123` | DIRECTOR_OPERACIONES |
-| `yareni.atc` | `opera123` | ATC |
-| `sandra.cobr` | `opera123` | COBRANZA |
-| `luis.fact` | `opera123` | FACTURACION |
-| `juan.picker` | `opera123` | PICKER |
-| `maria.corte` | `opera123` | CORTADOR |
-| `pedro.empaque` | `opera123` | EMPACADOR |
-| `ana.envio` | `opera123` | DESPACHADOR |
-| `roberto.coord` | `opera123` | COORDINADOR_ALMACEN |
+| Usuario | Username | Rol | Alcance |
+|---------|----------|-----|---------|
+| Administrador WMS 360+ | `admin` | DIRECTOR_OPERACIONES | Global |
+| Elba Vázquez / Fernando | `elba.compras` / `fernando.compras` | DIRECTOR_COMPRAS | Compras, Tránsito/Costeo, Resurtido, Dashboard (lectura), Alertas |
+| Alma Delia | `alma.atc` | JEFE_ATC | ATC, Pedidos, Catálogos, Disponibilidad, Tránsito |
+| Luis Moreno | `luis.fact` | FACTURACION | Facturación CFDI 4.0 y Verificación de Cobranza |
+| Roberto / Supervisor | `roberto.coord` | COORDINADOR_ALMACEN | Almacén, Inventario, Corte, Picking, Empaque, Despacho |
 
 ### CORS
 
