@@ -6,8 +6,32 @@ export class InventoryService {
   constructor(private readonly prisma: PrismaService) {}
 
   // ===== HANDLING UNITS =====
-  async findAllHUs(params: { search?: string; tipoRollo?: string; estadoHu?: string; gradoCalidad?: string; skuId?: string; etiquetaImpresa?: string; receiptId?: string; page?: number; limit?: number }) {
-    const { search, tipoRollo, estadoHu, gradoCalidad, skuId, etiquetaImpresa, receiptId, page = 1, limit = 20 } = params;
+  async findAllHUs(params: {
+    search?: string;
+    tipoRollo?: string;
+    estadoHu?: string;
+    gradoCalidad?: string;
+    skuId?: string;
+    warehouseId?: string;
+    zonaTipo?: string;
+    etiquetaImpresa?: string;
+    receiptId?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const {
+      search,
+      tipoRollo,
+      estadoHu,
+      gradoCalidad,
+      skuId,
+      warehouseId,
+      zonaTipo,
+      etiquetaImpresa,
+      receiptId,
+      page = 1,
+      limit = 20,
+    } = params;
     const skip = (page - 1) * limit;
     const where: any = {};
     if (tipoRollo) where.tipoRollo = tipoRollo;
@@ -17,6 +41,14 @@ export class InventoryService {
     if (etiquetaImpresa === 'true') where.etiquetaImpresa = true;
     if (etiquetaImpresa === 'false') where.etiquetaImpresa = false;
     if (receiptId) where.receiptLine = { receiptId };
+
+    if (warehouseId) {
+      where.ubicacion = { ...(where.ubicacion || {}), warehouseId };
+    }
+    if (zonaTipo) {
+      where.ubicacion = { ...(where.ubicacion || {}), zone: { tipo: zonaTipo } };
+    }
+
     if (search) {
       where.OR = [
         { codigo: { contains: search, mode: 'insensitive' } },
@@ -27,11 +59,24 @@ export class InventoryService {
     }
     const [data, total] = await Promise.all([
       this.prisma.handlingUnit.findMany({
-        where, skip, take: limit, orderBy: { fechaIngreso: 'asc' }, // FIFO
+        where,
+        skip,
+        take: limit,
+        orderBy: { fechaIngreso: 'asc' }, // FIFO
         include: {
           sku: { select: { id: true, codigo: true, nombre: true, color: true, categoria: true, anchoMetros: true, codigoBarras: true } },
-          ubicacion: { select: { id: true, codigo: true } },
-          parentHu: { select: { id: true, codigo: true } },
+          ubicacion: {
+            select: {
+              id: true,
+              codigo: true,
+              warehouseId: true,
+              warehouse: { select: { id: true, nombre: true, codigo: true, tipo: true, clienteAsignado: true } },
+              zoneId: true,
+              zone: { select: { id: true, nombre: true, codigo: true, tipo: true } },
+            },
+          },
+          parentHu: { select: { id: true, codigo: true, metrajeOriginal: true } },
+          childHus: { select: { id: true, codigo: true, metrajeActual: true, tipoRollo: true, estadoHu: true } },
           receiptLine: { select: { id: true, receiptId: true, receipt: { select: { id: true, codigo: true, ordenCompra: true } } } },
         },
       }),
@@ -44,7 +89,13 @@ export class InventoryService {
     return this.prisma.handlingUnit.findUniqueOrThrow({
       where: { id },
       include: {
-        sku: true, ubicacion: { include: { zone: true } },
+        sku: true,
+        ubicacion: {
+          include: {
+            zone: true,
+            warehouse: { select: { id: true, nombre: true, codigo: true, tipo: true, clienteAsignado: true } },
+          },
+        },
         parentHu: { select: { id: true, codigo: true, metrajeOriginal: true } },
         childHus: { select: { id: true, codigo: true, metrajeActual: true, tipoRollo: true, estadoHu: true } },
         cortesOrigen: { orderBy: { fechaCorte: 'desc' } },
@@ -88,24 +139,47 @@ export class InventoryService {
   }
 
   // Dashboard stats
-  async getInventoryStats() {
-    const [totalHUs, totalEnteros, totalRetazos, totalDisponibles, totalReservados] = await Promise.all([
-      this.prisma.handlingUnit.count({ where: { estadoHu: { not: 'AGOTADO' } } }),
-      this.prisma.handlingUnit.count({ where: { tipoRollo: 'ENTERO', estadoHu: 'DISPONIBLE' } }),
-      this.prisma.handlingUnit.count({ where: { tipoRollo: 'RETAZO', estadoHu: 'DISPONIBLE' } }),
-      this.prisma.handlingUnit.count({ where: { estadoHu: 'DISPONIBLE' } }),
-      this.prisma.handlingUnit.count({ where: { estadoHu: 'RESERVADO' } }),
+  async getInventoryStats(warehouseId?: string) {
+    const baseWhere: any = {};
+    if (warehouseId) {
+      baseWhere.ubicacion = { warehouseId };
+    }
+
+    const [totalHUs, totalEnteros, totalRetazos, totalDisponibles, totalReservados, totalMermas] = await Promise.all([
+      this.prisma.handlingUnit.count({ where: { ...baseWhere, estadoHu: { not: 'AGOTADO' } } }),
+      this.prisma.handlingUnit.count({ where: { ...baseWhere, tipoRollo: 'ENTERO', estadoHu: 'DISPONIBLE' } }),
+      this.prisma.handlingUnit.count({ where: { ...baseWhere, tipoRollo: 'RETAZO', estadoHu: 'DISPONIBLE' } }),
+      this.prisma.handlingUnit.count({ where: { ...baseWhere, estadoHu: 'DISPONIBLE' } }),
+      this.prisma.handlingUnit.count({ where: { ...baseWhere, estadoHu: 'RESERVADO' } }),
+      this.prisma.handlingUnit.count({ where: { ...baseWhere, ubicacion: { ...(baseWhere.ubicacion || {}), zone: { tipo: 'MERMA' } } } }),
     ]);
 
-    // Metraje total
-    const metrajeResult = await this.prisma.handlingUnit.aggregate({
-      _sum: { metrajeActual: true },
-      where: { estadoHu: { in: ['DISPONIBLE', 'RESERVADO'] } },
-    });
+    // Metraje total y por categorías
+    const [metrajeTotalRes, metrajeDispRes, metrajeRetazosRes] = await Promise.all([
+      this.prisma.handlingUnit.aggregate({
+        _sum: { metrajeActual: true },
+        where: { ...baseWhere, estadoHu: { in: ['DISPONIBLE', 'RESERVADO', 'EN_PICKING', 'EN_CORTE', 'EN_EMPAQUE'] } },
+      }),
+      this.prisma.handlingUnit.aggregate({
+        _sum: { metrajeActual: true },
+        where: { ...baseWhere, estadoHu: 'DISPONIBLE' },
+      }),
+      this.prisma.handlingUnit.aggregate({
+        _sum: { metrajeActual: true },
+        where: { ...baseWhere, tipoRollo: 'RETAZO', estadoHu: { not: 'AGOTADO' } },
+      }),
+    ]);
 
     return {
-      totalHUs, totalEnteros, totalRetazos, totalDisponibles, totalReservados,
-      metrajeTotal: metrajeResult._sum.metrajeActual || 0,
+      totalHUs,
+      totalEnteros,
+      totalRetazos, // Remanentes
+      totalDisponibles,
+      totalReservados,
+      totalMermas,
+      metrajeTotal: metrajeTotalRes._sum.metrajeActual || 0,
+      metrajeDisponible: metrajeDispRes._sum.metrajeActual || 0,
+      metrajeRemanentes: metrajeRetazosRes._sum.metrajeActual || 0,
     };
   }
 

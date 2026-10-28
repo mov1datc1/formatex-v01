@@ -238,28 +238,53 @@ export class TransfersService {
     }
 
     return this.prisma.$transaction(async (tx: any) => {
-      // Find or create a staging location in destination warehouse
+      // Find or create a staging/piso location in destination warehouse
       let destLocation = await tx.location.findFirst({
         where: { warehouseId: transfer.warehouseDestinoId, activo: true },
         orderBy: { codigo: 'asc' },
       });
 
-      // If no location exists, this is a virtual warehouse — HUs stay without location
-      for (const linea of transfer.lineas) {
-        if (destLocation) {
-          await tx.handlingUnit.update({
-            where: { id: linea.huId },
-            data: { ubicacionId: destLocation.id },
-          });
-
-          // Update location state
-          const count = await tx.handlingUnit.count({ where: { ubicacionId: destLocation.id } });
-          const cap = destLocation.capacidad || 1;
-          await tx.location.update({
-            where: { id: destLocation.id },
-            data: { estado: count >= cap ? 'OCUPADA' : 'PARCIAL' },
+      if (!destLocation) {
+        let destZone = await tx.zone.findFirst({
+          where: { warehouseId: transfer.warehouseDestinoId, activo: true },
+        });
+        if (!destZone) {
+          destZone = await tx.zone.create({
+            data: {
+              warehouseId: transfer.warehouseDestinoId,
+              nombre: 'Área General',
+              codigo: `${transfer.warehouseDestino.codigo || 'BOD'}-GEN`,
+              tipo: 'ROLLOS_ENTEROS',
+            },
           });
         }
+        destLocation = await tx.location.create({
+          data: {
+            warehouseId: transfer.warehouseDestinoId,
+            zoneId: destZone.id,
+            codigo: `${transfer.warehouseDestino.codigo || 'BOD'}-PISO-01`,
+            pasillo: 'P01',
+            capacidad: 9999,
+          },
+        });
+      }
+
+      for (const linea of transfer.lineas) {
+        await tx.handlingUnit.update({
+          where: { id: linea.huId },
+          data: {
+            ubicacionId: destLocation.id,
+            estadoHu: 'DISPONIBLE',
+          },
+        });
+
+        // Update location state
+        const count = await tx.handlingUnit.count({ where: { ubicacionId: destLocation.id } });
+        const cap = destLocation.capacidad || 1;
+        await tx.location.update({
+          where: { id: destLocation.id },
+          data: { estado: count >= cap ? 'OCUPADA' : 'PARCIAL' },
+        });
 
         // Record arrival movement
         await tx.inventoryMovement.create({

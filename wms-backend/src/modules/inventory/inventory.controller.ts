@@ -12,22 +12,38 @@ export class InventoryController {
 
   @Get('stats')
   @ApiOperation({ summary: 'Estadísticas de inventario' })
-  getStats() { return this.inventoryService.getInventoryStats(); }
+  getStats(@Query('warehouseId') warehouseId?: string) {
+    return this.inventoryService.getInventoryStats(warehouseId);
+  }
 
   @Get('hus')
-  @ApiOperation({ summary: 'Listar Handling Units (rollos)' })
+  @ApiOperation({ summary: 'Listar Handling Units (rollos / inventario)' })
   findAllHUs(
     @Query('search') search?: string,
     @Query('tipoRollo') tipoRollo?: string,
     @Query('estadoHu') estadoHu?: string,
     @Query('gradoCalidad') gradoCalidad?: string,
     @Query('skuId') skuId?: string,
+    @Query('warehouseId') warehouseId?: string,
+    @Query('zonaTipo') zonaTipo?: string,
     @Query('etiquetaImpresa') etiquetaImpresa?: string,
     @Query('receiptId') receiptId?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.inventoryService.findAllHUs({ search, tipoRollo, estadoHu, gradoCalidad, skuId, etiquetaImpresa, receiptId, page, limit });
+    return this.inventoryService.findAllHUs({
+      search,
+      tipoRollo,
+      estadoHu,
+      gradoCalidad,
+      skuId,
+      warehouseId,
+      zonaTipo,
+      etiquetaImpresa,
+      receiptId,
+      page,
+      limit,
+    });
   }
 
   @Put('hus/:id/calidad')

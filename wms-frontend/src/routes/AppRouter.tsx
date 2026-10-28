@@ -10,6 +10,7 @@ import { Login } from '../pages/auth/Login';
 import Dashboard from '../pages/Dashboard';
 import RollosPage from '../pages/inventory/RollosPage';
 import RetazosPage from '../pages/inventory/RetazosPage';
+import InventarioPage from '../pages/inventory/InventarioPage';
 import RecepcionPage from '../pages/reception/RecepcionPage';
 import PedidosPage from '../pages/orders/PedidosPage';
 import PickingPage from '../pages/picking/PickingPage';
@@ -147,7 +148,8 @@ export function AppRouter() {
           <Route path="recepcion" element={<RoleGuard excludeRoles={['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR']}><RecepcionPage /></RoleGuard>} />
           <Route path="recepcion/nueva" element={<RoleGuard excludeRoles={['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR']}><RecepcionPage /></RoleGuard>} />
           <Route path="etiquetas" element={<RoleGuard excludeRoles={['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR']}><EtiquetasPage /></RoleGuard>} />
-          <Route path="inventario/rollos" element={<RoleGuard excludeRoles={['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR']}><RollosPage /></RoleGuard>} />
+          <Route path="inventario" element={<RoleGuard excludeRoles={['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR']}><InventarioPage /></RoleGuard>} />
+          <Route path="inventario/rollos" element={<RoleGuard excludeRoles={['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR']}><InventarioPage /></RoleGuard>} />
           <Route path="inventario/retazos" element={<RoleGuard excludeRoles={['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR']}><RetazosPage /></RoleGuard>} />
 
           {/* Sistema / Catálogos */}

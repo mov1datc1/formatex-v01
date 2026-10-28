@@ -27,7 +27,12 @@ export default function TransferenciasPage() {
   const { data: stats } = useApi<any>(['transfer-stats'], '/transfers/stats');
   const { data: detail, refetch: refetchDetail } = useApi<any>(['transfer-detail', selectedId], `/transfers/${selectedId}`, {}, !!selectedId);
   const { data: warehouses } = useApi<any>(['warehouses-list'], '/warehouse/warehouses');
-  const { data: husResp } = useApi<PaginatedResponse<any>>(['hus-for-transfer'], '/inventory/hus', { estadoHu: 'DISPONIBLE', limit: 200 });
+  const { data: husResp } = useApi<PaginatedResponse<any>>(
+    ['hus-for-transfer', origenId],
+    '/inventory/hus',
+    { estadoHu: 'DISPONIBLE', warehouseId: origenId || undefined, limit: 300 },
+    !!origenId
+  );
 
   // Create form
   const [origenId, setOrigenId] = useState('');
@@ -43,10 +48,7 @@ export default function TransferenciasPage() {
   // Filter HUs by origin warehouse and search
   const filteredHUs = allHUs.filter((hu: any) => {
     if (!origenId) return false;
-    if (hu.ubicacion) {
-      // Check if the HU's location belongs to the origin warehouse
-      // We need to match by location — this is a simplified filter
-    }
+    if (hu.ubicacion?.warehouseId && hu.ubicacion.warehouseId !== origenId) return false;
     const q = huSearch.toLowerCase();
     if (q && !hu.codigo?.toLowerCase().includes(q) && !hu.sku?.nombre?.toLowerCase().includes(q)) return false;
     return hu.estadoHu === 'DISPONIBLE';

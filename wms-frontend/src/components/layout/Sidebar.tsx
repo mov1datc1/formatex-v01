@@ -86,9 +86,8 @@ const menuSections: MenuSection[] = [
     items: [
       { label: 'Recepción', path: '/recepcion', icon: ScanBarcode, permission: 'reception' },
       { label: 'Etiquetas', path: '/etiquetas', icon: Tag, permission: 'labeling' },
-      { label: 'Rollos (HUs)', path: '/inventario/rollos', icon: ScrollText, permission: 'inventory' },
-      { label: 'Retazos', path: '/inventario/retazos', icon: Scissors, permission: 'cutting' },
-      { label: 'Conteo Cíclico', path: '/inventario/rollos?tab=cyclic', icon: ClipboardList, permission: 'inventory' },
+      { label: 'Inventario', path: '/inventario', icon: ScrollText, permission: 'inventory' },
+      { label: 'Conteo Cíclico', path: '/inventario?tab=cyclic', icon: ClipboardList, permission: 'inventory' },
     ],
   },
   {
@@ -208,7 +207,7 @@ export const Sidebar = () => {
                   const currentFull = location.pathname + location.search;
                   const isActive = item.path.includes('?')
                     ? (currentFull === item.path || (location.pathname === item.path.split('?')[0] && !location.search && item.path.includes('view=atc')))
-                    : location.pathname === item.path;
+                    : (location.pathname === item.path || (item.path === '/inventario' && (location.pathname === '/inventario' || location.pathname === '/inventario/rollos' || location.pathname === '/inventario/retazos') && !location.search.includes('tab=cyclic')));
                   const Icon = item.icon;
                   return (
                     <Link
