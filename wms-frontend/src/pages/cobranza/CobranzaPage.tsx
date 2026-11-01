@@ -8,7 +8,7 @@ import type { RootState } from '../../store';
 import {
   BadgeDollarSign, CheckCircle2, Clock, Search, Eye, X,
   CreditCard, AlertTriangle, ArrowRight, User, Upload, FileCheck,
-  ShieldAlert, Send, Mail, Copy, Check, Info,
+  ShieldAlert, Send, Mail, Copy, Check, Info, Crown, KeyRound, Loader2, Unlock,
 } from 'lucide-react';
 import SubalmacenesVipTab from './SubalmacenesVipTab';
 
@@ -93,7 +93,7 @@ export default function CobranzaPage() {
         cobranzaEvidencia: evidenciaRef,
       });
 
-      toast.success('✅ Pago validado — Pedido enviado a Picking');
+      toast.success('Pago validado — Pedido enviado a Picking');
       setShowValidateModal(null);
       setSelectedOrder(null);
       refetch();
@@ -117,7 +117,7 @@ export default function CobranzaPage() {
         notasLiberacion: notasLiberacion.trim(),
       });
 
-      toast.success(`✅ Pedido ${showReleaseModal.codigo} liberado — Enviado a POR_SURTIR`);
+      toast.success(`Pedido ${showReleaseModal.codigo} liberado — Enviado a POR_SURTIR`);
       setShowReleaseModal(null);
       setNotasLiberacion('');
       refetch();
@@ -133,7 +133,7 @@ export default function CobranzaPage() {
     setSendingEmailId(orderId);
     try {
       await api.post(`/invoicing/send-preventive-email/${orderId}`);
-      toast.success('📧 Alerta preventiva enviada al cliente');
+      toast.success('Alerta preventiva enviada al cliente');
       refetchPreventive();
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Error al enviar recordatorio');
@@ -154,11 +154,11 @@ export default function CobranzaPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-500/20">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow-md shadow-blue-500/20">
             <BadgeDollarSign className="w-5 h-5 text-white" strokeWidth={1.75} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Cobranza y Crédito</h1>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Cobranza y Crédito</h1>
             <p className="text-gray-500 text-sm">Validación de pagos · Retenciones por crédito · Cobranza preventiva</p>
           </div>
         </div>
@@ -166,7 +166,7 @@ export default function CobranzaPage() {
         {/* Action Button: Preventive Alerts */}
         <button
           onClick={() => setShowPreventiveModal(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-sm font-semibold shadow-md shadow-blue-500/20 transition-all self-start md:self-auto"
+          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-all self-start md:self-auto"
         >
           <Mail size={16} />
           <span>Cobranza Preventiva (5 Días)</span>
@@ -180,40 +180,40 @@ export default function CobranzaPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-white rounded-xl border p-4">
+        <div className="bg-white rounded-xl border border-gray-200/80 p-4 shadow-sm">
           <div className="flex items-center gap-2 mb-1">
-            <Clock size={14} className="text-amber-500" />
-            <p className="text-xs text-gray-400 font-medium">Por Validar (Pago Recibido)</p>
+            <Clock size={15} className="text-amber-500" />
+            <p className="text-xs text-gray-500 font-medium">Por Validar (Pago Recibido)</p>
           </div>
-          <p className="text-2xl font-bold text-amber-600">
+          <p className="text-2xl font-bold text-gray-900">
             {tab === 'pendientes' ? (resp?.total || 0) : '—'}
           </p>
         </div>
 
-        <div className="bg-white rounded-xl border p-4">
+        <div className="bg-white rounded-xl border border-gray-200/80 p-4 shadow-sm">
           <div className="flex items-center gap-2 mb-1">
-            <CheckCircle2 size={14} className="text-emerald-500" />
-            <p className="text-xs text-gray-400 font-medium">Validados (Por Surtir)</p>
+            <CheckCircle2 size={15} className="text-emerald-500" />
+            <p className="text-xs text-gray-500 font-medium">Validados (Por Surtir)</p>
           </div>
-          <p className="text-2xl font-bold text-emerald-600">
+          <p className="text-2xl font-bold text-gray-900">
             {tab === 'validados' ? (resp?.total || 0) : '—'}
           </p>
         </div>
 
-        <div className="bg-white rounded-xl border p-4">
+        <div className="bg-white rounded-xl border border-gray-200/80 p-4 shadow-sm">
           <div className="flex items-center gap-2 mb-1">
-            <ShieldAlert size={14} className="text-red-500" />
-            <p className="text-xs text-gray-400 font-medium">Retenidos por Crédito (César)</p>
+            <ShieldAlert size={15} className="text-rose-500" />
+            <p className="text-xs text-gray-500 font-medium">Retenidos por Crédito (César)</p>
           </div>
-          <p className="text-2xl font-bold text-red-600">
+          <p className="text-2xl font-bold text-rose-600">
             {retenidosCount}
           </p>
         </div>
 
-        <div className="bg-white rounded-xl border p-4">
+        <div className="bg-white rounded-xl border border-gray-200/80 p-4 shadow-sm">
           <div className="flex items-center gap-2 mb-1">
-            <CreditCard size={14} className="text-blue-500" />
-            <p className="text-xs text-gray-400 font-medium">Alertas 5 Días (PPD)</p>
+            <CreditCard size={15} className="text-blue-500" />
+            <p className="text-xs text-gray-500 font-medium">Alertas 5 Días (PPD)</p>
           </div>
           <p className="text-2xl font-bold text-blue-600">
             {preventiveCount}
@@ -227,36 +227,36 @@ export default function CobranzaPage() {
           onClick={() => { setTab('pendientes'); setSearch(''); }}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
             tab === 'pendientes'
-              ? 'bg-amber-600 text-white shadow-sm font-semibold'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              ? 'bg-blue-600 text-white shadow-sm font-semibold'
+              : 'bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-gray-200'
           }`}
         >
-          <Clock size={14} /> Pendientes de Validar
+          <Clock size={15} /> Pendientes de Validar
         </button>
 
         <button
           onClick={() => { setTab('validados'); setSearch(''); }}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
             tab === 'validados'
-              ? 'bg-emerald-600 text-white shadow-sm font-semibold'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              ? 'bg-blue-600 text-white shadow-sm font-semibold'
+              : 'bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-gray-200'
           }`}
         >
-          <CheckCircle2 size={14} /> Validados
+          <CheckCircle2 size={15} /> Validados
         </button>
 
         <button
           onClick={() => { setTab('retenidos'); setSearch(''); }}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
             tab === 'retenidos'
-              ? 'bg-red-600 text-white shadow-sm font-semibold'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              ? 'bg-blue-600 text-white shadow-sm font-semibold'
+              : 'bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-gray-200'
           }`}
         >
-          <ShieldAlert size={14} /> Retenidos por Crédito (César)
+          <ShieldAlert size={15} /> Retenidos por Crédito (César)
           {retenidosCount > 0 && (
             <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-              tab === 'retenidos' ? 'bg-white text-red-700' : 'bg-red-100 text-red-700'
+              tab === 'retenidos' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
             }`}>
               {retenidosCount}
             </span>
@@ -267,11 +267,11 @@ export default function CobranzaPage() {
           onClick={() => { setTab('vip'); setSearch(''); }}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
             tab === 'vip'
-              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm font-bold'
-              : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200'
+              ? 'bg-blue-600 text-white shadow-sm font-semibold'
+              : 'bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-gray-200'
           }`}
         >
-          <span>💎</span> Sub-Almacenes VIP (Seth)
+          <Crown size={15} /> Sub-Almacenes VIP (Seth)
         </button>
       </div>
 
@@ -350,8 +350,9 @@ export default function CobranzaPage() {
                     {order.vendor?.nombre || '—'}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-xs text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg block font-medium max-w-md">
-                      ⚠️ {order.motivoRetencionCredito || 'Facturas vencidas / límite rebasado'}
+                    <span className="text-xs text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 font-medium max-w-md">
+                      <AlertTriangle size={13} className="text-red-600 shrink-0" />
+                      <span>{order.motivoRetencionCredito || 'Facturas vencidas / límite rebasado'}</span>
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right font-mono font-bold text-gray-900">
@@ -374,9 +375,10 @@ export default function CobranzaPage() {
                           setShowReleaseModal(order);
                           setNotasLiberacion('');
                         }}
-                        className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1.5"
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5"
                       >
-                        <span>🔓 Liberar (Negociación)</span>
+                        <KeyRound size={13} />
+                        <span>Liberar (Negociación)</span>
                       </button>
                     </div>
                   </td>
@@ -447,9 +449,9 @@ export default function CobranzaPage() {
                         <button
                           onClick={() => openValidateModal(order)}
                           title="Validar pago"
-                          className="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg text-xs font-medium hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-sm"
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-all shadow-sm flex items-center gap-1.5"
                         >
-                          ✓ Validar
+                          <Check size={13} /> Validar
                         </button>
                       )}
                     </div>
@@ -528,9 +530,9 @@ export default function CobranzaPage() {
                 <button
                   onClick={handleReleaseCredit}
                   disabled={releasing || !notasLiberacion.trim()}
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-600/25 hover:from-emerald-700 hover:to-teal-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold shadow-sm disabled:opacity-50 transition-all flex items-center justify-center gap-2"
                 >
-                  {releasing ? 'Liberando...' : '🔓 Confirmar y Mandar a Surtido'}
+                  {releasing ? 'Liberando...' : <><Unlock size={15} /> Confirmar y Mandar a Surtido</>}
                 </button>
               </div>
             </div>
@@ -612,7 +614,7 @@ export default function CobranzaPage() {
                           <td className="px-3 py-2.5 text-center">
                             {item.alerta5DiasEnviada ? (
                               <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                ✓ Enviada
+                                <Check size={11} className="text-emerald-700" /> Enviada
                               </span>
                             ) : (
                               <span className="text-[10px] bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full">
@@ -715,8 +717,9 @@ export default function CobranzaPage() {
 
               {selectedOrder.liberadoCreditoPor && (
                 <div className="bg-teal-50 border border-teal-200 rounded-xl p-3.5 space-y-1">
-                  <div className="flex items-center gap-2 text-teal-800 font-bold text-xs uppercase">
-                    ✓ Liberado por César / Cobranza
+                  <div className="flex items-center gap-1.5 text-teal-800 font-bold text-xs uppercase">
+                    <CheckCircle2 size={13} className="text-teal-700" />
+                    <span>Liberado por César / Cobranza</span>
                   </div>
                   <p className="text-xs text-teal-900">Por: {selectedOrder.liberadoCreditoPor} · {selectedOrder.fechaLiberacionCredito ? new Date(selectedOrder.fechaLiberacionCredito).toLocaleString('es-MX') : ''}</p>
                   <p className="text-xs text-teal-700 italic">"{selectedOrder.notasLiberacionCredito}"</p>
@@ -735,9 +738,9 @@ export default function CobranzaPage() {
               {tab === 'pendientes' && (
                 <button
                   onClick={() => { setSelectedOrder(null); openValidateModal(selectedOrder); }}
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-700 text-white rounded-xl text-sm font-medium transition-all shadow-sm flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-all shadow-sm flex items-center justify-center gap-2"
                 >
-                  ✅ Validar Pago
+                  <CheckCircle2 size={15} /> Validar Pago
                 </button>
               )}
               {selectedOrder.retenidoCredito && (
@@ -747,9 +750,9 @@ export default function CobranzaPage() {
                     setSelectedOrder(null);
                     setShowReleaseModal(ord);
                   }}
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-xl text-sm font-bold transition-all shadow-sm flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-all shadow-sm flex items-center justify-center gap-2"
                 >
-                  🔓 Liberar Pedido
+                  <Unlock size={15} /> Liberar Pedido
                 </button>
               )}
             </div>
@@ -873,10 +876,10 @@ export default function CobranzaPage() {
                 <button
                   onClick={handleValidate}
                   disabled={validating || !cobradorNombre.trim()}
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-700 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-emerald-500/25 hover:from-emerald-600 hover:to-emerald-800 disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {validating ? (
-                    <>⏳ Validando...</>
+                    <><Loader2 size={15} className="animate-spin" /> Validando...</>
                   ) : (
                     <><CheckCircle2 size={16} /> Confirmar Validación</>
                   )}
