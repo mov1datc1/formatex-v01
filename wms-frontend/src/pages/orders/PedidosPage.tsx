@@ -100,12 +100,30 @@ export default function PedidosPage() {
   // Tab principal y sub-filtros de navegación
   type MainTab = 'cotizaciones' | 'pedidos' | 'pipeline' | 'backorder';
   const [activeMainTab, setActiveMainTab] = useState<MainTab>(() => {
-    return (userRoleName === 'VENDEDOR' || userRoleName === 'VENTAS' || userRoleName === 'GERENTE_VENTAS') ? 'pedidos' : 'cotizaciones';
+    return (userRoleName === 'VENDEDOR' || userRoleName === 'VENTAS' || userRoleName === 'GERENTE_VENTAS') ? 'pipeline' : 'cotizaciones';
   });
   const [subFilterCotizaciones, setSubFilterCotizaciones] = useState<'ALL' | 'COTIZADO' | 'POR_PAGAR'>('ALL');
   const [subFilterPedidos, setSubFilterPedidos] = useState<string>('ALL');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+
+  const { data: vendors } = useApi<PaginatedResponse<any>>(['vendors'], '/catalog/vendors', { limit: 100 });
+
+  // Para VENDEDOR: resolver su vendorId exacto de catálogo para filtrar estrictamente SOLO sus pedidos (sin ver los de otros vendedores)
+  const myVendorId = useMemo(() => {
+    if (!isVendedor || !vendors?.data || !user) return undefined;
+    const uEmail = (user.email || '').toLowerCase().trim();
+    const uName = (user.nombre || '').replace(/\s*\(.*?\)\s*/g, '').toLowerCase().trim();
+    const match = vendors.data.find((v: any) => {
+      const vEmail = (v.email || '').toLowerCase().trim();
+      const vName = (v.nombre || '').toLowerCase().trim();
+      return (uEmail && vEmail && uEmail === vEmail) || (uName && vName && vName === uName);
+    }) || vendors.data.find((v: any) => {
+      const vName = (v.nombre || '').toLowerCase().trim();
+      return Boolean(uName && vName && (vName.includes(uName) || uName.includes(vName)));
+    });
+    return match?.id;
+  }, [isVendedor, vendors?.data, user]);
 
   const { data: statusCountsData, refetch: refetchStatusCounts } = useApi<{
     counts: Record<string, number>;
@@ -113,9 +131,9 @@ export default function PedidosPage() {
     cotizaciones: number;
     pedidos: number;
   }>(
-    ['order-status-counts', scopeFilter, user?.id],
+    ['order-status-counts', scopeFilter, user?.id, myVendorId],
     '/orders/status-counts',
-    { creadoPor: scopeFilter === 'MIO' && user?.id ? user.id : undefined }
+    { creadoPor: (isVendedor || scopeFilter === 'MIO') && user?.id ? user.id : undefined }
   );
 
   const effectiveEstado = useMemo(() => {
@@ -131,17 +149,32 @@ export default function PedidosPage() {
     return undefined;
   }, [activeMainTab, subFilterCotizaciones, subFilterPedidos, filterEstado]);
 
-  const { data: resp, isLoading, refetch: refetchOrders } = useApi<PaginatedResponse<Order>>(
-    ['orders', search, effectiveEstado, scopeFilter, user?.id, page, limit],
+  const { data: rawResp, isLoading, refetch: refetchOrders } = useApi<PaginatedResponse<Order>>(
+    ['orders', search, effectiveEstado, scopeFilter, user?.id, myVendorId, page, limit],
     '/orders',
     {
       search: search || undefined,
       estado: effectiveEstado,
-      creadoPor: scopeFilter === 'MIO' && user?.id ? user.id : undefined,
+      vendorId: isVendedor ? (myVendorId || 'PENDING_VENDOR') : undefined,
+      creadoPor: !isVendedor && scopeFilter === 'MIO' && user?.id ? user.id : undefined,
       page,
       limit,
     }
   );
+
+  // Candado adicional en cliente: si es VENDEDOR, garantizar que nunca se muestre un pedido de otro vendedor
+  const resp = useMemo(() => {
+    if (!rawResp) return rawResp;
+    if (!isVendedor) return rawResp;
+    const filteredData = (rawResp.data || []).filter((o: any) => {
+      if (myVendorId && o.vendorId) return o.vendorId === myVendorId;
+      return isOrderOwner(o);
+    });
+    return {
+      ...rawResp,
+      data: filteredData,
+    };
+  }, [rawResp, isVendedor, myVendorId, user]);
   const totalPages = Math.max(1, Math.ceil((resp?.total || 0) / limit));
 
   const isOrderOwner = (o: any) => {
@@ -180,7 +213,6 @@ export default function PedidosPage() {
   const { data: detail, refetch: refetchDetail } = useApi<any>(['order-detail', selectedOrder], `/orders/${selectedOrder}`, {}, !!selectedOrder);
   const { data: clients } = useApi<PaginatedResponse<any>>(['clients'], '/catalog/clients', { limit: 500 });
   const { data: skus } = useApi<PaginatedResponse<any>>(['skus-order'], '/catalog/skus', { limit: 5000 });
-  const { data: vendors } = useApi<PaginatedResponse<any>>(['vendors'], '/catalog/vendors', { limit: 100 });
 
   // Tareas de confirmación de entrega (filtradas por ATC asignado o todas para Alma/Supervisora)
   const { data: pendingDeliveries, refetch: refetchPendingDeliveries } = useApi<any[]>(
@@ -1750,6 +1782,11 @@ export default function PedidosPage() {
                   </option>
                 ))}
               </select>
+            </div>
+          ) : isVendedor ? (
+            <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl self-start sm:self-auto shrink-0">
+              <User size={13} className="text-emerald-600" />
+              <span className="text-xs font-bold text-emerald-900">Solo Mis Pedidos Asignados</span>
             </div>
           ) : (
             <div className="flex items-center gap-1.5 bg-gray-100/90 p-1 rounded-xl self-start sm:self-auto shrink-0">

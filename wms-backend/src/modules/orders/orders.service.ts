@@ -13,26 +13,40 @@ export class OrdersService {
 
   private async resolveVendorIdForUser(userOrId?: any): Promise<string | null> {
     if (!userOrId) return null;
-    let userObj = typeof userOrId === 'string'
+    const userObj = typeof userOrId === 'string'
       ? await this.prisma.user.findUnique({ where: { id: userOrId }, select: { id: true, nombre: true, username: true, email: true } }).catch(() => null)
       : userOrId;
 
     if (!userObj) return null;
 
-    const matchedVendor = await this.prisma.vendor.findFirst({
-      where: {
-        OR: [
-          ...(userObj.email ? [{ email: { equals: userObj.email, mode: 'insensitive' as const } }] : []),
-          ...(userObj.username ? [{ nombre: { contains: userObj.username.split('.')[0], mode: 'insensitive' as const } }] : []),
-          ...(userObj.nombre ? [{ nombre: { contains: userObj.nombre.replace(/\s*\(.*?\)\s*/g, '').trim(), mode: 'insensitive' as const } }] : []),
-        ],
-      },
-    });
-    return matchedVendor?.id || null;
+    const cleanName = userObj.nombre ? String(userObj.nombre).replace(/\s*\(.*?\)\s*/g, '').trim() : '';
+
+    // 1. Priorizar coincidencia exacta por email o nombre completo
+    if (userObj.email || cleanName) {
+      const exactVendor = await this.prisma.vendor.findFirst({
+        where: {
+          OR: [
+            ...(userObj.email ? [{ email: { equals: userObj.email, mode: 'insensitive' as const } }] : []),
+            ...(cleanName ? [{ nombre: { equals: cleanName, mode: 'insensitive' as const } }] : []),
+          ],
+        },
+      });
+      if (exactVendor) return exactVendor.id;
+    }
+
+    // 2. Fallback por coincidencia parcial del nombre limpio
+    if (cleanName) {
+      const partialVendor = await this.prisma.vendor.findFirst({
+        where: { nombre: { contains: cleanName, mode: 'insensitive' as const } },
+      });
+      if (partialVendor) return partialVendor.id;
+    }
+
+    return null;
   }
 
-  async findAll(params: { search?: string; estado?: string; clientId?: string; vendorId?: string; surtidorId?: string; retenidoCredito?: string | boolean; creadoPor?: string; page?: number; limit?: number }) {
-    const { search, estado, clientId, vendorId, surtidorId, retenidoCredito, creadoPor, page = 1, limit = 20 } = params;
+  async findAll(params: { search?: string; estado?: string; clientId?: string; vendorId?: string; surtidorId?: string; retenidoCredito?: string | boolean; creadoPor?: string; currentUser?: any; page?: number; limit?: number }) {
+    const { search, estado, clientId, vendorId, surtidorId, retenidoCredito, creadoPor, currentUser, page = 1, limit = 20 } = params;
     const skip = (page - 1) * limit;
     const where: any = {};
     if (estado) {
@@ -54,17 +68,38 @@ export class OrdersService {
     }
 
     const andConditions: any[] = [];
-    if (creadoPor) {
-      const resolvedVendorId = await this.resolveVendorIdForUser(creadoPor);
-      const orList: any[] = [
-        { creadoPor },
-        { atcUserId: creadoPor },
-      ];
+    const currentRole = String(currentUser?.role?.nombre || currentUser?.role || '').toUpperCase();
+    const isVendedorUser = currentRole === 'VENDEDOR' || currentRole === 'VENTAS';
+
+    if (isVendedorUser) {
+      const resolvedVendorId = await this.resolveVendorIdForUser(currentUser?.sub || currentUser?.id || creadoPor || currentUser);
       if (resolvedVendorId) {
-        orList.push({ vendorId: resolvedVendorId });
-        orList.push({ client: { vendorId: resolvedVendorId } });
+        andConditions.push({
+          OR: [
+            { vendorId: resolvedVendorId },
+            { vendorId: null, client: { vendorId: resolvedVendorId } },
+          ],
+        });
+      } else {
+        andConditions.push({ creadoPor: currentUser?.sub || currentUser?.id || 'NONE' });
       }
-      andConditions.push({ OR: orList });
+    } else if (creadoPor) {
+      const resolvedVendorId = await this.resolveVendorIdForUser(creadoPor);
+      if (resolvedVendorId) {
+        andConditions.push({
+          OR: [
+            { vendorId: resolvedVendorId },
+            { vendorId: null, client: { vendorId: resolvedVendorId } },
+          ],
+        });
+      } else {
+        andConditions.push({
+          OR: [
+            { creadoPor },
+            { atcUserId: creadoPor },
+          ],
+        });
+      }
     }
     if (search) {
       andConditions.push({
@@ -993,19 +1028,34 @@ export class OrdersService {
     return { total, cotizados, porPagar, porSurtir, enProceso, empacados, facturados, despachados };
   }
 
-  async getStatusCounts(creadoPor?: string) {
+  async getStatusCounts(creadoPor?: string, currentUser?: any) {
     const where: any = {};
-    if (creadoPor) {
-      const resolvedVendorId = await this.resolveVendorIdForUser(creadoPor);
-      const orList: any[] = [
-        { creadoPor },
-        { atcUserId: creadoPor },
-      ];
+    const currentRole = String(currentUser?.role?.nombre || currentUser?.role || '').toUpperCase();
+    const isVendedorUser = currentRole === 'VENDEDOR' || currentRole === 'VENTAS';
+
+    if (isVendedorUser) {
+      const resolvedVendorId = await this.resolveVendorIdForUser(currentUser?.sub || currentUser?.id || creadoPor || currentUser);
       if (resolvedVendorId) {
-        orList.push({ vendorId: resolvedVendorId });
-        orList.push({ client: { vendorId: resolvedVendorId } });
+        where.OR = [
+          { vendorId: resolvedVendorId },
+          { vendorId: null, client: { vendorId: resolvedVendorId } },
+        ];
+      } else {
+        where.creadoPor = currentUser?.sub || currentUser?.id || 'NONE';
       }
-      where.OR = orList;
+    } else if (creadoPor) {
+      const resolvedVendorId = await this.resolveVendorIdForUser(creadoPor);
+      if (resolvedVendorId) {
+        where.OR = [
+          { vendorId: resolvedVendorId },
+          { vendorId: null, client: { vendorId: resolvedVendorId } },
+        ];
+      } else {
+        where.OR = [
+          { creadoPor },
+          { atcUserId: creadoPor },
+        ];
+      }
     }
     const groups = await this.prisma.order.groupBy({
       by: ['estado'],

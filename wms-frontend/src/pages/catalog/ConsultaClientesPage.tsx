@@ -13,6 +13,7 @@ import {
 export default function ConsultaClientesPage() {
   const { user, isAdmin } = usePermission();
   const userRole = (user?.role?.nombre || user?.role || '').toUpperCase();
+  const isVendedor = userRole === 'VENDEDOR' || userRole === 'VENTAS';
 
   const isAlmaOrManager = useMemo(() => {
     return (
@@ -60,11 +61,29 @@ export default function ConsultaClientesPage() {
   const vendorsList = vendorsResp?.data || [];
   const allClients = clientsResp?.data || [];
 
+  // Si es VENDEDOR, resolver su vendorId para que solo vea los clientes de su propia cartera
+  const myVendorId = useMemo(() => {
+    if (!isVendedor || !vendorsList.length || !user) return undefined;
+    const uEmail = (user.email || '').toLowerCase().trim();
+    const uName = (user.nombre || '').replace(/\s*\(.*?\)\s*/g, '').toLowerCase().trim();
+    const match = vendorsList.find((v: any) => {
+      const vEmail = (v.email || '').toLowerCase().trim();
+      const vName = (v.nombre || '').toLowerCase().trim();
+      return (uEmail && vEmail && uEmail === vEmail) || (uName && vName && vName === uName);
+    }) || vendorsList.find((v: any) => {
+      const vName = (v.nombre || '').toLowerCase().trim();
+      return Boolean(uName && vName && (vName.includes(uName) || uName.includes(vName)));
+    });
+    return match?.id;
+  }, [isVendedor, vendorsList, user]);
+
   // Filtrado instantáneo en memoria mientras escribe el agente cuando entra una llamada
   const filteredClients = useMemo(() => {
     const q = search.trim().toLowerCase();
     return allClients.filter((c: any) => {
-      if (vendorFilter) {
+      if (isVendedor) {
+        if (!myVendorId || c.vendor?.id !== myVendorId) return false;
+      } else if (vendorFilter) {
         if (vendorFilter === 'UNASSIGNED') {
           if (c.vendor?.id) return false;
         } else if (c.vendor?.id !== vendorFilter) {
@@ -93,15 +112,16 @@ export default function ConsultaClientesPage() {
         c.ultimoAtcNombre?.toLowerCase().includes(q)
       );
     });
-  }, [allClients, search, vendorFilter, debtFilter]);
+  }, [allClients, search, vendorFilter, debtFilter, isVendedor, myVendorId]);
 
   const stats = useMemo(() => {
-    const total = allClients.length;
-    const conEjecutivo = allClients.filter((c: any) => Boolean(c.vendor?.nombre || c.ultimoAtcNombre)).length;
-    const conDeuda = allClients.filter((c: any) => (c.deudaSummary?.facturasPendientes || 0) > 0).length;
-    const conPreciosEsp = allClients.filter((c: any) => (c._count?.specialPrices || 0) > 0).length;
+    const baseList = isVendedor ? allClients.filter((c: any) => myVendorId && c.vendor?.id === myVendorId) : allClients;
+    const total = baseList.length;
+    const conEjecutivo = baseList.filter((c: any) => Boolean(c.vendor?.nombre || c.ultimoAtcNombre)).length;
+    const conDeuda = baseList.filter((c: any) => (c.deudaSummary?.facturasPendientes || 0) > 0).length;
+    const conPreciosEsp = baseList.filter((c: any) => (c._count?.specialPrices || 0) > 0).length;
     return { total, conEjecutivo, conDeuda, conPreciosEsp };
-  }, [allClients]);
+  }, [allClients, isVendedor, myVendorId]);
 
   const openDebtConsultationModal = async (client: any) => {
     setSelectedClientForDebt(client);
@@ -208,22 +228,24 @@ export default function ConsultaClientesPage() {
 
           {/* Filtro por Vendedor / Agente de Ventas */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-              <UserCheck size={15} className="text-indigo-600 shrink-0" />
-              <select
-                value={vendorFilter}
-                onChange={(e) => setVendorFilter(e.target.value)}
-                className="bg-transparent text-xs font-semibold text-gray-800 focus:outline-none cursor-pointer"
-              >
-                <option value="">Todos los Agentes de Ventas</option>
-                {vendorsList.map((v: any) => (
-                  <option key={v.id} value={v.id}>
-                    {v.nombre} ({v.codigo})
-                  </option>
-                ))}
-                <option value="UNASSIGNED">Sin Agente Asignado</option>
-              </select>
-            </div>
+            {!isVendedor && (
+              <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                <UserCheck size={15} className="text-indigo-600 shrink-0" />
+                <select
+                  value={vendorFilter}
+                  onChange={(e) => setVendorFilter(e.target.value)}
+                  className="bg-transparent text-xs font-semibold text-gray-800 focus:outline-none cursor-pointer"
+                >
+                  <option value="">Todos los Agentes de Ventas</option>
+                  {vendorsList.map((v: any) => (
+                    <option key={v.id} value={v.id}>
+                      {v.nombre} ({v.codigo})
+                    </option>
+                  ))}
+                  <option value="UNASSIGNED">Sin Agente Asignado</option>
+                </select>
+              </div>
+            )}
 
             {/* Filtro de Adeudos */}
             <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl text-xs">

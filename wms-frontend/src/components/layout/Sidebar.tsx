@@ -41,8 +41,8 @@ const menuSections: MenuSection[] = [
     items: [
       { label: 'Pedidos', path: '/pedidos', icon: ClipboardList, permission: 'orders' },
       { label: 'Consulta de Clientes', path: '/clientes', icon: Users, permission: 'orders', allowedRoles: ['ADMIN', 'DIRECTOR_OPERACIONES', 'GERENCIA', 'GERENTE_VENTAS', 'ATC', 'JEFE_ATC', 'VENDEDOR'] },
-      { label: 'Disponibilidad', path: '/disponibilidad', icon: Search, permission: 'availability' },
-      { label: 'En Tránsito (ATC)', path: '/transito?view=atc', icon: Ship, permission: 'transit' },
+      { label: 'Disponibilidad', path: '/disponibilidad', icon: Search, permission: 'availability', excludeRoles: ['VENDEDOR'] },
+      { label: 'En Tránsito (ATC)', path: '/transito?view=atc', icon: Ship, permission: 'transit', excludeRoles: ['VENDEDOR'] },
       { label: 'Mis Comisiones', path: '/comisiones', icon: BadgeDollarSign, permission: 'orders', allowedRoles: ['ADMIN', 'DIRECTOR_OPERACIONES', 'GERENCIA', 'GERENTE_VENTAS', 'VENDEDOR'], excludeRoles: ['ATC', 'JEFE_ATC'] },
     ],
   },
@@ -134,8 +134,8 @@ export const Sidebar = () => {
       return true;
     }
 
-    // Fallback garantizado para VENDEDOR (Agentes de Ventas de campo)
-    if (userRole === 'VENDEDOR' && ['orders', 'availability', 'transit'].includes(item.permission)) {
+    // Fallback garantizado para VENDEDOR (Agentes de Ventas de campo: solo Pedidos, Clientes y Comisiones)
+    if (userRole === 'VENDEDOR' && ['orders'].includes(item.permission)) {
       return true;
     }
 

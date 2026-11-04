@@ -16,8 +16,8 @@ export class OrdersController {
 
   @Get('status-counts')
   @ApiOperation({ summary: 'Conteo en tiempo real por cada estado del pipeline Formatex' })
-  getStatusCounts(@Query('creadoPor') creadoPor?: string) {
-    return this.ordersService.getStatusCounts(creadoPor);
+  getStatusCounts(@Req() req: any, @Query('creadoPor') creadoPor?: string) {
+    return this.ordersService.getStatusCounts(creadoPor, req.user);
   }
 
   @Get('pending-delivery-confirmations')
@@ -100,6 +100,7 @@ export class OrdersController {
   @Get()
   @ApiOperation({ summary: 'Listar pedidos' })
   findAll(
+    @Req() req: any,
     @Query('search') search?: string,
     @Query('estado') estado?: string,
     @Query('clientId') clientId?: string,
@@ -110,7 +111,7 @@ export class OrdersController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.ordersService.findAll({ search, estado, clientId, vendorId, surtidorId, retenidoCredito, creadoPor, page, limit });
+    return this.ordersService.findAll({ search, estado, clientId, vendorId, surtidorId, retenidoCredito, creadoPor, currentUser: req.user, page, limit });
   }
 
   @Post(':id/assign-surtidor')

@@ -174,7 +174,7 @@ async function main() {
   const rolesConfig: Array<{name:string,desc:string,nivel:number,mods:string[]}> = [
     { name: 'DIRECTOR_OPERACIONES', desc: 'Director — acceso total', nivel: 1, mods: modules },
     { name: 'GERENTE_VENTAS', desc: 'Gerente de Ventas — supervisión de fuerza de ventas, pedidos, clientes y comisiones', nivel: 2, mods: ['dashboard','catalogs','orders','availability','transit','invoicing'] },
-    { name: 'VENDEDOR', desc: 'Agente de Ventas — consulta de estatus de sus pedidos, consulta de deuda de clientes y Mis Comisiones', nivel: 3, mods: ['orders','availability','transit','catalogs','invoicing'] },
+    { name: 'VENDEDOR', desc: 'Agente de Ventas — consulta de estatus de sus pedidos, consulta de deuda de clientes y Mis Comisiones', nivel: 3, mods: ['orders','catalogs','invoicing'] },
     { name: 'JEFE_ATC', desc: 'Jefa de Atención al Cliente — supervisión comercial, catálogos y pedidos', nivel: 2, mods: ['dashboard','catalogs','orders','availability','reservations','transit'] },
     { name: 'ATC', desc: 'Atención al Cliente — levanta pedidos', nivel: 3, mods: ['orders','availability','reservations','transit'] },
     { name: 'COBRANZA', desc: 'Cobranza — verifica pagos', nivel: 3, mods: ['dashboard','orders','cobranza'] },
