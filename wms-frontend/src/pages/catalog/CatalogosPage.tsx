@@ -689,30 +689,55 @@ export default function CatalogosPage() {
           </div>
         );
 
-      case 'specialPrices':
+      case 'specialPrices': {
+        const clientSearchFilter = (formData._clientSearch || '').toLowerCase().trim();
+        const skuSearchFilter = (formData._skuSearch || '').toLowerCase().trim();
+        const filteredClientsForSp = allClientsList.filter((c: any) =>
+          !clientSearchFilter ||
+          c.nombre?.toLowerCase().includes(clientSearchFilter) ||
+          c.codigo?.toLowerCase().includes(clientSearchFilter) ||
+          c.rfc?.toLowerCase().includes(clientSearchFilter)
+        );
+        const filteredSkusForSp = allSkusList
+          .filter((s: any) => s.tipoArticulo !== 'MUESTRARIO' && !s.nombre?.toUpperCase().startsWith('MUESTRARIO'))
+          .filter((s: any) =>
+            !skuSearchFilter ||
+            s.nombre?.toLowerCase().includes(skuSearchFilter) ||
+            s.codigo?.toLowerCase().includes(skuSearchFilter) ||
+            s.color?.toLowerCase().includes(skuSearchFilter)
+          );
+
         return (
           <div className="space-y-4">
             <div className="p-3.5 bg-indigo-50/80 border border-indigo-200 rounded-xl text-xs text-indigo-900 flex items-start gap-2.5">
               <Sparkles size={16} className="text-indigo-600 mt-0.5 shrink-0" />
               <div>
-                <p className="font-semibold">Precios Especiales Directivos Centralizados</p>
+                <p className="font-semibold">Alta de Precio Especial por Cliente y Tela (Flujo Dirección → Alma)</p>
                 <p className="text-indigo-700 mt-0.5">
-                  Los precios registrados aquí se auto-aplican en el cotizador al seleccionar el cliente y la tela,
-                  bloqueando la edición manual para evitar errores de dedo y notas de crédito.
+                  Cuando un cliente solicita un precio especial en una tela específica y Dirección lo aprueba, regístralo aquí. Al marcar la casilla inferior, se aplicará automáticamente a todos los colores de esa familia de tela para ese cliente (las demás telas que pida en su cotización conservarán su precio base normal).
                 </p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Cliente *</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-gray-600">1. Cliente / Empresa *</label>
+                  <input
+                    type="text"
+                    value={formData._clientSearch || ''}
+                    onChange={(e) => updateField('_clientSearch', e.target.value)}
+                    placeholder="Filtrar cliente..."
+                    className="px-2 py-0.5 text-[11px] bg-white border border-gray-200 rounded-lg focus:border-indigo-400 w-36"
+                  />
+                </div>
                 <select
                   value={formData.clientId || ''}
                   onChange={(e) => updateField('clientId', e.target.value)}
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400"
                 >
-                  <option value="">Selecciona cliente...</option>
-                  {allClientsList.map(c => (
+                  <option value="">Selecciona cliente ({filteredClientsForSp.length})...</option>
+                  {filteredClientsForSp.map((c: any) => (
                     <option key={c.id} value={c.id}>{c.nombre} ({c.codigo})</option>
                   ))}
                 </select>
@@ -720,38 +745,47 @@ export default function CatalogosPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Tela (SKU) *</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-gray-600">2. Tela (Familia / SKU) *</label>
+                  <input
+                    type="text"
+                    value={formData._skuSearch || ''}
+                    onChange={(e) => updateField('_skuSearch', e.target.value)}
+                    placeholder="Buscar tela (ej. DAZZLE)..."
+                    className="px-2 py-0.5 text-[11px] bg-white border border-gray-200 rounded-lg focus:border-indigo-400 w-44"
+                  />
+                </div>
                 <select
                   value={formData.skuId || ''}
                   onChange={(e) => updateField('skuId', e.target.value)}
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400"
                 >
-                  <option value="">Selecciona tela...</option>
-                  {allSkusList.map(s => (
+                  <option value="">Selecciona tela ({filteredSkusForSp.length})...</option>
+                  {filteredSkusForSp.slice(0, 400).map((s: any) => (
                     <option key={s.id} value={s.id}>{s.nombre} ({s.codigo}) — {s.color || ''}</option>
                   ))}
                 </select>
-                <p className="text-[11px] text-gray-400 mt-1">Tela específica pactada</p>
+                <p className="text-[11px] text-gray-400 mt-1">Escribe arriba el nombre de la tela para filtrar al instante</p>
               </div>
 
-              {renderInput('Precio Pactado por Metro (MXN) *', 'precioPactado', {
+              {renderInput('3. Precio Especial Autorizado por Metro (MXN) *', 'precioPactado', {
                 type: 'number',
                 placeholder: '89.50',
                 hint: 'Precio neto final por metro autorizado por Dirección',
               })}
 
-              {renderInput('Referencia de Proyecto / Convenio', 'referenciaProyecto', {
-                placeholder: 'Ej: Piso Plasencia Guadalajara',
-                hint: 'Motivo o acuerdo comercial para auditoría',
+              {renderInput('4. Argumento / Proyecto del Cliente', 'referenciaProyecto', {
+                placeholder: 'Ej: Licitación Hotel / Producción modelo X',
+                hint: 'Justificación por la cual solicitó el precio especial',
               })}
 
-              {renderInput('Autorizado Por', 'autorizadoPor', {
-                placeholder: 'Dirección / Alma (ATC)',
+              {renderInput('5. Autorizado Por', 'autorizadoPor', {
+                placeholder: 'Dirección General / Alma (Jefa ATC)',
                 hint: 'Persona directiva que autorizó el precio',
               })}
 
               {renderInput('Notas Adicionales', 'notas', {
-                placeholder: 'Argumento comercial, condiciones de volumen o proyecto...',
+                placeholder: 'Condiciones de volumen, vigencia o acuerdo...',
               })}
 
               {!editingId && (
@@ -772,6 +806,7 @@ export default function CatalogosPage() {
             </div>
           </div>
         );
+      }
 
       case 'priceLists':
         return (

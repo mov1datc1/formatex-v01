@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { api } from '../../config/api';
+import toast from 'react-hot-toast';
 import {
   Scroll, Scissors, Search, TrendingDown, Truck,
   MapPin, AlertTriangle, Check, ChevronDown, X, Sparkles, CalendarClock,
-  Package, Layers, Target, ShieldAlert, Lock, Loader2,
+  Package, Layers, Target, ShieldAlert, Lock, Unlock, Loader2, User, Building2, Clock,
 } from 'lucide-react';
 
 interface OrderLineSmartProps {
@@ -32,7 +33,8 @@ export default function OrderLineSmart({ index, clientId, clientSpecialPrices = 
   const [suggestions, setSuggestions] = useState<any>(null);
   const [loadingSugg, setLoadingSugg] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [viewMode, setViewMode] = useState<'plan' | 'individual'>('plan');
+  const [viewMode, setViewMode] = useState<'plan' | 'individual' | 'reserved'>('plan');
+  const [releasingHuId, setReleasingHuId] = useState<string | null>(null);
   const [pricingInfo, setPricingInfo] = useState<any>(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
   const [manualListaOverride, setManualListaOverride] = useState<string>('');
@@ -194,12 +196,12 @@ export default function OrderLineSmart({ index, clientId, clientSpecialPrices = 
 
   const lastFetchedRef = useRef('');
 
-  const fetchSuggestions = useCallback(async (skuId: string, metraje: number) => {
+  const fetchSuggestions = useCallback(async (skuId: string, metraje: number, force = false) => {
     if (!skuId || !metraje || metraje <= 0 || isMuestrario) { setSuggestions(null); return; }
 
     // Prevent re-fetching the same params (avoids infinite loop)
     const key = `${skuId}-${metraje}`;
-    if (lastFetchedRef.current === key) return;
+    if (!force && lastFetchedRef.current === key) return;
     lastFetchedRef.current = key;
 
     setLoadingSugg(true);
@@ -207,6 +209,13 @@ export default function OrderLineSmart({ index, clientId, clientSpecialPrices = 
       const resp = await api.get('/inventory/suggest-hus', { params: { skuId, metraje, limit: 20 } });
       setSuggestions(resp.data);
       setShowSuggestions(true);
+
+      // Si no hay rollos disponibles pero sí hay reservados, mostrar la pestaña de Reservados o alertar
+      if ((resp.data?.totalAvailable === 0 || resp.data?.fulfillmentPlan?.items?.length === 0) && resp.data?.totalReserved > 0) {
+        setViewMode('reserved');
+      } else if (force) {
+        setViewMode('plan');
+      }
 
       // Auto-select fulfillment plan HUs for the order
       const plan = resp.data?.fulfillmentPlan;
@@ -225,6 +234,21 @@ export default function OrderLineSmart({ index, clientId, clientSpecialPrices = 
     }
     setLoadingSugg(false);
   }, [index, isMuestrario]);
+
+  const handleReleaseReservedHu = async (hu: any) => {
+    setReleasingHuId(hu.id);
+    try {
+      const res = await api.post(`/inventory/hus/${hu.id}/release-reservation`, {
+        motivo: `Liberado por ATC en cotización tras consultar con ${hu.reservedByNombre || 'compañero'}`,
+      });
+      toast.success(res.data?.message || `Rollo ${hu.codigo} liberado y disponible`);
+      await fetchSuggestions(line.skuId, line.metrajeRequerido, true);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'No se pudo liberar la reserva');
+    } finally {
+      setReleasingHuId(null);
+    }
+  };
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -559,7 +583,12 @@ export default function OrderLineSmart({ index, clientId, clientSpecialPrices = 
               {plan && (
                 <span className="text-[10px] text-indigo-500 font-medium">
                   {plan.totalHUsFisicos} físico{plan.totalHUsTransito > 0 ? ` + ${plan.totalHUsTransito} tránsito` : ''} 
-                  · {suggestions?.totalAvailable} HUs disp.
+                  · {suggestions?.totalAvailable || 0} disp.
+                </span>
+              )}
+              {(suggestions?.totalReserved || 0) > 0 && (
+                <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-300 px-1.5 py-0.5 rounded font-bold flex items-center gap-1">
+                  <Lock size={10} /> {suggestions.totalReserved} Reservado{suggestions.totalReserved === 1 ? '' : 's'} ({suggestions.reservedMetraje}m)
                 </span>
               )}
               <ChevronDown size={14} className={`text-indigo-400 transition-transform ${showSuggestions ? 'rotate-180' : ''}`} />
@@ -610,15 +639,39 @@ export default function OrderLineSmart({ index, clientId, clientSpecialPrices = 
                 );
               })()}
 
-              {/* View Toggle */}
+              {/* View Toggle — 3 Pestañas siempre visibles: Plan, Disponibles y Reservados */}
               <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
-                <button onClick={() => setViewMode('plan')}
-                  className={`flex-1 px-3 py-1 rounded-md text-[11px] font-medium transition ${viewMode === 'plan' ? 'bg-white shadow text-gray-800' : 'text-gray-500'}`}>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('plan')}
+                  className={`flex-1 px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition cursor-pointer ${
+                    viewMode === 'plan' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-800'
+                  }`}
+                >
                   <Layers size={12} className="inline mr-1 -mt-0.5" /> Plan de Surtido ({plan.items.length})
                 </button>
-                <button onClick={() => setViewMode('individual')}
-                  className={`flex-1 px-3 py-1 rounded-md text-[11px] font-medium transition ${viewMode === 'individual' ? 'bg-white shadow text-gray-800' : 'text-gray-500'}`}>
-                  <Package size={12} className="inline mr-1 -mt-0.5" /> Todos los HUs ({suggestions?.totalAvailable})
+                <button
+                  type="button"
+                  onClick={() => setViewMode('individual')}
+                  className={`flex-1 px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition cursor-pointer ${
+                    viewMode === 'individual' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  <Package size={12} className="inline mr-1 -mt-0.5" /> Disponibles ({suggestions?.totalAvailable || 0})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('reserved')}
+                  className={`flex-1 px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition flex items-center justify-center gap-1 cursor-pointer ${
+                    viewMode === 'reserved'
+                      ? 'bg-amber-500 shadow text-white'
+                      : (suggestions?.totalReserved || 0) > 0
+                        ? 'bg-amber-100/80 text-amber-900 hover:bg-amber-200/80'
+                        : 'text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  <Lock size={11} />
+                  <span>Reservados ({suggestions?.totalReserved || 0})</span>
                 </button>
               </div>
 
@@ -758,53 +811,196 @@ export default function OrderLineSmart({ index, clientId, clientSpecialPrices = 
               )}
 
               {/* === INDIVIDUAL HU VIEW === */}
-              {viewMode === 'individual' && suggestions?.suggestions?.length > 0 && (
-                <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                  {suggestions.suggestions.map((hu: any) => (
-                    <div key={hu.id} className={`px-3 py-2.5 rounded-lg border text-xs transition-all ${
-                      hu.source === 'TRANSITO'
-                        ? 'bg-blue-50/60 border-blue-200'
-                        : hu.fits ? 'bg-white border-gray-100' : 'bg-gray-50 border-gray-100 opacity-60'
-                    }`}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          {hu.source === 'TRANSITO' ? (
-                            <Truck size={14} className="text-blue-500" />
-                          ) : hu.tipoRollo === 'RETAZO' ? (
-                            <Scissors size={14} className="text-amber-500" />
-                          ) : (
-                            <Scroll size={14} className="text-blue-500" />
-                          )}
-                          <span className="font-mono font-bold text-gray-800">{hu.codigo}</span>
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                            hu.source === 'TRANSITO' ? 'bg-blue-100 text-blue-700'
-                              : hu.tipoRollo === 'RETAZO' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-                          }`}>{hu.source === 'TRANSITO' ? 'Tránsito' : hu.tipoRollo}</span>
+              {viewMode === 'individual' && (
+                suggestions?.suggestions?.length > 0 ? (
+                  <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                    {suggestions.suggestions.map((hu: any) => (
+                      <div key={hu.id} className={`px-3 py-2.5 rounded-lg border text-xs transition-all ${
+                        hu.source === 'TRANSITO'
+                          ? 'bg-blue-50/60 border-blue-200'
+                          : hu.fits ? 'bg-white border-gray-100' : 'bg-gray-50 border-gray-100 opacity-60'
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            {hu.source === 'TRANSITO' ? (
+                              <Truck size={14} className="text-blue-500" />
+                            ) : hu.tipoRollo === 'RETAZO' ? (
+                              <Scissors size={14} className="text-amber-500" />
+                            ) : (
+                              <Scroll size={14} className="text-blue-500" />
+                            )}
+                            <span className="font-mono font-bold text-gray-800">{hu.codigo}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                              hu.source === 'TRANSITO' ? 'bg-blue-100 text-blue-700'
+                                : hu.tipoRollo === 'RETAZO' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                            }`}>{hu.source === 'TRANSITO' ? 'Tránsito' : hu.tipoRollo}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {hu.source === 'TRANSITO' && hu.diasParaLlegar != null && (
+                              <span className="text-[10px] font-semibold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded">
+                                {hu.diasParaLlegar <= 0 ? 'Hoy' : `${hu.diasParaLlegar}d`}
+                              </span>
+                            )}
+                            <span className="font-bold text-gray-800">{hu.metrajeActual}m</span>
+                            {hu.fits && hu.waste > 0 && (
+                              <span className="text-[10px] text-gray-400">
+                                <TrendingDown size={10} className="inline -mt-0.5" /> {hu.waste.toFixed(1)}m sobrante
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {hu.source === 'TRANSITO' && hu.diasParaLlegar != null && (
-                            <span className="text-[10px] font-semibold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded">
-                              {hu.diasParaLlegar <= 0 ? 'Hoy' : `${hu.diasParaLlegar}d`}
-                            </span>
-                          )}
-                          <span className="font-bold text-gray-800">{hu.metrajeActual}m</span>
-                          {hu.fits && hu.waste > 0 && (
-                            <span className="text-[10px] text-gray-400">
-                              <TrendingDown size={10} className="inline -mt-0.5" /> {hu.waste.toFixed(1)}m sobrante
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-[11px] text-gray-500">{hu.tag}</span>
+                          {hu.ubicacion && (
+                            <span className="flex items-center gap-1 text-[10px] text-gray-400">
+                              <MapPin size={10} /> {hu.ubicacion.codigo}
                             </span>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-[11px] text-gray-500">{hu.tag}</span>
-                        {hu.ubicacion && (
-                          <span className="flex items-center gap-1 text-[10px] text-gray-400">
-                            <MapPin size={10} /> {hu.ubicacion.codigo}
-                          </span>
-                        )}
-                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl text-center text-xs text-gray-500">
+                    No hay rollos libres disponibles en este momento.
+                    {(suggestions?.totalReserved || 0) > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('reserved')}
+                        className="ml-2 text-amber-700 font-bold underline cursor-pointer"
+                      >
+                        Ver {suggestions.totalReserved} rollo(s) reservado(s)
+                      </button>
+                    )}
+                  </div>
+                )
+              )}
+
+              {/* === RESERVED HUs VIEW (Pestaña de Reservados con Tooltip de Compañero ATC y Liberación Directa) === */}
+              {viewMode === 'reserved' && (
+                <div className="space-y-2">
+                  <div className="px-3 py-2 bg-amber-50/90 border border-amber-200 rounded-xl flex items-center justify-between text-[11px] text-amber-900">
+                    <div className="flex items-center gap-2">
+                      <Lock size={13} className="text-amber-600 shrink-0" />
+                      <span>
+                        <strong>Coordinación en Sala ATC:</strong> Pasa el mouse sobre un rollo para ver qué compañero lo apartó y para qué cliente. Si confirman que no lo pagarán, libéralo en 1 clic sin requerir a Alma.
+                      </span>
                     </div>
-                  ))}
+                  </div>
+
+                  {suggestions?.reservedHUs?.length > 0 ? (
+                    <div className="space-y-2 max-h-72 overflow-y-auto pr-0.5">
+                      {suggestions.reservedHUs.map((rHu: any) => {
+                        const ageText =
+                          rHu.diasReservado >= 1
+                            ? `Hace ${rHu.diasReservado} día${rHu.diasReservado > 1 ? 's' : ''} (${rHu.horasReservado}h)`
+                            : `Hace ${rHu.horasReservado}h`;
+
+                        return (
+                          <div
+                            key={rHu.id}
+                            title={`Reservado por: ${rHu.reservedByNombre} | Cliente: ${rHu.clientNombre} (${rHu.orderCodigo}) | Antigüedad: ${ageText}`}
+                            className="group/res relative px-3.5 py-2.5 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50/70 to-white hover:border-amber-400 hover:shadow-sm transition-all text-xs"
+                          >
+                            {/* Hover Tooltip Flotante enriquecido */}
+                            <div className="hidden group-hover/res:block absolute z-30 bottom-full left-3 mb-1.5 w-80 p-3 rounded-xl bg-slate-900 text-white shadow-xl border border-slate-700 text-[11px] pointer-events-none animate-fade-in">
+                              <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-700">
+                                <span className="font-bold text-amber-300 flex items-center gap-1">
+                                  <User size={12} /> Apartado por: {rHu.reservedByNombre}
+                                </span>
+                                <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono text-[10px]">
+                                  {ageText}
+                                </span>
+                              </div>
+                              <div className="space-y-1 text-slate-200">
+                                <p className="flex justify-between">
+                                  <span className="text-slate-400">Cliente:</span>
+                                  <strong className="text-white truncate max-w-[180px]">{rHu.clientNombre}</strong>
+                                </p>
+                                <p className="flex justify-between">
+                                  <span className="text-slate-400">Cotización / Pedido:</span>
+                                  <span className="font-mono font-semibold text-cyan-300">{rHu.orderCodigo} ({rHu.orderEstado})</span>
+                                </p>
+                                <p className="flex justify-between">
+                                  <span className="text-slate-400">Metraje del Rollo:</span>
+                                  <strong className="text-emerald-300">{rHu.metrajeActual}m ({rHu.tipoRollo})</strong>
+                                </p>
+                                {rHu.expiresAt && (
+                                  <p className="flex justify-between">
+                                    <span className="text-slate-400">Vence apartado:</span>
+                                    <span>{new Date(rHu.expiresAt).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                  </p>
+                                )}
+                              </div>
+                              <p className="mt-2 pt-1.5 border-t border-slate-700/80 text-[10px] text-amber-200">
+                                Consulta con {rHu.reservedByNombre} en sala; si el cliente no concretará el pago, haz clic en &ldquo;Liberar Reserva&rdquo;.
+                              </p>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-mono font-bold text-gray-900">{rHu.codigo}</span>
+                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-200/80 text-amber-900">
+                                    {rHu.metrajeActual}m · {rHu.tipoRollo}
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-100 text-indigo-800 flex items-center gap-1">
+                                    <User size={10} /> {rHu.reservedByNombre}
+                                  </span>
+                                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 ${
+                                    rHu.diasReservado >= 2
+                                      ? 'bg-red-100 text-red-700 border border-red-200'
+                                      : 'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    <Clock size={10} /> {ageText}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-3 text-[11px] text-gray-600 flex-wrap">
+                                  <span className="flex items-center gap-1 font-medium text-gray-800">
+                                    <Building2 size={11} className="text-gray-400" /> {rHu.clientNombre}
+                                  </span>
+                                  <span className="font-mono text-[10px] text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
+                                    {rHu.orderCodigo} · {rHu.orderEstado}
+                                  </span>
+                                  {rHu.ubicacion?.codigo && (
+                                    <span className="flex items-center gap-1 text-[10px] text-gray-400">
+                                      <MapPin size={10} /> {rHu.ubicacion.codigo}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                {rHu.canRelease ? (
+                                  <button
+                                    type="button"
+                                    disabled={releasingHuId === rHu.id}
+                                    onClick={() => handleReleaseReservedHu(rHu)}
+                                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                                  >
+                                    {releasingHuId === rHu.id ? (
+                                      <><Loader2 size={12} className="animate-spin" /> Liberando...</>
+                                    ) : (
+                                      <><Unlock size={12} /> Liberar Reserva</>
+                                    )}
+                                  </button>
+                                ) : (
+                                  <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">
+                                    En firme ({rHu.orderEstado})
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-white border border-gray-200 rounded-xl text-center text-xs text-gray-500">
+                      No hay rollos reservados para esta tela en este momento. Todos los rollos existentes están libres.
+                    </div>
+                  )}
                 </div>
               )}
             </div>

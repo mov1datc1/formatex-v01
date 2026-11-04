@@ -11,7 +11,7 @@ import {
   CheckCircle2, Check, Lock, Building2, Package, Layers, Calendar,
   ArrowUpDown, ChevronRight, ChevronLeft, Filter, Sparkles, RefreshCw, AlertTriangle,
   CreditCard, Split, PackageCheck, Ship, ArrowRight, ArrowLeft, Ban, Eye,
-  User, Users,
+  User, Users, Upload, Image as ImageIcon,
 } from 'lucide-react';
 import type { FC } from 'react';
 import type { LucideProps } from 'lucide-react';
@@ -277,6 +277,103 @@ export default function PedidosPage() {
   });
 
   const [clientSpecialPrices, setClientSpecialPrices] = useState<any[]>([]);
+
+  // Modal para subir Pantallazo de Pago (WhatsApp -> Cobranza César) desde ATC
+  const [paymentProofModalOrder, setPaymentProofModalOrder] = useState<any>(null);
+  const [paymentProofSaving, setPaymentProofSaving] = useState(false);
+  const [paymentProofForm, setPaymentProofForm] = useState({
+    comprobantePago: '',
+    referenciaPago: '',
+    metodoPago: 'TRANSFERENCIA_SPEI',
+    avanzarACobranza: true,
+  });
+
+  const openPaymentProofModal = (order: any, avanzar = true) => {
+    setPaymentProofModalOrder(order);
+    setPaymentProofForm({
+      comprobantePago: order?.comprobantePago || '',
+      referenciaPago: order?.referenciaPago || '',
+      metodoPago: order?.metodoPago || 'TRANSFERENCIA_SPEI',
+      avanzarACobranza: avanzar && ['COTIZADO', 'POR_PAGAR'].includes(order?.estado || ''),
+    });
+  };
+
+  // Comprime un pantallazo / screenshot de WhatsApp a JPEG base64 ligero para guardarlo en DB
+  const compressImageToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1100;
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(ev.target?.result as string);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+        img.onerror = () => resolve(ev.target?.result as string);
+        img.src = ev.target?.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handlePaymentFileSelect = async (file?: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Por favor selecciona una imagen (JPG, PNG o WebP del pantallazo de WhatsApp)');
+      return;
+    }
+    try {
+      const dataUrl = await compressImageToDataUrl(file);
+      setPaymentProofForm((prev) => ({ ...prev, comprobantePago: dataUrl }));
+      toast.success('Pantallazo de pago cargado correctamente');
+    } catch {
+      toast.error('No se pudo procesar la imagen');
+    }
+  };
+
+  const handleSavePaymentProof = async () => {
+    if (!paymentProofModalOrder) return;
+    if (!paymentProofForm.comprobantePago && !paymentProofForm.referenciaPago.trim()) {
+      toast.error('Sube el pantallazo de WhatsApp o ingresa la referencia bancaria');
+      return;
+    }
+    setPaymentProofSaving(true);
+    try {
+      await api.put(`/orders/${paymentProofModalOrder.id}/payment-proof`, paymentProofForm);
+      if (paymentProofForm.avanzarACobranza) {
+        toast.success(`Pantallazo subido — Pedido ${paymentProofModalOrder.codigo} enviado a Cobranza (César)`);
+      } else {
+        toast.success(`Pantallazo de pago actualizado en ${paymentProofModalOrder.codigo}`);
+      }
+      setPaymentProofModalOrder(null);
+      refetchDetail();
+      refetchOrders();
+      refetchStatusCounts();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Error al guardar el comprobante de pago');
+    } finally {
+      setPaymentProofSaving(false);
+    }
+  };
 
   // Resumen agrupado por familia de tela de los precios especiales del cliente seleccionado
   const clientSpecialFamilies = useMemo(() => {
@@ -653,6 +750,13 @@ export default function PedidosPage() {
   const advanceStatus = async (orderId: string, currentStatus: string) => {
     const transition = NEXT_STATUS[currentStatus];
     if (!transition) return;
+
+    // Si va a pasar a PAGO_RECIBIDO (hacia Cobranza César), abrir el modal para subir el pantallazo de WhatsApp
+    if (transition.next === 'PAGO_RECIBIDO') {
+      const targetOrder = detail?.id === orderId ? detail : resp?.data?.find((o: any) => o.id === orderId) || { id: orderId, estado: currentStatus };
+      openPaymentProofModal(targetOrder, true);
+      return;
+    }
 
     // If this transition needs confirmation, show custom modal instead of native confirm()
     if (transition.confirmMsg) {
@@ -1991,12 +2095,32 @@ export default function PedidosPage() {
                 }
 
                 return (
-                  <button
-                    onClick={() => advanceStatus(detail.id, detail.estado)}
-                    className="w-full px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-98"
-                  >
-                    <Icon size={16} /> {t.label}
-                  </button>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => advanceStatus(detail.id, detail.estado)}
+                      className="w-full px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-98"
+                    >
+                      <Icon size={16} /> {t.label}
+                    </button>
+
+                    {/* Botón directo para Subir Pantallazo de Pago (WhatsApp) y Pasar a Cobranza (César) */}
+                    {['COTIZADO', 'POR_PAGAR', 'PAGO_RECIBIDO'].includes(detail.estado) && (
+                      <button
+                        type="button"
+                        onClick={() => openPaymentProofModal(detail, detail.estado !== 'PAGO_RECIBIDO')}
+                        className="w-full px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                      >
+                        <Upload size={15} className="text-emerald-100" />
+                        <span>
+                          {detail.comprobantePago
+                            ? 'Actualizar Pantallazo de Pago (WhatsApp)'
+                            : detail.estado === 'PAGO_RECIBIDO'
+                              ? 'Adjuntar Pantallazo de Pago (WhatsApp)'
+                              : 'Subir Pantallazo de Pago y Enviar a Cobranza'}
+                        </span>
+                      </button>
+                    )}
+                  </div>
                 );
               })()}
 
@@ -2268,6 +2392,47 @@ export default function PedidosPage() {
                 {detail.referenciaPago && <div className="flex justify-between text-blue-600"><span>Ref. Pago:</span><span>{detail.referenciaPago}</span></div>}
                 {detail.facturaRef && <div className="flex justify-between text-emerald-600"><span>Factura:</span><span>{detail.facturaRef}</span></div>}
               </div>
+
+              {/* === PANTALLAZO DE PAGO (WHATSAPP -> COBRANZA CÉSAR) === */}
+              {detail.comprobantePago && (
+                <div className="bg-gradient-to-br from-emerald-50 to-teal-50/70 rounded-xl p-3.5 border border-emerald-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                      <ImageIcon size={14} className="text-emerald-600" />
+                      Pantallazo de Pago (WhatsApp ATC)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => openPaymentProofModal(detail, false)}
+                      className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 bg-white px-2 py-0.5 rounded border border-emerald-200 cursor-pointer"
+                    >
+                      Ver / Cambiar
+                    </button>
+                  </div>
+                  {detail.comprobantePago.startsWith('data:image') || detail.comprobantePago.startsWith('http') ? (
+                    <a
+                      href={detail.comprobantePago}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block rounded-lg overflow-hidden border border-emerald-200 bg-white max-h-48"
+                      title="Haz clic para abrir el pantallazo completo"
+                    >
+                      <img
+                        src={detail.comprobantePago}
+                        alt="Comprobante de pago WhatsApp"
+                        className="w-full h-36 object-contain bg-slate-900/5"
+                      />
+                    </a>
+                  ) : (
+                    <p className="text-xs font-mono text-emerald-800 bg-white/80 p-2 rounded border border-emerald-200 break-all">
+                      {detail.comprobantePago}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-emerald-700">
+                    Visible para César en el módulo de Cobranza para conciliación bancaria.
+                  </p>
+                </div>
+              )}
 
               {/* === FACTURA CFDI Section === */}
               {detail.facturapiId && (
@@ -3474,6 +3639,180 @@ export default function PedidosPage() {
           order={packingSlipOrder}
           onClose={() => setPackingSlipOrder(null)}
         />
+      )}
+
+      {/* === MODAL PARA SUBIR PANTALLAZO DE PAGO (WHATSAPP -> COBRANZA CÉSAR) === */}
+      {paymentProofModalOrder && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => !paymentProofSaving && setPaymentProofModalOrder(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 animate-fade-in space-y-4"
+            onClick={(e) => e.stopPropagation()}
+            onPaste={(e) => {
+              const items = e.clipboardData?.items;
+              if (!items) return;
+              for (let i = 0; i < items.length; i++) {
+                if (items[i].type.startsWith('image/')) {
+                  const file = items[i].getAsFile();
+                  if (file) handlePaymentFileSelect(file);
+                  break;
+                }
+              }
+            }}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
+                  <Upload size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">
+                    Subir Pantallazo de Pago (WhatsApp → Cobranza)
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Pedido <span className="font-mono font-bold text-emerald-700">{paymentProofModalOrder.codigo}</span> · {paymentProofModalOrder.client?.nombre || ''} · Total:{' '}
+                    <strong className="text-gray-900">
+                      ${Number(paymentProofModalOrder.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                    </strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPaymentProofModalOrder(null)}
+                disabled={paymentProofSaving}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3 text-emerald-900 flex items-start gap-2">
+                <Info size={15} className="text-emerald-600 shrink-0 mt-0.5" />
+                <p>
+                  Adjunta o pega (<kbd className="px-1.5 py-0.5 bg-white border border-emerald-300 rounded font-mono text-[10px]">Ctrl+V</kbd> / <kbd className="px-1.5 py-0.5 bg-white border border-emerald-300 rounded font-mono text-[10px]">⌘+V</kbd>) el screenshot de pago que envió el cliente por WhatsApp. <strong>César (Cobranza)</strong> lo verá directamente en su bandeja para conciliar con el banco y liberar el pedido a almacén.
+                </p>
+              </div>
+
+              {/* Dropzone / Selector de Imagen */}
+              <div>
+                <label className="block font-semibold text-gray-700 mb-1.5">
+                  Pantallazo / Comprobante de Pago (Imagen de WhatsApp) *
+                </label>
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-emerald-50/30 hover:bg-emerald-50/60 rounded-2xl p-4 cursor-pointer transition-all text-center">
+                  {paymentProofForm.comprobantePago && paymentProofForm.comprobantePago.startsWith('data:image') ? (
+                    <div className="space-y-2 w-full">
+                      <img
+                        src={paymentProofForm.comprobantePago}
+                        alt="Vista previa comprobante"
+                        className="max-h-52 mx-auto rounded-xl border border-emerald-200 shadow-xs object-contain bg-white"
+                      />
+                      <p className="text-[11px] font-semibold text-emerald-700">
+                        ✓ Pantallazo listo — Haz clic aquí o pega otra imagen para reemplazarlo
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="py-3 space-y-1.5">
+                      <ImageIcon size={28} className="mx-auto text-emerald-600" />
+                      <p className="font-bold text-gray-800 text-xs">
+                        Haz clic para seleccionar el screenshot o pégalo con Ctrl+V
+                      </p>
+                      <p className="text-[11px] text-gray-400">
+                        Soporta capturas de pantalla de WhatsApp (JPG, PNG, WebP)
+                      </p>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handlePaymentFileSelect(e.target.files?.[0])}
+                  />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">
+                    Referencia Bancaria / Clave Rastreo
+                  </label>
+                  <input
+                    type="text"
+                    value={paymentProofForm.referenciaPago}
+                    onChange={(e) =>
+                      setPaymentProofForm({ ...paymentProofForm, referenciaPago: e.target.value })
+                    }
+                    placeholder="Ej: SPEI-849201 / Folio BBVA..."
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">Método de Pago</label>
+                  <select
+                    value={paymentProofForm.metodoPago}
+                    onChange={(e) =>
+                      setPaymentProofForm({ ...paymentProofForm, metodoPago: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="TRANSFERENCIA_SPEI">Transferencia SPEI</option>
+                    <option value="DEPOSITO_BANCARIO">Depósito en Ventanilla / Practicaja</option>
+                    <option value="CHEQUE">Cheque</option>
+                    <option value="TARJETA">Terminal / Tarjeta</option>
+                    <option value="EFECTIVO">Efectivo Autorizado</option>
+                  </select>
+                </div>
+              </div>
+
+              {['COTIZADO', 'POR_PAGAR'].includes(paymentProofModalOrder.estado) && (
+                <label className="flex items-center gap-2.5 p-3 rounded-xl bg-amber-50/80 border border-amber-200 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={paymentProofForm.avanzarACobranza}
+                    onChange={(e) =>
+                      setPaymentProofForm({ ...paymentProofForm, avanzarACobranza: e.target.checked })
+                    }
+                    className="w-4 h-4 text-emerald-600 rounded border-gray-300"
+                  />
+                  <div>
+                    <span className="font-bold text-gray-900 block">
+                      Pasar pedido inmediatamente a Cobranza (Pago Recibido)
+                    </span>
+                    <span className="text-[11px] text-gray-600">
+                      Aparecerá al instante en la bandeja de César con este pantallazo para su validación en banco.
+                    </span>
+                  </div>
+                </label>
+              )}
+            </div>
+
+            <div className="flex gap-3 pt-3 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setPaymentProofModalOrder(null)}
+                disabled={paymentProofSaving}
+                className="flex-1 py-2.5 px-4 bg-gray-100 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-200 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSavePaymentProof}
+                disabled={paymentProofSaving}
+                className="flex-1 py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              >
+                {paymentProofSaving ? (
+                  <><Loader2 size={14} className="animate-spin" /> Guardando...</>
+                ) : (
+                  <><Check size={14} /> {paymentProofForm.avanzarACobranza ? 'Subir Pantallazo y Enviar a Cobranza' : 'Guardar Pantallazo'}</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

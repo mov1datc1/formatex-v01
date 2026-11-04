@@ -66,6 +66,16 @@ export class InventoryController {
     return this.inventoryService.relocateHU(id, ubicacionId, req.user.sub);
   }
 
+  @Post('hus/:id/release-reservation')
+  @ApiOperation({ summary: 'Liberar reserva de un rollo (HU) directamente por agente ATC' })
+  releaseReservedHU(
+    @Param('id') id: string,
+    @Body() body: { motivo?: string },
+    @Req() req: any,
+  ) {
+    return this.inventoryService.releaseReservedHU(id, req.user?.sub || req.user?.id, body?.motivo);
+  }
+
   @Get('zones')
   @ApiOperation({ summary: 'Listar zonas del almacén' })
   findAllZones() { return this.inventoryService.findAllZones(); }

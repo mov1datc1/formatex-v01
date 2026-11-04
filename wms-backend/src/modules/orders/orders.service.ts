@@ -704,7 +704,7 @@ export class OrdersService {
   // =========================================================================
   async updateStatus(id: string, estado: string, extraData?: any, user?: any) {
     const validTransitions: Record<string, string[]> = {
-      'COTIZADO': ['POR_PAGAR', 'CANCELADO'],
+      'COTIZADO': ['POR_PAGAR', 'PAGO_RECIBIDO', 'CANCELADO'],
       'POR_PAGAR': ['PAGO_RECIBIDO', 'CANCELADO'],
       'PAGO_RECIBIDO': ['POR_SURTIR', 'CANCELADO'],
       'POR_SURTIR': ['EN_SURTIDO', 'CANCELADO'],
@@ -749,8 +749,10 @@ export class OrdersService {
     const updateData: any = { estado };
 
     // Datos adicionales según la transición
-    if (estado === 'PAGO_RECIBIDO') {
-      updateData.fechaPago = new Date();
+    if (estado === 'POR_PAGAR' || estado === 'PAGO_RECIBIDO') {
+      if (estado === 'PAGO_RECIBIDO') {
+        updateData.fechaPago = new Date();
+      }
       if (extraData?.referenciaPago) updateData.referenciaPago = extraData.referenciaPago;
       if (extraData?.comprobantePago) updateData.comprobantePago = extraData.comprobantePago;
       if (extraData?.metodoPago) updateData.metodoPago = extraData.metodoPago;
@@ -809,6 +811,58 @@ export class OrdersService {
     }
 
     return this.prisma.order.update({ where: { id }, data: updateData });
+  }
+
+  // =========================================================================
+  // SUBIR / ACTUALIZAR COMPROBANTE DE PAGO (PANTALLAZO WHATSAPP DESDE ATC)
+  // =========================================================================
+  async uploadPaymentProof(
+    id: string,
+    data: {
+      comprobantePago?: string;
+      referenciaPago?: string;
+      metodoPago?: string;
+      avanzarACobranza?: boolean;
+    },
+    user?: any,
+  ) {
+    const order = await this.prisma.order.findUniqueOrThrow({ where: { id } });
+
+    const updateData: any = {};
+    if (data.comprobantePago !== undefined) updateData.comprobantePago = data.comprobantePago;
+    if (data.referenciaPago !== undefined) updateData.referenciaPago = data.referenciaPago;
+    if (data.metodoPago !== undefined) updateData.metodoPago = data.metodoPago;
+
+    if (data.avanzarACobranza && ['COTIZADO', 'POR_PAGAR'].includes(order.estado)) {
+      updateData.estado = 'PAGO_RECIBIDO';
+      updateData.fechaPago = new Date();
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id },
+      data: updateData,
+      include: { client: true, vendor: true },
+    });
+
+    const actorUserId = user?.sub || user?.id;
+    if (actorUserId) {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: actorUserId,
+          entidad: 'Order',
+          entidadId: id,
+          accion: 'UPLOAD_PAYMENT_SCREENSHOT_ATC',
+          detalle: {
+            estadoAntes: order.estado,
+            estadoDespues: updated.estado,
+            referenciaPago: updated.referenciaPago,
+            hasScreenshot: Boolean(updated.comprobantePago),
+          },
+        },
+      }).catch(() => {});
+    }
+
+    return updated;
   }
 
   // =========================================================================

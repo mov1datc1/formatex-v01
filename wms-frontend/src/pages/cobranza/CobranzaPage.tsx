@@ -396,7 +396,7 @@ export default function CobranzaPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Pedido</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Cliente</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Total</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Ref. Pago</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Ref. Pago / Pantallazo ATC</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Fecha</th>
                 {tab === 'validados' && <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Cobrador</th>}
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Acciones</th>
@@ -418,13 +418,25 @@ export default function CobranzaPage() {
                     ${Number(order.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                   </td>
                   <td className="px-4 py-3">
-                    {order.referenciaPago ? (
-                      <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{order.referenciaPago}</span>
-                    ) : (
-                      <span className="text-xs text-gray-400 flex items-center gap-1">
-                        <AlertTriangle size={10} /> Sin referencia
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {order.referenciaPago ? (
+                        <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-mono">{order.referenciaPago}</span>
+                      ) : (
+                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                          <AlertTriangle size={10} /> Sin ref.
+                        </span>
+                      )}
+                      {order.comprobantePago && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOrder(order)}
+                          className="px-2 py-0.5 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                          title="Ver pantallazo de WhatsApp subido por ATC"
+                        >
+                          <Eye size={11} /> Pantallazo ATC
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-500">
                     {order.createdAt ? new Date(order.createdAt).toLocaleDateString('es-MX', {
@@ -706,6 +718,45 @@ export default function CobranzaPage() {
                 <div className="flex justify-between"><span className="text-gray-500">Vendedor:</span><span>{selectedOrder.vendor?.nombre || '—'}</span></div>
               </div>
 
+              {selectedOrder.comprobantePago && (
+                <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-emerald-900 uppercase flex items-center gap-1.5">
+                      <FileCheck size={14} className="text-emerald-600" />
+                      Pantallazo de Pago (Subido por ATC)
+                    </span>
+                    {(selectedOrder.comprobantePago.startsWith('data:image') || selectedOrder.comprobantePago.startsWith('http')) && (
+                      <a
+                        href={selectedOrder.comprobantePago}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] font-bold text-emerald-700 hover:underline"
+                      >
+                        Abrir tamaño completo ↗
+                      </a>
+                    )}
+                  </div>
+                  {selectedOrder.comprobantePago.startsWith('data:image') || selectedOrder.comprobantePago.startsWith('http') ? (
+                    <a
+                      href={selectedOrder.comprobantePago}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block rounded-xl overflow-hidden border border-emerald-200 bg-white"
+                    >
+                      <img
+                        src={selectedOrder.comprobantePago}
+                        alt="Pantallazo de pago WhatsApp"
+                        className="w-full max-h-60 object-contain bg-slate-900/5"
+                      />
+                    </a>
+                  ) : (
+                    <p className="text-xs font-mono text-emerald-800 bg-white p-2 rounded border border-emerald-200 break-all">
+                      {selectedOrder.comprobantePago}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {selectedOrder.cobradorNombre && (
                 <div className="bg-emerald-50 rounded-xl p-4 space-y-2">
                   <div className="flex items-center gap-2 mb-1"><FileCheck size={14} className="text-emerald-600" /><span className="text-xs font-semibold text-emerald-700 uppercase">Validación de Cobranza</span></div>
@@ -788,6 +839,46 @@ export default function CobranzaPage() {
                   ${Number(showValidateModal.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                 </p>
               </div>
+
+              {/* Pantallazo de Pago subido por ATC (WhatsApp) */}
+              {showValidateModal.comprobantePago && (
+                <div className="bg-emerald-50/90 border border-emerald-200 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                      <FileCheck size={14} className="text-emerald-600" />
+                      Pantallazo de WhatsApp (Subido por ATC)
+                    </span>
+                    {(showValidateModal.comprobantePago.startsWith('data:image') || showValidateModal.comprobantePago.startsWith('http')) && (
+                      <a
+                        href={showValidateModal.comprobantePago}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] font-bold text-emerald-700 hover:underline"
+                      >
+                        Ampliar ↗
+                      </a>
+                    )}
+                  </div>
+                  {showValidateModal.comprobantePago.startsWith('data:image') || showValidateModal.comprobantePago.startsWith('http') ? (
+                    <a
+                      href={showValidateModal.comprobantePago}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block rounded-lg overflow-hidden border border-emerald-200 bg-white"
+                    >
+                      <img
+                        src={showValidateModal.comprobantePago}
+                        alt="Pantallazo de pago subido por ATC"
+                        className="w-full max-h-48 object-contain bg-slate-900/5"
+                      />
+                    </a>
+                  ) : (
+                    <p className="text-xs font-mono text-emerald-800 bg-white p-2 rounded border border-emerald-200 break-all">
+                      {showValidateModal.comprobantePago}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Cobrador name */}
               <div>

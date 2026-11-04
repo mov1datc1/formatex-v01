@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 
 @Injectable()
@@ -536,16 +536,230 @@ export class InventoryService {
     const totalMetraje = allHUs.reduce((sum, hu) => sum + hu.metrajeActual, 0);
     const transitMetraje = transitLines.reduce((sum, l) => sum + l.metrajeTotal - l.metrajeReservado, 0);
 
+    // === 3. RESERVED HUs (RESERVADO_BLANDO & RESERVADO) ===
+    // Always fetch reserved HUs for this SKU so ATC can inspect who reserved them, for which client, how long ago, and release them if agreed
+    const rawReservedHUs = await this.prisma.handlingUnit.findMany({
+      where: {
+        skuId,
+        estadoHu: { in: ['RESERVADO_BLANDO', 'RESERVADO'] },
+        metrajeActual: { gt: 0 },
+      },
+      include: {
+        ubicacion: { select: { id: true, codigo: true } },
+        sku: { select: { id: true, codigo: true, nombre: true, color: true } },
+        reservations: {
+          where: { estado: 'ACTIVA' },
+          orderBy: { createdAt: 'desc' },
+          include: {
+            order: {
+              include: {
+                client: { select: { id: true, codigo: true, nombre: true } },
+                vendor: { select: { id: true, codigo: true, nombre: true } },
+              },
+            },
+          },
+        },
+        orderAssignments: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: {
+            orderLine: {
+              include: {
+                order: {
+                  include: {
+                    client: { select: { id: true, codigo: true, nombre: true } },
+                    vendor: { select: { id: true, codigo: true, nombre: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    const userIdsToLookup = new Set<string>();
+    for (const rHu of rawReservedHUs) {
+      const activeRes = rHu.reservations?.[0];
+      const latestAssignOrder = rHu.orderAssignments?.[0]?.orderLine?.order;
+      const orderObj = activeRes?.order || latestAssignOrder;
+      if (activeRes?.creadoPor) userIdsToLookup.add(activeRes.creadoPor);
+      if (orderObj?.creadoPor) userIdsToLookup.add(orderObj.creadoPor);
+      if ((orderObj as any)?.atcUserId) userIdsToLookup.add((orderObj as any).atcUserId);
+    }
+
+    const userMap = new Map<string, string>();
+    if (userIdsToLookup.size > 0) {
+      const users = await this.prisma.user.findMany({
+        where: { id: { in: Array.from(userIdsToLookup) } },
+        select: { id: true, nombre: true, username: true, role: true },
+      });
+      for (const u of users) {
+        userMap.set(u.id, u.nombre || u.username);
+      }
+    }
+
+    const nowMs = Date.now();
+    const reservedHUs = rawReservedHUs.map((h) => {
+      const activeRes = h.reservations?.[0];
+      const latestAssignOrder = h.orderAssignments?.[0]?.orderLine?.order;
+      const orderObj = activeRes?.order || latestAssignOrder;
+
+      const rawCreadoPor =
+        (orderObj as any)?.atcUserId ||
+        activeRes?.creadoPor ||
+        orderObj?.creadoPor ||
+        '';
+      const resolvedUserNombre =
+        userMap.get(rawCreadoPor) ||
+        (rawCreadoPor && rawCreadoPor.length < 30 ? rawCreadoPor : '') ||
+        orderObj?.vendor?.nombre ||
+        'Ejecutivo ATC';
+
+      const reservedAtDate = activeRes?.createdAt || orderObj?.createdAt || h.updatedAt;
+      const diffMs = Math.max(0, nowMs - new Date(reservedAtDate).getTime());
+      const horasReservado = Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
+      const diasReservado = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+      const orderEstado =
+        orderObj?.estado || (h.estadoHu === 'RESERVADO_BLANDO' ? 'COTIZADO' : 'EN_PROCESO');
+      const canRelease =
+        h.estadoHu === 'RESERVADO_BLANDO' ||
+        ['COTIZADO', 'POR_PAGAR'].includes(orderEstado);
+
+      return {
+        id: h.id,
+        codigo: h.codigo,
+        metrajeOriginal: Number(h.metrajeOriginal),
+        metrajeActual: Number(h.metrajeActual),
+        metrajeReservado: Number(
+          activeRes?.metrajeReservado ||
+            h.orderAssignments?.[0]?.metrajeTomado ||
+            h.metrajeActual,
+        ),
+        tipoRollo: h.tipoRollo,
+        estadoHu: h.estadoHu,
+        tipoReserva: activeRes?.tipo || (h.estadoHu === 'RESERVADO_BLANDO' ? 'BLANDA' : 'DURA'),
+        ubicacion: h.ubicacion,
+        sku: h.sku,
+        reservedByNombre: resolvedUserNombre,
+        reservedByUserId: rawCreadoPor || null,
+        clientNombre: orderObj?.client?.nombre || 'Cliente en Cotización',
+        clientCodigo: orderObj?.client?.codigo || null,
+        orderId: orderObj?.id || null,
+        orderCodigo: orderObj?.codigo || 'Apartado Manual',
+        orderEstado,
+        reservedAt: reservedAtDate,
+        expiresAt: activeRes?.expiresAt || null,
+        horasReservado,
+        diasReservado,
+        canRelease,
+      };
+    });
+
+    const totalReserved = reservedHUs.length;
+    const reservedMetraje = Math.round(reservedHUs.reduce((acc, r) => acc + r.metrajeActual, 0) * 100) / 100;
+
     return {
       suggestions,
       fulfillmentPlan,
       totalAvailable: allHUs.length,
       totalMetraje,
+      totalReserved,
+      reservedMetraje,
+      reservedHUs,
       transitAvailable: transitLines.length,
       transitMetraje,
       metrajeRequerido: metraje,
       fitsCount: fits.length,
       transitFitsCount: transitSuggestions.filter(s => s.fits).length,
+    };
+  }
+
+  /**
+   * LIBERACIÓN DIRECTA DE RESERVA POR EJECUTIVO DE ATC (En Piso / Sala ATC)
+   * Permite que cualquier agente de ATC libere un rollo reservado (cuando su compañero confirma que el cliente no lo pagará),
+   * sin requerir intervención de Alma.
+   */
+  async releaseReservedHU(huId: string, userId?: string, motivo?: string) {
+    const hu = await this.prisma.handlingUnit.findUnique({
+      where: { id: huId },
+      include: {
+        reservations: { where: { estado: 'ACTIVA' } },
+        orderAssignments: {
+          include: { orderLine: { include: { order: true } } },
+        },
+      },
+    });
+
+    if (!hu) throw new NotFoundException('Rollo (HU) no encontrado');
+
+    if (!['RESERVADO_BLANDO', 'RESERVADO'].includes(hu.estadoHu)) {
+      return {
+        released: true,
+        huCodigo: hu.codigo,
+        message: `El rollo ${hu.codigo} ya se encuentra disponible (${hu.estadoHu})`,
+      };
+    }
+
+    const reasonText =
+      motivo || 'Liberado directamente por agente ATC tras validar con compañero en sala';
+
+    await this.prisma.$transaction(async (tx: any) => {
+      // 1. Cancel active reservations on this HU
+      await tx.reservation.updateMany({
+        where: { huId, estado: 'ACTIVA' },
+        data: {
+          estado: 'CANCELADA',
+          motivoCancelacion: reasonText,
+        },
+      });
+
+      // 2. Remove pre-assignments on orders still in quotation/payment stage
+      const removableAssignmentIds = hu.orderAssignments
+        .filter((a: any) =>
+          ['COTIZADO', 'POR_PAGAR', 'CANCELADO'].includes(a.orderLine?.order?.estado || ''),
+        )
+        .map((a: any) => a.id);
+
+      if (removableAssignmentIds.length > 0) {
+        await tx.orderLineAssignment.deleteMany({
+          where: { id: { in: removableAssignmentIds } },
+        });
+      }
+
+      // 3. Return HU to DISPONIBLE
+      await tx.handlingUnit.update({
+        where: { id: huId },
+        data: { estadoHu: 'DISPONIBLE' },
+      });
+
+      // 4. Audit log (if userId is provided)
+      if (userId) {
+        await tx.auditLog.create({
+          data: {
+            userId,
+            entidad: 'HandlingUnit',
+            entidadId: huId,
+            accion: 'RELEASE_RESERVATION_ATC',
+            detalle: {
+              estadoAntes: hu.estadoHu,
+              estadoDespues: 'DISPONIBLE',
+              codigo: hu.codigo,
+              motivo: reasonText,
+            },
+          },
+        }).catch(() => {});
+      }
+    });
+
+    return {
+      released: true,
+      huId: hu.id,
+      huCodigo: hu.codigo,
+      metrajeLiberado: Number(hu.metrajeActual),
+      message: `Rollo ${hu.codigo} (${Number(hu.metrajeActual)}m) liberado y disponible inmediatamente para cotizar`,
     };
   }
 

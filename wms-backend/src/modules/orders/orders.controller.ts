@@ -178,6 +178,21 @@ export class OrdersController {
     return this.ordersService.updateStatus(id, estado, body, req.user);
   }
 
+  @Put(':id/payment-proof')
+  @ApiOperation({ summary: 'Subir pantallazo de pago (WhatsApp) desde ATC y opcionalmente pasar a Cobranza (PAGO_RECIBIDO)' })
+  uploadPaymentProof(
+    @Param('id') id: string,
+    @Body() body: {
+      comprobantePago?: string;
+      referenciaPago?: string;
+      metodoPago?: string;
+      avanzarACobranza?: boolean;
+    },
+    @Req() req: any,
+  ) {
+    return this.ordersService.uploadPaymentProof(id, body, req.user);
+  }
+
   @Put(':id/reassign/:assignmentId')
   @ApiOperation({ summary: 'Reasignar HU en un pedido (ATC)' })
   reassignHU(
