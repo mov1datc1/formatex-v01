@@ -47,7 +47,11 @@ export const Login = () => {
           navigate('/zebra/picking');
           return;
         }
-        if (roleName === 'ATC' || roleName === 'VENTAS') {
+        if (roleName === 'ATC' || roleName === 'VENTAS' || roleName === 'VENDEDOR') {
+          navigate('/pedidos');
+          return;
+        }
+        if (roleName === 'GERENTE_VENTAS') {
           navigate('/pedidos');
           return;
         }

@@ -24,11 +24,13 @@ export class CommissionsService {
   }) {
     const { desde, hasta, anio, mes, soloFacturasPagadas = true, user } = params;
 
-    // RBAC: Determinar si es perfil supervisor/gerencial o agente individual
+    // RBAC: Determinar si es perfil supervisor/gerencial de ventas o agente individual
+    // Nota: las comisiones pertenecen al equipo de Ventas (VENDEDOR / GERENTE_VENTAS), no a ATC ni a Alma (JEFE_ATC)
     const userRole = (user?.role || '').toUpperCase();
     const userNivel = user?.nivel;
-    const isManager = (userNivel != null && userNivel <= 2) ||
-      ['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'GERENCIA', 'JEFE_ATC', 'COBRANZA', 'FACTURACION'].includes(userRole);
+    const isManager =
+      ['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'GERENCIA', 'GERENTE_VENTAS', 'COBRANZA', 'FACTURACION'].includes(userRole) ||
+      (userNivel != null && userNivel <= 2 && userRole !== 'JEFE_ATC');
 
     let effectiveVendorId = params.vendorId;
 

@@ -11,8 +11,28 @@ export class OrdersService {
     return `${prefix}-${year}-${String(count + 1).padStart(4, '0')}`;
   }
 
-  async findAll(params: { search?: string; estado?: string; clientId?: string; surtidorId?: string; retenidoCredito?: string | boolean; creadoPor?: string; page?: number; limit?: number }) {
-    const { search, estado, clientId, surtidorId, retenidoCredito, creadoPor, page = 1, limit = 20 } = params;
+  private async resolveVendorIdForUser(userOrId?: any): Promise<string | null> {
+    if (!userOrId) return null;
+    let userObj = typeof userOrId === 'string'
+      ? await this.prisma.user.findUnique({ where: { id: userOrId }, select: { id: true, nombre: true, username: true, email: true } }).catch(() => null)
+      : userOrId;
+
+    if (!userObj) return null;
+
+    const matchedVendor = await this.prisma.vendor.findFirst({
+      where: {
+        OR: [
+          ...(userObj.email ? [{ email: { equals: userObj.email, mode: 'insensitive' as const } }] : []),
+          ...(userObj.username ? [{ nombre: { contains: userObj.username.split('.')[0], mode: 'insensitive' as const } }] : []),
+          ...(userObj.nombre ? [{ nombre: { contains: userObj.nombre.replace(/\s*\(.*?\)\s*/g, '').trim(), mode: 'insensitive' as const } }] : []),
+        ],
+      },
+    });
+    return matchedVendor?.id || null;
+  }
+
+  async findAll(params: { search?: string; estado?: string; clientId?: string; vendorId?: string; surtidorId?: string; retenidoCredito?: string | boolean; creadoPor?: string; page?: number; limit?: number }) {
+    const { search, estado, clientId, vendorId, surtidorId, retenidoCredito, creadoPor, page = 1, limit = 20 } = params;
     const skip = (page - 1) * limit;
     const where: any = {};
     if (estado) {
@@ -27,6 +47,7 @@ export class OrdersService {
       }
     }
     if (clientId) where.clientId = clientId;
+    if (vendorId) where.vendorId = vendorId;
     if (surtidorId) where.surtidorId = surtidorId;
     if (retenidoCredito !== undefined) {
       where.retenidoCredito = retenidoCredito === 'true' || retenidoCredito === true;
@@ -34,12 +55,16 @@ export class OrdersService {
 
     const andConditions: any[] = [];
     if (creadoPor) {
-      andConditions.push({
-        OR: [
-          { creadoPor },
-          { atcUserId: creadoPor },
-        ],
-      });
+      const resolvedVendorId = await this.resolveVendorIdForUser(creadoPor);
+      const orList: any[] = [
+        { creadoPor },
+        { atcUserId: creadoPor },
+      ];
+      if (resolvedVendorId) {
+        orList.push({ vendorId: resolvedVendorId });
+        orList.push({ client: { vendorId: resolvedVendorId } });
+      }
+      andConditions.push({ OR: orList });
     }
     if (search) {
       andConditions.push({
@@ -971,10 +996,16 @@ export class OrdersService {
   async getStatusCounts(creadoPor?: string) {
     const where: any = {};
     if (creadoPor) {
-      where.OR = [
+      const resolvedVendorId = await this.resolveVendorIdForUser(creadoPor);
+      const orList: any[] = [
         { creadoPor },
         { atcUserId: creadoPor },
       ];
+      if (resolvedVendorId) {
+        orList.push({ vendorId: resolvedVendorId });
+        orList.push({ client: { vendorId: resolvedVendorId } });
+      }
+      where.OR = orList;
     }
     const groups = await this.prisma.order.groupBy({
       by: ['estado'],

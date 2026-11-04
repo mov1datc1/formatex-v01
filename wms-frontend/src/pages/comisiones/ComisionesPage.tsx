@@ -133,12 +133,12 @@ export default function ComisionesPage() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                {report?.isManagerView ? 'Control Global de Comisiones — Ventas / ATC' : 'Mis Comisiones — Ventas / ATC'}
+                {report?.isManagerView ? 'Control Global de Comisiones — Fuerza de Ventas' : 'Mis Comisiones — Agente de Ventas'}
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
                 {report?.isManagerView
-                  ? 'Consolidado de ventas del equipo y comisiones por factura liquidada al 100%'
-                  : 'Consulta de comisiones acumuladas por pedidos y facturas efectivamente pagadas'}
+                  ? 'Consolidado exclusivo de Agentes de Ventas (Gerencia de Ventas / Dirección) por factura liquidada al 100%'
+                  : 'Consulta de tus comisiones de ventas acumuladas por pedidos y facturas efectivamente pagadas'}
               </p>
             </div>
           </div>

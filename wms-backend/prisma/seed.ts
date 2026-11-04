@@ -173,6 +173,8 @@ async function main() {
 
   const rolesConfig: Array<{name:string,desc:string,nivel:number,mods:string[]}> = [
     { name: 'DIRECTOR_OPERACIONES', desc: 'Director — acceso total', nivel: 1, mods: modules },
+    { name: 'GERENTE_VENTAS', desc: 'Gerente de Ventas — supervisión de fuerza de ventas, pedidos, clientes y comisiones', nivel: 2, mods: ['dashboard','catalogs','orders','availability','transit','invoicing'] },
+    { name: 'VENDEDOR', desc: 'Agente de Ventas — consulta de estatus de sus pedidos, consulta de deuda de clientes y Mis Comisiones', nivel: 3, mods: ['orders','availability','transit','catalogs','invoicing'] },
     { name: 'JEFE_ATC', desc: 'Jefa de Atención al Cliente — supervisión comercial, catálogos y pedidos', nivel: 2, mods: ['dashboard','catalogs','orders','availability','reservations','transit'] },
     { name: 'ATC', desc: 'Atención al Cliente — levanta pedidos', nivel: 3, mods: ['orders','availability','reservations','transit'] },
     { name: 'COBRANZA', desc: 'Cobranza — verifica pagos', nivel: 3, mods: ['dashboard','orders','cobranza'] },
@@ -209,7 +211,11 @@ async function main() {
   const userCoord = await prisma.user.create({ data: { nombre: 'Roberto Coord. Almacén', username: 'roberto.coord', email: 'roberto@formatex.mx', password: passOper, roleId: roles['COORDINADOR_ALMACEN'].id } });
   await prisma.user.create({ data: { nombre: 'Fernando Dir. Compras', username: 'fernando.compras', email: 'fernando@formatex.mx', password: passOper, roleId: roles['DIRECTOR_COMPRAS'].id } });
   await prisma.user.create({ data: { nombre: 'Carlos López (Compras)', username: 'carlos.compras', email: 'carlos@formatex.mx', password: passOper, roleId: roles['COMPRAS'].id } });
-  console.log('  ✅ 12 roles, 13 usuarios');
+  await prisma.user.create({ data: { nombre: 'Roberto Sánchez (Gerente de Ventas)', username: 'gerente.ventas', email: 'gerente.ventas@formatex.mx', password: passOper, roleId: roles['GERENTE_VENTAS'].id } });
+  await prisma.user.create({ data: { nombre: 'LUIS JAVIER ROBLEDO', username: 'luis.robledo', email: 'luis.robledo@formatex.mx', password: passOper, roleId: roles['VENDEDOR'].id } });
+  await prisma.user.create({ data: { nombre: 'GABRIEL NAVARRO AGUILAR', username: 'gabriel.navarro', email: 'gabriel.navarro@formatex.mx', password: passOper, roleId: roles['VENDEDOR'].id } });
+  await prisma.user.create({ data: { nombre: 'JUAN PABLO HERNANDEZ RIOS', username: 'juanpablo.hernandez', email: 'juanpablo.hernandez@formatex.mx', password: passOper, roleId: roles['VENDEDOR'].id } });
+  console.log('  ✅ 14 roles, 17 usuarios');
 
   // =====================================================================
   // 6. RECEPCIONES + HUs (batch optimized)

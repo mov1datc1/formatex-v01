@@ -86,8 +86,13 @@ export class CatalogController {
   // ===== CLIENTS =====
   @Get('clients')
   @ApiOperation({ summary: 'Listar clientes' })
-  findAllClients(@Query('search') search?: string, @Query('page') page?: number, @Query('limit') limit?: number) {
-    return this.catalogService.findAllClients({ search, page, limit });
+  findAllClients(
+    @Query('search') search?: string,
+    @Query('vendorId') vendorId?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.catalogService.findAllClients({ search, vendorId, page, limit });
   }
 
   @Get('clients/:id')

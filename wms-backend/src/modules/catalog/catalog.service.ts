@@ -85,15 +85,24 @@ export class CatalogService {
   }
 
   // ===== CLIENTS =====
-  async findAllClients(params: { search?: string; page?: number; limit?: number }) {
-    const { search, page = 1, limit = 20 } = params;
+  async findAllClients(params: { search?: string; vendorId?: string; page?: number; limit?: number }) {
+    const { search, vendorId, page = 1, limit = 20 } = params;
     const skip = (page - 1) * limit;
     const where: any = { activo: true };
+    if (vendorId) {
+      where.vendorId = vendorId === 'UNASSIGNED' ? null : vendorId;
+    }
     if (search) {
       where.OR = [
         { nombre: { contains: search, mode: 'insensitive' } },
         { codigo: { contains: search, mode: 'insensitive' } },
         { rfc: { contains: search, mode: 'insensitive' } },
+        { telefono: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { direccion: { contains: search, mode: 'insensitive' } },
+        { poblacion: { contains: search, mode: 'insensitive' } },
+        { estado: { contains: search, mode: 'insensitive' } },
+        { vendor: { nombre: { contains: search, mode: 'insensitive' } } },
       ];
     }
     const [data, total] = await Promise.all([
@@ -108,7 +117,100 @@ export class CatalogService {
       }),
       this.prisma.client.count({ where }),
     ]);
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+
+    // Enrich with last order's ATC executive and pending PPD debt summary for the Client Directory
+    const clientIds = data.map((c) => c.id);
+    const [recentOrders, unpaidInvoices] = clientIds.length > 0
+      ? await Promise.all([
+          this.prisma.order.findMany({
+            where: { clientId: { in: clientIds }, estado: { not: 'CANCELADO' } },
+            orderBy: { createdAt: 'desc' },
+            select: {
+              id: true,
+              codigo: true,
+              clientId: true,
+              creadoPor: true,
+              atcUserId: true,
+              vendorId: true,
+              estado: true,
+              fechaPedido: true,
+              vendor: { select: { id: true, nombre: true, codigo: true } },
+            },
+          }),
+          this.prisma.order.findMany({
+            where: {
+              clientId: { in: clientIds },
+              metodoPagoCfdi: 'PPD',
+              estadoPago: { in: ['PENDIENTE', 'PARCIAL'] },
+              estado: { not: 'CANCELADO' },
+            },
+            select: {
+              id: true,
+              codigo: true,
+              clientId: true,
+              saldoPendiente: true,
+              total: true,
+              fechaVencimiento: true,
+            },
+          }),
+        ])
+      : [[], []];
+
+    const userIds = new Set<string>();
+    for (const o of recentOrders) {
+      if (o.atcUserId) userIds.add(o.atcUserId);
+      if (o.creadoPor) userIds.add(o.creadoPor);
+    }
+    const users = userIds.size > 0
+      ? await this.prisma.user.findMany({
+          where: { id: { in: Array.from(userIds) } },
+          select: { id: true, nombre: true, username: true },
+        })
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, u.nombre || u.username]));
+
+    const lastOrderByClient = new Map<string, any>();
+    for (const o of recentOrders) {
+      if (!lastOrderByClient.has(o.clientId)) {
+        lastOrderByClient.set(o.clientId, o);
+      }
+    }
+
+    const debtByClient = new Map<string, { count: number; saldoTotal: number; vencidasCount: number }>();
+    const now = new Date();
+    for (const inv of unpaidInvoices) {
+      const curr = debtByClient.get(inv.clientId) || { count: 0, saldoTotal: 0, vencidasCount: 0 };
+      curr.count += 1;
+      curr.saldoTotal += Number(inv.saldoPendiente ?? inv.total ?? 0);
+      if (inv.fechaVencimiento && new Date(inv.fechaVencimiento) < now) {
+        curr.vencidasCount += 1;
+      }
+      debtByClient.set(inv.clientId, curr);
+    }
+
+    const enrichedData = data.map((c) => {
+      const lastOrd = lastOrderByClient.get(c.id);
+      const rawAtcId = lastOrd?.atcUserId || lastOrd?.creadoPor || '';
+      const ultimoAtcNombre = userMap.get(rawAtcId) || (rawAtcId && rawAtcId.length < 30 ? rawAtcId : null);
+      const effectiveVendor = c.vendor || lastOrd?.vendor || null;
+      const debt = debtByClient.get(c.id) || { count: 0, saldoTotal: 0, vencidasCount: 0 };
+
+      return {
+        ...c,
+        vendor: effectiveVendor,
+        ultimoAtcNombre,
+        ultimoPedidoCodigo: lastOrd?.codigo || null,
+        ultimoPedidoFecha: lastOrd?.fechaPedido || null,
+        ultimoPedidoEstado: lastOrd?.estado || null,
+        deudaSummary: {
+          facturasPendientes: debt.count,
+          saldoPendienteTotal: Math.round(debt.saldoTotal * 100) / 100,
+          facturasVencidas: debt.vencidasCount,
+        },
+      };
+    });
+
+    return { data: enrichedData, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async createClient(data: any) {
@@ -135,7 +237,7 @@ export class CatalogService {
 
   async updateClient(id: string, data: any) {
     // Only allow editable fields to prevent Prisma errors
-    const { codigo, nombre, contacto, telefono, email, direccion, pais, rfc, cp, regimenFiscal, usoCfdi, listaPrecioDefault, cartaFletera, seguroEnvioDefault } = data;
+    const { codigo, nombre, contacto, telefono, email, direccion, colonia, poblacion, estado, pais, rfc, cp, regimenFiscal, usoCfdi, listaPrecioDefault, cartaFletera, seguroEnvioDefault, vendorId } = data;
     const updateData: any = {};
     if (codigo !== undefined) updateData.codigo = codigo;
     if (nombre !== undefined) updateData.nombre = nombre;
@@ -143,6 +245,9 @@ export class CatalogService {
     if (telefono !== undefined) updateData.telefono = telefono;
     if (email !== undefined) updateData.email = email;
     if (direccion !== undefined) updateData.direccion = direccion;
+    if (colonia !== undefined) updateData.colonia = colonia;
+    if (poblacion !== undefined) updateData.poblacion = poblacion;
+    if (estado !== undefined) updateData.estado = estado;
     if (pais !== undefined) updateData.pais = pais;
     if (rfc !== undefined) updateData.rfc = rfc;
     if (cp !== undefined) updateData.cp = cp;
@@ -151,7 +256,8 @@ export class CatalogService {
     if (listaPrecioDefault !== undefined) updateData.listaPrecioDefault = listaPrecioDefault;
     if (cartaFletera !== undefined) updateData.cartaFletera = cartaFletera;
     if (seguroEnvioDefault !== undefined) updateData.seguroEnvioDefault = seguroEnvioDefault;
-    return this.prisma.client.update({ where: { id }, data: updateData });
+    if (vendorId !== undefined) updateData.vendorId = vendorId || null;
+    return this.prisma.client.update({ where: { id }, data: updateData, include: { vendor: true } });
   }
 
   async deleteClient(id: string) {

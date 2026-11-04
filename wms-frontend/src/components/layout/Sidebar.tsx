@@ -30,19 +30,20 @@ const menuSections: MenuSection[] = [
   {
     title: 'General',
     items: [
-      { label: 'Dashboard', path: '/', icon: LayoutDashboard, excludeRoles: ['ATC', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'CHOFER'] },
-      { label: 'Catálogos', path: '/catalogos', icon: ClipboardList, permission: 'catalogs', excludeRoles: ['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR', 'COORDINADOR_ALMACEN', 'JEFE_ALMACEN', 'SUPERVISOR', 'CHOFER', 'DIRECTOR_COMPRAS', 'COMPRAS'] },
-      { label: 'Alertas', path: '/alertas', icon: Bell, permission: 'alerts', excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR'] },
+      { label: 'Dashboard', path: '/', icon: LayoutDashboard, excludeRoles: ['ATC', 'VENDEDOR', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'CHOFER'] },
+      { label: 'Catálogos', path: '/catalogos', icon: ClipboardList, permission: 'catalogs', excludeRoles: ['ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR', 'GERENTE_VENTAS', 'COORDINADOR_ALMACEN', 'JEFE_ALMACEN', 'SUPERVISOR', 'CHOFER', 'DIRECTOR_COMPRAS', 'COMPRAS'] },
+      { label: 'Alertas', path: '/alertas', icon: Bell, permission: 'alerts', excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR', 'GERENTE_VENTAS'] },
     ],
   },
   {
     title: 'Ventas / ATC',
-    allowedRoles: ['ADMIN', 'DIRECTOR_OPERACIONES', 'GERENCIA', 'ATC', 'JEFE_ATC', 'VENDEDOR'],
+    allowedRoles: ['ADMIN', 'DIRECTOR_OPERACIONES', 'GERENCIA', 'GERENTE_VENTAS', 'ATC', 'JEFE_ATC', 'VENDEDOR'],
     items: [
       { label: 'Pedidos', path: '/pedidos', icon: ClipboardList, permission: 'orders' },
+      { label: 'Consulta de Clientes', path: '/clientes', icon: Users, permission: 'orders', allowedRoles: ['ADMIN', 'DIRECTOR_OPERACIONES', 'GERENCIA', 'GERENTE_VENTAS', 'ATC', 'JEFE_ATC', 'VENDEDOR'] },
       { label: 'Disponibilidad', path: '/disponibilidad', icon: Search, permission: 'availability' },
       { label: 'En Tránsito (ATC)', path: '/transito?view=atc', icon: Ship, permission: 'transit' },
-      { label: 'Mis Comisiones', path: '/comisiones', icon: BadgeDollarSign, permission: 'orders' },
+      { label: 'Mis Comisiones', path: '/comisiones', icon: BadgeDollarSign, permission: 'orders', allowedRoles: ['ADMIN', 'DIRECTOR_OPERACIONES', 'GERENCIA', 'GERENTE_VENTAS', 'VENDEDOR'], excludeRoles: ['ATC', 'JEFE_ATC'] },
     ],
   },
   {
@@ -63,9 +64,9 @@ const menuSections: MenuSection[] = [
   },
   {
     title: 'Almacén',
-    excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR', 'DIRECTOR_COMPRAS', 'COMPRAS'],
+    excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR', 'GERENTE_VENTAS', 'DIRECTOR_COMPRAS', 'COMPRAS'],
     items: [
-      { label: 'Ubicaciones', path: '/almacen', icon: MapPin, permission: 'warehouse', excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR', 'DIRECTOR_COMPRAS', 'COMPRAS'] },
+      { label: 'Ubicaciones', path: '/almacen', icon: MapPin, permission: 'warehouse', excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR', 'GERENTE_VENTAS', 'DIRECTOR_COMPRAS', 'COMPRAS'] },
       { label: 'Picking', path: '/picking', icon: Package, permission: 'picking' },
       { label: 'Corte', path: '/corte', icon: Scissors, permission: 'cutting' },
       { label: 'Empaque', path: '/empaque', icon: PackageCheck, permission: 'packing' },
@@ -82,7 +83,7 @@ const menuSections: MenuSection[] = [
   },
   {
     title: 'Inventario',
-    excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR', 'DIRECTOR_COMPRAS', 'COMPRAS'],
+    excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR', 'GERENTE_VENTAS', 'DIRECTOR_COMPRAS', 'COMPRAS'],
     items: [
       { label: 'Recepción', path: '/recepcion', icon: ScanBarcode, permission: 'reception' },
       { label: 'Etiquetas', path: '/etiquetas', icon: Tag, permission: 'labeling' },
@@ -130,6 +131,16 @@ export const Sidebar = () => {
 
     // Fallback garantizado para JEFE_ATC (Alma)
     if (userRole === 'JEFE_ATC' && ['dashboard', 'catalogs', 'orders', 'availability', 'transit', 'reservations'].includes(item.permission)) {
+      return true;
+    }
+
+    // Fallback garantizado para VENDEDOR (Agentes de Ventas de campo)
+    if (userRole === 'VENDEDOR' && ['orders', 'availability', 'transit'].includes(item.permission)) {
+      return true;
+    }
+
+    // Fallback garantizado para GERENTE_VENTAS (Gerente de Ventas)
+    if (userRole === 'GERENTE_VENTAS' && ['dashboard', 'orders', 'availability', 'transit'].includes(item.permission)) {
       return true;
     }
 

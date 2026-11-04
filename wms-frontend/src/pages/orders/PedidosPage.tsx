@@ -67,26 +67,41 @@ export default function PedidosPage() {
   const [quotationOrder, setQuotationOrder] = useState<any>(null);
   const { canCreate, canUpdate, isAdmin, isSupervisor, user } = usePermission();
 
+  const userRoleName = useMemo(() => {
+    const raw = (user as any)?.role?.nombre || user?.role || '';
+    return String(raw).toUpperCase();
+  }, [user]);
+
+  const isVendedor = useMemo(() => {
+    return userRoleName === 'VENDEDOR' || userRoleName === 'VENTAS';
+  }, [userRoleName]);
+
+  const isGerenteVentas = useMemo(() => {
+    return userRoleName === 'GERENTE_VENTAS';
+  }, [userRoleName]);
+
   const isAlma = useMemo(() => {
     return Boolean(
-      user?.role === 'JEFE_ATC' ||
+      userRoleName === 'JEFE_ATC' ||
       user?.username?.toLowerCase().includes('alma') ||
       user?.email?.toLowerCase().includes('alma') ||
       user?.nombre?.toLowerCase().includes('alma')
     );
-  }, [user]);
+  }, [user, userRoleName]);
 
   const isFullAdmin = isAdmin || isAlma;
 
   // Scope: 'MIO' (Mis Cotizaciones/Pedidos) o 'TODOS' (Todo el WMS)
-  // Si el usuario es de rol ATC (y no es Alma ni Admin), por defecto inicia en 'MIO'
+  // Si el usuario es de rol ATC o VENDEDOR (y no es Alma ni Admin), por defecto inicia en 'MIO'
   const [scopeFilter, setScopeFilter] = useState<'MIO' | 'TODOS'>(() => {
-    return user?.role === 'ATC' && !isAlma ? 'MIO' : 'TODOS';
+    return (userRoleName === 'ATC' || userRoleName === 'VENDEDOR' || userRoleName === 'VENTAS') && !isAlma ? 'MIO' : 'TODOS';
   });
 
   // Tab principal y sub-filtros de navegación
   type MainTab = 'cotizaciones' | 'pedidos' | 'pipeline' | 'backorder';
-  const [activeMainTab, setActiveMainTab] = useState<MainTab>('cotizaciones');
+  const [activeMainTab, setActiveMainTab] = useState<MainTab>(() => {
+    return (userRoleName === 'VENDEDOR' || userRoleName === 'VENTAS' || userRoleName === 'GERENTE_VENTAS') ? 'pedidos' : 'cotizaciones';
+  });
   const [subFilterCotizaciones, setSubFilterCotizaciones] = useState<'ALL' | 'COTIZADO' | 'POR_PAGAR'>('ALL');
   const [subFilterPedidos, setSubFilterPedidos] = useState<string>('ALL');
   const [page, setPage] = useState(1);
@@ -131,6 +146,15 @@ export default function PedidosPage() {
 
   const isOrderOwner = (o: any) => {
     if (!user || !o) return false;
+    if (isVendedor) {
+      const uEmail = (user.email || '').toLowerCase();
+      const uName = (user.nombre || '').toLowerCase();
+      const vEmail = (o.vendor?.email || '').toLowerCase();
+      const vName = (o.vendor?.nombre || '').toLowerCase();
+      if ((uEmail && vEmail && uEmail === vEmail) || (uName && vName && (vName.includes(uName) || uName.includes(vName)))) {
+        return true;
+      }
+    }
     return Boolean(
       (user.id && o.creadoPor === user.id) ||
       (user.id && o.atcUserId === user.id) ||
@@ -142,6 +166,7 @@ export default function PedidosPage() {
 
   const canModifyOrder = (o: any) => {
     if (!o) return false;
+    if (isVendedor || isGerenteVentas) return false; // Agentes de Ventas y Gerente de Ventas operan en modo consulta de estatus
     if (isFullAdmin) return true; // Alma y Dirección pueden gestionar y avanzar cualquier pedido
     return isOrderOwner(o); // ATC regular solo puede modificar los pedidos creados por él/ella
   };
@@ -203,6 +228,7 @@ export default function PedidosPage() {
   const [clientCreditStatus, setClientCreditStatus] = useState<any>(null);
   const [loadingCreditCheck, setLoadingCreditCheck] = useState(false);
   const [showPendingInvoicesModal, setShowPendingInvoicesModal] = useState(false);
+  const [inspectedClientId, setInspectedClientId] = useState<string>('');
   const [clientPendingInvoices, setClientPendingInvoices] = useState<any[]>([]);
   const [loadingPendingInvoices, setLoadingPendingInvoices] = useState(false);
 
@@ -463,13 +489,21 @@ export default function PedidosPage() {
     }
   };
 
-  const openPendingInvoicesModal = async () => {
-    if (!clientId) return;
+  const openPendingInvoicesModal = async (overrideClientId?: string | any) => {
+    const targetId = typeof overrideClientId === 'string' && overrideClientId ? overrideClientId : clientId;
+    if (!targetId) return;
+    setInspectedClientId(targetId);
     setLoadingPendingInvoices(true);
     setShowPendingInvoicesModal(true);
     try {
-      const res = await api.get(`/invoicing/client/${clientId}/pending`);
-      setClientPendingInvoices(res.data || []);
+      const [invRes, creditRes] = await Promise.all([
+        api.get(`/invoicing/client/${targetId}/pending`),
+        api.get(`/invoicing/credit/${targetId}/check`).catch(() => ({ data: null })),
+      ]);
+      setClientPendingInvoices(invRes.data || []);
+      if (creditRes?.data) {
+        setClientCreditStatus(creditRes.data);
+      }
     } catch {
       setClientPendingInvoices([]);
     } finally {
@@ -1530,24 +1564,43 @@ export default function PedidosPage() {
     ) : (
       <div className="space-y-4 animate-fade-in">
         {/* Header y Acción Principal */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
               <WmsIcon.Quote className="w-5 h-5 text-white" strokeWidth={1.75} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Pedidos — Flujo Formatex</h1>
-              <p className="text-gray-500 text-sm">Cotización → Cobranza → Almacén → Facturación → Despacho</p>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {isVendedor
+                  ? 'Estatus de Mis Pedidos — Agente de Ventas'
+                  : isGerenteVentas
+                    ? 'Supervisión Comercial de Pedidos — Gerencia de Ventas'
+                    : 'Pedidos — Flujo Formatex'}
+              </h1>
+              <p className="text-gray-500 text-sm">
+                {isVendedor
+                  ? 'Consulta en tiempo real el estatus de los pedidos de tu cartera y revisa adeudos de facturas anteriores'
+                  : 'Cotización → Cobranza → Almacén → Facturación → Despacho'}
+              </p>
             </div>
           </div>
-          {canCreate('orders') && (
-            <button
-              type="button"
-              onClick={() => { setShowForm(true); setWizardStep(1); }}
-              className="px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-semibold transition-all shadow-sm shadow-primary-500/20 flex items-center gap-2 cursor-pointer active:scale-98"
-            >
-              <Plus size={16} /> Nueva Cotización
-            </button>
+          {isVendedor || isGerenteVentas ? (
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1.5 bg-indigo-50 text-indigo-800 border border-indigo-200 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                <Eye size={14} className="text-indigo-600" />
+                {isVendedor ? 'Modo Consulta de Estatus (Ventas)' : 'Vista Ejecutiva (Gerente de Ventas)'}
+              </span>
+            </div>
+          ) : (
+            canCreate('orders') && (
+              <button
+                type="button"
+                onClick={() => { setShowForm(true); setWizardStep(1); }}
+                className="px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-semibold transition-all shadow-sm shadow-primary-500/20 flex items-center gap-2 cursor-pointer active:scale-98"
+              >
+                <Plus size={16} /> Nueva Cotización
+              </button>
+            )
           )}
         </div>
 
@@ -2044,25 +2097,45 @@ export default function PedidosPage() {
               })()}
 
               {/* Creador del Registro e Identificación de Permisos */}
-              <div className="flex items-center justify-between text-xs px-3 py-2 bg-gray-50 rounded-xl border border-gray-100">
-                <span className="flex items-center gap-1.5 text-gray-600 truncate">
-                  <User size={13} className="text-gray-400 shrink-0" />
-                  <span>Creado por: <strong className="text-gray-900">{detail.creadorNombre || detail.creadoPor || 'ATC'}</strong></span>
-                </span>
-                {isOrderOwner(detail) ? (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
-                    Tu Pedido
+              <div className="space-y-1.5 text-xs px-3 py-2.5 bg-gray-50 rounded-xl border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-gray-600 truncate">
+                    <User size={13} className="text-gray-400 shrink-0" />
+                    <span>ATC Formatex: <strong className="text-gray-900">{detail.creadorNombre || detail.creadoPor || 'ATC'}</strong></span>
                   </span>
-                ) : isFullAdmin ? (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200 shrink-0">
-                    Supervisión (Alma / Admin)
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 shrink-0">
-                    Solo Lectura
-                  </span>
+                  {isOrderOwner(detail) ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
+                      {isVendedor ? 'Tu Cartera' : 'Tu Pedido'}
+                    </span>
+                  ) : isFullAdmin || isGerenteVentas ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200 shrink-0">
+                      {isGerenteVentas ? 'Supervisión Ventas' : 'Supervisión (Alma / Admin)'}
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 shrink-0">
+                      Solo Lectura
+                    </span>
+                  )}
+                </div>
+                {detail.vendor?.nombre && (
+                  <div className="flex items-center justify-between pt-1 border-t border-gray-200/70 text-[11px] text-indigo-800">
+                    <span>Agente de Ventas (Comisionista):</span>
+                    <strong className="font-bold">{detail.vendor.nombre} ({detail.vendor.codigo})</strong>
+                  </div>
                 )}
               </div>
+
+              {/* Botón de Consulta Rápida de Deuda / Facturas Anteriores del Cliente */}
+              {(detail.client?.id || detail.clientId) && (
+                <button
+                  type="button"
+                  onClick={() => openPendingInvoicesModal(detail.client?.id || detail.clientId)}
+                  className="w-full px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <CreditCard size={14} className="text-indigo-600" />
+                  <span>Consultar Facturas Anteriores / Deuda del Cliente</span>
+                </button>
+              )}
 
               {/* Advance button — EMPACADO uses Facturapi instead */}
               {(isAdmin || canUpdate('facturacion')) && detail.estado === 'EMPACADO' && !detail.facturapiId && (
@@ -2994,9 +3067,9 @@ export default function PedidosPage() {
                   <CreditCard size={20} />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-gray-900">Estado de Cuenta y Facturas del Cliente</h3>
+                  <h3 className="text-base font-bold text-gray-900">Estado de Cuenta y Facturas del Cliente (Solo Consulta)</h3>
                   <p className="text-xs text-gray-500">
-                    Cliente: <strong>{clients?.data?.find((c: any) => c.id === clientId)?.nombre}</strong> ({clients?.data?.find((c: any) => c.id === clientId)?.codigo}) · RFC: {clients?.data?.find((c: any) => c.id === clientId)?.rfc || '—'}
+                    Cliente: <strong>{clients?.data?.find((c: any) => c.id === (inspectedClientId || clientId))?.nombre || detail?.client?.nombre}</strong> ({clients?.data?.find((c: any) => c.id === (inspectedClientId || clientId))?.codigo || detail?.client?.codigo}) · RFC: {clients?.data?.find((c: any) => c.id === (inspectedClientId || clientId))?.rfc || detail?.client?.rfc || '—'}
                   </p>
                 </div>
               </div>

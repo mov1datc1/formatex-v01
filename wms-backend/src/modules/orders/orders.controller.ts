@@ -103,13 +103,14 @@ export class OrdersController {
     @Query('search') search?: string,
     @Query('estado') estado?: string,
     @Query('clientId') clientId?: string,
+    @Query('vendorId') vendorId?: string,
     @Query('surtidorId') surtidorId?: string,
     @Query('retenidoCredito') retenidoCredito?: string,
     @Query('creadoPor') creadoPor?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.ordersService.findAll({ search, estado, clientId, surtidorId, retenidoCredito, creadoPor, page, limit });
+    return this.ordersService.findAll({ search, estado, clientId, vendorId, surtidorId, retenidoCredito, creadoPor, page, limit });
   }
 
   @Post(':id/assign-surtidor')

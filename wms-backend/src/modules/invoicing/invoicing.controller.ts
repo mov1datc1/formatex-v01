@@ -269,8 +269,9 @@ export class InvoicingController {
     @Body() body: { fechaInicio: string; fechaFin: string; creadoPor?: string },
   ) {
     const userRole = (req.user?.role || '').toUpperCase();
-    const isManager = (req.user?.nivel != null && req.user.nivel <= 2) ||
-      ['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'GERENCIA', 'COBRANZA', 'JEFE_ATC'].includes(userRole);
+    const isManager =
+      ['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'GERENCIA', 'GERENTE_VENTAS', 'COBRANZA'].includes(userRole) ||
+      (req.user?.nivel != null && req.user.nivel <= 2 && userRole !== 'JEFE_ATC');
     if (!isManager) {
       throw new ForbiddenException('No tiene permisos para crear periodos de comisión');
     }
@@ -281,8 +282,9 @@ export class InvoicingController {
   @Put('commissions/periods/:id/close')
   async closePeriod(@Req() req: any, @Param('id') id: string) {
     const userRole = (req.user?.role || '').toUpperCase();
-    const isManager = (req.user?.nivel != null && req.user.nivel <= 2) ||
-      ['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'GERENCIA', 'COBRANZA', 'JEFE_ATC'].includes(userRole);
+    const isManager =
+      ['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'GERENCIA', 'GERENTE_VENTAS', 'COBRANZA'].includes(userRole) ||
+      (req.user?.nivel != null && req.user.nivel <= 2 && userRole !== 'JEFE_ATC');
     if (!isManager) {
       throw new ForbiddenException('No tiene permisos para cerrar periodos de comisión');
     }

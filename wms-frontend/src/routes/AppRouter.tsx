@@ -41,6 +41,7 @@ import FacturacionPage from '../pages/invoicing/FacturacionPage';
 import CobranzaPage from '../pages/cobranza/CobranzaPage';
 import ComprasPage from '../pages/compras/ComprasPage';
 import ComisionesPage from '../pages/comisiones/ComisionesPage';
+import ConsultaClientesPage from '../pages/catalog/ConsultaClientesPage';
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -126,14 +127,15 @@ export function AppRouter() {
           <Route index element={<DashboardGuard />} />
 
           {/* General */}
-          <Route path="almacen" element={<RoleGuard excludeRoles={['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR', 'DIRECTOR_COMPRAS', 'COMPRAS']}><UbicacionesPage /></RoleGuard>} />
+          <Route path="almacen" element={<RoleGuard excludeRoles={['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR', 'GERENTE_VENTAS', 'DIRECTOR_COMPRAS', 'COMPRAS']}><UbicacionesPage /></RoleGuard>} />
           <Route path="alertas" element={<RoleGuard allowedRoles={['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'COMPRAS', 'COORDINADOR_ALMACEN', 'JEFE_ALMACEN', 'SUPERVISOR', 'GERENCIA']}><AlertasPage /></RoleGuard>} />
 
           {/* Ventas / ATC */}
-          <Route path="pedidos" element={<RoleGuard allowedRoles={['ADMIN', 'DIRECTOR_OPERACIONES', 'GERENCIA', 'ATC', 'JEFE_ATC', 'VENDEDOR', 'COORDINADOR_ALMACEN', 'JEFE_ALMACEN', 'SUPERVISOR']}><PedidosPage /></RoleGuard>} />
-          <Route path="disponibilidad" element={<RoleGuard allowedRoles={['ADMIN', 'DIRECTOR_OPERACIONES', 'GERENCIA', 'ATC', 'JEFE_ATC', 'VENDEDOR', 'COORDINADOR_ALMACEN', 'JEFE_ALMACEN', 'SUPERVISOR']}><DisponibilidadPage /></RoleGuard>} />
-          <Route path="transito" element={<RoleGuard allowedRoles={['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'COMPRAS', 'GERENCIA', 'ATC', 'JEFE_ATC', 'COORDINADOR_ALMACEN', 'JEFE_ALMACEN', 'SUPERVISOR']}><TransitoPage /></RoleGuard>} />
-          <Route path="comisiones" element={<RoleGuard allowedRoles={['ADMIN', 'DIRECTOR_OPERACIONES', 'GERENCIA', 'ATC', 'JEFE_ATC', 'VENDEDOR']}><ComisionesPage /></RoleGuard>} />
+          <Route path="pedidos" element={<RoleGuard allowedRoles={['ADMIN', 'DIRECTOR_OPERACIONES', 'GERENCIA', 'GERENTE_VENTAS', 'ATC', 'JEFE_ATC', 'VENDEDOR', 'COORDINADOR_ALMACEN', 'JEFE_ALMACEN', 'SUPERVISOR']}><PedidosPage /></RoleGuard>} />
+          <Route path="clientes" element={<RoleGuard allowedRoles={['ADMIN', 'DIRECTOR_OPERACIONES', 'GERENCIA', 'GERENTE_VENTAS', 'ATC', 'JEFE_ATC', 'VENDEDOR', 'COBRANZA', 'FACTURACION']}><ConsultaClientesPage /></RoleGuard>} />
+          <Route path="disponibilidad" element={<RoleGuard allowedRoles={['ADMIN', 'DIRECTOR_OPERACIONES', 'GERENCIA', 'GERENTE_VENTAS', 'ATC', 'JEFE_ATC', 'VENDEDOR', 'COORDINADOR_ALMACEN', 'JEFE_ALMACEN', 'SUPERVISOR']}><DisponibilidadPage /></RoleGuard>} />
+          <Route path="transito" element={<RoleGuard allowedRoles={['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'COMPRAS', 'GERENCIA', 'GERENTE_VENTAS', 'ATC', 'JEFE_ATC', 'VENDEDOR', 'COORDINADOR_ALMACEN', 'JEFE_ALMACEN', 'SUPERVISOR']}><TransitoPage /></RoleGuard>} />
+          <Route path="comisiones" element={<RoleGuard allowedRoles={['ADMIN', 'DIRECTOR_OPERACIONES', 'GERENCIA', 'GERENTE_VENTAS', 'VENDEDOR']}><ComisionesPage /></RoleGuard>} />
 
           {/* Cobranza */}
           <Route path="cobranza" element={<RoleGuard allowedRoles={['ADMIN', 'DIRECTOR_OPERACIONES', 'COBRANZA', 'GERENCIA', 'FACTURACION']}><CobranzaPage /></RoleGuard>} />
