@@ -225,9 +225,45 @@ export class CatalogService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
+  private extractFabricFamily(nombre: string, color?: string | null): string {
+    const cleanName = (nombre || '').trim().toUpperCase();
+    const cleanColor = (color || '').trim().toUpperCase();
+    if (cleanColor && cleanColor !== 'ÚNICO' && cleanColor !== 'ESTANDAR' && cleanName.endsWith(' ' + cleanColor)) {
+      return cleanName.slice(0, cleanName.length - cleanColor.length - 1).trim();
+    }
+    const multiWordFamilies = ['HOLLAND VELVET', 'ITALIAN VELVET', 'FOREVER PLUS'];
+    for (const mw of multiWordFamilies) {
+      if (cleanName === mw || cleanName.startsWith(mw + ' ')) return mw;
+    }
+    return cleanName.split(/\s+/)[0] || cleanName;
+  }
+
   async findSpecialPrice(clientId: string, skuId: string) {
-    return this.prisma.clientSpecialPrice.findFirst({
+    const exact = await this.prisma.clientSpecialPrice.findFirst({
       where: { clientId, skuId, activo: true },
+      include: { sku: true, client: true },
+    });
+    if (exact) return exact;
+
+    const sku = await this.prisma.skuMaster.findUnique({ where: { id: skuId } });
+    if (!sku || sku.tipoArticulo === 'MUESTRARIO' || sku.nombre.toUpperCase().startsWith('MUESTRARIO')) {
+      return null;
+    }
+    const family = this.extractFabricFamily(sku.nombre, sku.color);
+    if (!family) return null;
+
+    return this.prisma.clientSpecialPrice.findFirst({
+      where: {
+        clientId,
+        activo: true,
+        sku: {
+          tipoArticulo: { not: 'MUESTRARIO' },
+          OR: [
+            { nombre: { equals: family, mode: 'insensitive' } },
+            { nombre: { startsWith: `${family} `, mode: 'insensitive' } },
+          ],
+        },
+      },
       include: { sku: true, client: true },
     });
   }
@@ -256,11 +292,34 @@ export class CatalogService {
       priceMap[pl.listaCodigo] = Number(pl.precio);
     }
 
-    // 2. Verificar si existe Precio Especial Pactado por Dirección
-    if (clientId) {
-      const specialPrice = await this.prisma.clientSpecialPrice.findFirst({
+    // 2. Verificar si existe Precio Especial Pactado por Dirección / Alma (ATC)
+    //    Se respeta automáticamente salvo que el usuario fuerce explícitamente una lista F0-F10 distinta
+    const hasExplicitListOverride = Boolean(listaOverride && listaOverride !== 'ESPECIAL' && listaOverride !== 'AUTO');
+    if (clientId && !hasExplicitListOverride) {
+      let specialPrice = await this.prisma.clientSpecialPrice.findFirst({
         where: { clientId, skuId, activo: true },
       });
+
+      // Fallback por familia de tela (todos los colores de la misma tela, excluyendo muestrarios)
+      if (!specialPrice && sku.tipoArticulo !== 'MUESTRARIO' && !sku.nombre.toUpperCase().startsWith('MUESTRARIO')) {
+        const family = this.extractFabricFamily(sku.nombre, sku.color);
+        if (family) {
+          specialPrice = await this.prisma.clientSpecialPrice.findFirst({
+            where: {
+              clientId,
+              activo: true,
+              sku: {
+                tipoArticulo: { not: 'MUESTRARIO' },
+                OR: [
+                  { nombre: { equals: family, mode: 'insensitive' } },
+                  { nombre: { startsWith: `${family} `, mode: 'insensitive' } },
+                ],
+              },
+            },
+          });
+        }
+      }
+
       if (specialPrice) {
         return {
           precioUnitario: Number(specialPrice.precioPactado),
@@ -277,37 +336,52 @@ export class CatalogService {
       }
     }
 
-    // 3. Determinar tipo de cliente
+    // 3. Determinar tipo de cliente y reglas especiales de cliente
     let tipoCliente = 'PG';
     let clientNombre = '';
+    let clientListaDefault = '';
     if (clientId) {
       const client = await this.prisma.client.findUnique({
         where: { id: clientId },
-        select: { tipoCliente: true, nombre: true },
+        select: { tipoCliente: true, nombre: true, listaPrecioDefault: true },
       });
       if (client?.tipoCliente) {
-        tipoCliente = client.tipoCliente.toUpperCase();
+        tipoCliente = client.tipoCliente.toUpperCase().trim();
       }
       if (client?.nombre) {
         clientNombre = client.nombre;
       }
+      if (client?.listaPrecioDefault) {
+        clientListaDefault = client.listaPrecioDefault.toUpperCase().trim();
+      }
     }
 
-    // 4. Modalidad: Rollo vs Corte
-    // Si tipoPedido es 'CORTE' o metraje < 50 => CORTE, de lo contrario ROLLO
-    const esCorte = tipoPedido === 'CORTE' || (tipoPedido !== 'ROLLO_COMPLETO' && metraje < 50);
+    // Normalizar nombres largos de tipoCliente a claves de la matriz oficial
+    const tipoNormalization: Record<string, string> = {
+      PUBLICO_GENERAL: 'PG',
+      CASA_DECORADORA: 'CD',
+      DECORADORA: 'CD',
+      TIENDA: 'T',
+      TIENDA_ESPECIAL: 'XT',
+      FABRICANTE: 'F',
+      FABRICANTE_ESPECIAL: 'XF',
+      DISTRIBUIDOR: 'D',
+      DISTRIBUIDOR_ESPECIAL: 'D',
+      PREMIUM: 'P',
+      CLIENTE_PREMIUM: 'P',
+      LISTA_ESPECIAL: 'CE',
+      CLIENTE_ESPECIAL: 'CE',
+    };
+    const normalizedTipo = tipoNormalization[tipoCliente] || tipoCliente;
+
+    // 4. Modalidad: Rollo vs Corte (Regla Tumoine: >= 25m es Rollo; General: >= 50m es Rollo)
+    const isTumoine = clientNombre.toUpperCase().includes('TUMOINE');
+    const isKabah = clientNombre.toUpperCase().includes('KABAH');
+    const umbralRollo = isTumoine ? 25 : (Number(sku.metrajeEstandar) || 50);
+    const esCorte = tipoPedido === 'CORTE' || (tipoPedido !== 'ROLLO_COMPLETO' && metraje < umbralRollo);
     const modalidad = esCorte ? 'CORTE' : 'ROLLO';
 
     // 5. Matriz Oficial Formatex (LISTAS DE PRECIOS ACTUALES.png)
-    // PG: Rollo F0, Corte F1
-    // CD: Rollo F2, Corte F3
-    // T:  Rollo F3, Corte F2 (Tienda)
-    // XT: Rollo F4, Corte F3 (Tienda Especial)
-    // F:  Rollo F5, Corte F3 (Fabricante)
-    // XF: Rollo F5, Corte F4 (Fabricante Especial)
-    // D:  Rollo F6, Corte F7 (Distribuidor)
-    // P:  Rollo F8, Corte F9 (Premium)
-    // CE: Rollo F10, Corte F10 (Cliente Especial)
     const matrix: Record<string, { rollo: string; corte: string; nombre: string }> = {
       PG: { rollo: 'F0', corte: 'F1', nombre: 'Público General' },
       CD: { rollo: 'F2', corte: 'F3', nombre: 'Casa Decoradora' },
@@ -320,13 +394,17 @@ export class CatalogService {
       CE: { rollo: 'F10', corte: 'F10', nombre: 'Cliente Especial' },
     };
 
-    const clientRule = matrix[tipoCliente] || matrix.PG;
-    const listaSugerida = esCorte ? clientRule.corte : clientRule.rollo;
-    const listaFinal = listaOverride && listaOverride !== 'ESPECIAL' ? listaOverride : listaSugerida;
+    const clientRule = matrix[normalizedTipo] || (clientListaDefault === 'F5' ? matrix.F : clientListaDefault === 'F6' ? matrix.D : matrix.PG);
+    let listaSugerida = esCorte ? clientRule.corte : clientRule.rollo;
+    if (isKabah) {
+      // Regla KABAH: Corte y Rollo en F5
+      listaSugerida = 'F5';
+    }
+    const listaFinal = hasExplicitListOverride ? listaOverride! : listaSugerida;
 
-    // Candados gerenciales: F3, F5, F7, F9 requieren autorización
+    // Candados gerenciales: F3, F5, F7, F9 requieren autorización si se fuerzan fuera de la regla
     const listasConCandado = ['F3', 'F5', 'F7', 'F9'];
-    const requiereAprobacion = listasConCandado.includes(listaFinal);
+    const requiereAprobacion = hasExplicitListOverride && listaFinal !== listaSugerida && listasConCandado.includes(listaFinal);
 
     // Obtener precio de la lista elegida
     let precioUnitario = priceMap[listaFinal];
@@ -339,7 +417,7 @@ export class CatalogService {
       listaCodigo: listaFinal,
       listaSugerida,
       modalidad,
-      tipoCliente,
+      tipoCliente: normalizedTipo,
       nombreTipoCliente: clientRule.nombre,
       clientNombre,
       esPrecioEspecial: false,
@@ -349,28 +427,71 @@ export class CatalogService {
     };
   }
 
-  async createSpecialPrice(data: { clientId: string; skuId: string; precioPactado: number; referenciaProyecto?: string; autorizadoPor?: string; notas?: string; vigenteHasta?: string }) {
-    return this.prisma.clientSpecialPrice.upsert({
-      where: { clientId_skuId: { clientId: data.clientId, skuId: data.skuId } },
-      create: {
-        clientId: data.clientId,
-        skuId: data.skuId,
-        precioPactado: data.precioPactado,
-        referenciaProyecto: data.referenciaProyecto,
-        autorizadoPor: data.autorizadoPor || 'Dirección General',
-        notas: data.notas,
-        vigenteHasta: data.vigenteHasta ? new Date(data.vigenteHasta) : undefined,
-        activo: true,
-      },
-      update: {
-        precioPactado: data.precioPactado,
-        referenciaProyecto: data.referenciaProyecto,
-        autorizadoPor: data.autorizadoPor || 'Dirección General',
-        notas: data.notas,
-        vigenteHasta: data.vigenteHasta ? new Date(data.vigenteHasta) : undefined,
-        activo: true,
-      },
-    });
+  async createSpecialPrice(data: {
+    clientId: string;
+    skuId: string;
+    precioPactado: number;
+    referenciaProyecto?: string;
+    autorizadoPor?: string;
+    notas?: string;
+    vigenteHasta?: string;
+    aplicarFamilia?: boolean;
+  }) {
+    const targetSku = await this.prisma.skuMaster.findUnique({ where: { id: data.skuId } });
+    if (!targetSku) throw new NotFoundException('SKU no encontrado');
+
+    const shouldApplyFamily = data.aplicarFamilia !== false && targetSku.tipoArticulo !== 'MUESTRARIO';
+    let skusToApply = [targetSku];
+
+    if (shouldApplyFamily) {
+      const family = this.extractFabricFamily(targetSku.nombre, targetSku.color);
+      if (family) {
+        const familySkus = await this.prisma.skuMaster.findMany({
+          where: {
+            activo: true,
+            tipoArticulo: { not: 'MUESTRARIO' },
+            OR: [
+              { nombre: { equals: family, mode: 'insensitive' } },
+              { nombre: { startsWith: `${family} `, mode: 'insensitive' } },
+            ],
+          },
+        });
+        if (familySkus.length > 0) {
+          skusToApply = familySkus;
+        }
+      }
+    }
+
+    let primaryRecord: any = null;
+    for (const s of skusToApply) {
+      const rec = await this.prisma.clientSpecialPrice.upsert({
+        where: { clientId_skuId: { clientId: data.clientId, skuId: s.id } },
+        create: {
+          clientId: data.clientId,
+          skuId: s.id,
+          precioPactado: Number(data.precioPactado),
+          referenciaProyecto: data.referenciaProyecto || 'Lista Especial Directivo',
+          autorizadoPor: data.autorizadoPor || 'Dirección / Alma (ATC)',
+          notas: data.notas,
+          vigenteHasta: data.vigenteHasta ? new Date(data.vigenteHasta) : undefined,
+          activo: true,
+        },
+        update: {
+          precioPactado: Number(data.precioPactado),
+          referenciaProyecto: data.referenciaProyecto || 'Lista Especial Directivo',
+          autorizadoPor: data.autorizadoPor || 'Dirección / Alma (ATC)',
+          notas: data.notas,
+          vigenteHasta: data.vigenteHasta ? new Date(data.vigenteHasta) : undefined,
+          activo: true,
+        },
+      });
+      if (s.id === data.skuId || !primaryRecord) primaryRecord = rec;
+    }
+
+    return {
+      ...primaryRecord,
+      skusActualizados: skusToApply.length,
+    };
   }
 
   async updateSpecialPrice(id: string, data: any) {

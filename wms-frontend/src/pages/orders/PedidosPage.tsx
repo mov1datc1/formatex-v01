@@ -276,22 +276,59 @@ export default function PedidosPage() {
     notasEntrega: '',
   });
 
+  const [clientSpecialPrices, setClientSpecialPrices] = useState<any[]>([]);
+
+  // Resumen agrupado por familia de tela de los precios especiales del cliente seleccionado
+  const clientSpecialFamilies = useMemo(() => {
+    if (!clientSpecialPrices.length) return [];
+    const map = new Map<string, { family: string; precioPactado: number; referenciaProyecto: string; count: number }>();
+    const multiWords = ['HOLLAND VELVET', 'ITALIAN VELVET', 'FOREVER PLUS'];
+    for (const sp of clientSpecialPrices) {
+      const rawName = (sp.sku?.nombre || '').trim().toUpperCase();
+      if (!rawName || rawName.startsWith('MUESTRARIO')) continue;
+      let fam = rawName.split(/\s+/)[0] || rawName;
+      for (const mw of multiWords) {
+        if (rawName === mw || rawName.startsWith(mw + ' ')) {
+          fam = mw;
+          break;
+        }
+      }
+      const existing = map.get(fam);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        map.set(fam, {
+          family: fam,
+          precioPactado: Number(sp.precioPactado),
+          referenciaProyecto: sp.referenciaProyecto || 'Precio Especial Directivo',
+          count: 1,
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.family.localeCompare(b.family));
+  }, [clientSpecialPrices]);
+
   const handleClientChange = async (cId: string) => {
     setClientId(cId);
     if (!cId) {
       setClientAddresses([]);
+      setClientSpecialPrices([]);
       setDeliveryAddressId('');
       return;
     }
     const clientObj = clients?.data?.find((c: any) => c.id === cId);
     if (clientObj) {
       if (clientObj.vendorId) setVendorId(clientObj.vendorId);
-      if (clientObj.listaPrecioDefault) {
-        setLineas(prev => prev.map(l => ({ ...l, listaPrecios: l.listaPrecios || clientObj.listaPrecioDefault })));
-      }
+      // Limpiar listaPrecios para que cada línea resuelva automáticamente Precio Especial o Matriz Base (Rollo/Corte)
+      setLineas(prev => prev.map(l => ({ ...l, listaPrecios: '' })));
       if (clientObj.cartaFletera) setFletera(clientObj.cartaFletera);
       if (clientObj.seguroEnvioDefault !== undefined) setEnvioAsegurado(clientObj.seguroEnvioDefault);
     }
+
+    // Consultar precios especiales autorizados por Dirección / Alma para este cliente
+    api.get('/catalog/special-prices', { params: { clientId: cId, limit: 300 } })
+      .then(res => setClientSpecialPrices(res.data?.data || []))
+      .catch(() => setClientSpecialPrices([]));
 
     // Consulta en vivo del estatus de crédito y cobranza con César
     setLoadingCreditCheck(true);
@@ -736,7 +773,11 @@ export default function PedidosPage() {
                   </div>
                   <select value={clientId} onChange={e => handleClientChange(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary-500">
                     <option value="">Seleccionar cliente...</option>
-                    {clients?.data?.map((c: any) => <option key={c.id} value={c.id}>{c.nombre} ({c.codigo})</option>)}
+                    {clients?.data?.map((c: any) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nombre} ({c.codigo}){c._count?.specialPrices > 0 ? ` · ★ Precios Esp.` : ''}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -756,6 +797,35 @@ export default function PedidosPage() {
                   </select>
                 </div>
               </div>
+
+              {/* Banner de Precios Especiales Autorizados por Dirección / Alma */}
+              {clientId && clientSpecialFamilies.length > 0 && (
+                <div className="p-3.5 bg-violet-50/90 border border-violet-200 rounded-2xl space-y-2 text-xs text-violet-900">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Sparkles size={15} className="text-violet-600 shrink-0" />
+                      <span>
+                        <strong>Cliente con Precios Especiales Autorizados (Dirección / Alma):</strong> {clientSpecialFamilies.length} familia(s) de tela con tarifa pactada. Se aplican automáticamente al agregar la tela; el resto de telas aplica su precio base normal.
+                      </span>
+                    </div>
+                    <span className="text-[10px] bg-violet-200/80 text-violet-900 px-2.5 py-0.5 rounded-full font-bold shrink-0">
+                      Auto-Aplicable en Cotización
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {clientSpecialFamilies.slice(0, 12).map(f => (
+                      <span key={f.family} className="px-2 py-0.5 bg-white border border-violet-200 rounded-lg text-[11px] font-semibold text-violet-900 shadow-2xs">
+                        {f.family}: <strong className="font-mono text-violet-700">${f.precioPactado.toFixed(2)}/m</strong>
+                      </span>
+                    ))}
+                    {clientSpecialFamilies.length > 12 && (
+                      <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-lg text-[11px] font-semibold">
+                        +{clientSpecialFamilies.length - 12} más
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Banner de Crédito y Cobranza en Vivo (César) */}
               {clientId && (
@@ -948,12 +1018,33 @@ export default function PedidosPage() {
                 </span>
               </div>
 
+              {clientSpecialFamilies.length > 0 && (
+                <div className="p-3 bg-violet-50/80 border border-violet-200 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs text-violet-900">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Sparkles size={14} className="text-violet-600 shrink-0" />
+                    <span className="font-bold">Telas con Precio Especial Autorizado para este cliente:</span>
+                    {clientSpecialFamilies.slice(0, 8).map(f => (
+                      <span key={f.family} className="px-2 py-0.5 bg-white border border-violet-200 rounded-md text-[11px] font-semibold">
+                        {f.family} <strong className="font-mono text-violet-700">${f.precioPactado.toFixed(2)}/m</strong>
+                      </span>
+                    ))}
+                    {clientSpecialFamilies.length > 8 && (
+                      <span className="text-[11px] text-violet-600 font-semibold">+{clientSpecialFamilies.length - 8} más</span>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-violet-700 font-medium">
+                    Otras telas usan su precio base automático (F0–F10)
+                  </span>
+                </div>
+              )}
+
               <div className="space-y-3">
                 {lineas.map((l, idx) => (
                   <OrderLineSmart
                     key={idx}
                     index={idx}
                     clientId={clientId}
+                    clientSpecialPrices={clientSpecialPrices}
                     line={l}
                     skus={skus?.data || []}
                     onChange={(i, field, value) => {

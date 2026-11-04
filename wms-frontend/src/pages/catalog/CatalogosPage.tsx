@@ -107,6 +107,7 @@ export default function CatalogosPage() {
   // Estados para Precios Especiales
   const [allSkusList, setAllSkusList] = useState<any[]>([]);
   const [allClientsList, setAllClientsList] = useState<any[]>([]);
+  const [specialPriceClientFilter, setSpecialPriceClientFilter] = useState<string>('');
 
   // Estados para Wizard Interactivo de Carga de Precios (Amigable para equipo comercial)
   const [showPriceWizard, setShowPriceWizard] = useState(false);
@@ -256,9 +257,13 @@ export default function CatalogosPage() {
 
   const endpoint = getEndpoint(tab);
   const { data: resp, isLoading, refetch } = useApi<any>(
-    [tab, search],
+    [tab, search, specialPriceClientFilter],
     endpoint,
-    tab === 'priceLists' ? {} : { search: search || undefined, limit: 50 }
+    tab === 'priceLists'
+      ? {}
+      : tab === 'specialPrices'
+        ? { search: search || undefined, clientId: specialPriceClientFilter || undefined, limit: 300 }
+        : { search: search || undefined, limit: 100 }
   );
   const createMut = useMutationApi(endpoint);
 
@@ -267,8 +272,8 @@ export default function CatalogosPage() {
     const loadSelectables = async () => {
       try {
         const [skusRes, clientsRes] = await Promise.all([
-          api.get('/catalog/skus', { params: { limit: 200 } }),
-          api.get('/catalog/clients', { params: { limit: 200 } }),
+          api.get('/catalog/skus', { params: { limit: 2500 } }),
+          api.get('/catalog/clients', { params: { limit: 600 } }),
         ]);
         setAllSkusList(skusRes.data?.data || []);
         setAllClientsList(clientsRes.data?.data || []);
@@ -291,11 +296,20 @@ export default function CatalogosPage() {
   const handleCreate = async () => {
     try {
       if (tab === 'specialPrices') {
-        await api.post('/catalog/special-prices', formData);
+        const res = await api.post('/catalog/special-prices', {
+          ...formData,
+          aplicarFamilia: formData.aplicarFamilia !== false,
+        });
+        const count = res.data?.skusActualizados || 1;
+        toast.success(
+          count > 1
+            ? `Precio especial aplicado automáticamente a ${count} variantes de color de la tela`
+            : 'Precio especial registrado exitosamente'
+        );
       } else {
         await createMut.mutateAsync(formData);
+        toast.success('Registro creado exitosamente');
       }
-      toast.success('Registro creado exitosamente');
       closeForm();
       refetch();
     } catch (e: any) {
@@ -732,13 +746,29 @@ export default function CatalogosPage() {
               })}
 
               {renderInput('Autorizado Por', 'autorizadoPor', {
-                placeholder: 'Dirección General (Ricardo)',
+                placeholder: 'Dirección / Alma (ATC)',
                 hint: 'Persona directiva que autorizó el precio',
               })}
 
               {renderInput('Notas Adicionales', 'notas', {
-                placeholder: 'Condiciones de volumen o temporalidad...',
+                placeholder: 'Argumento comercial, condiciones de volumen o proyecto...',
               })}
+
+              {!editingId && (
+                <div className="md:col-span-2 pt-1">
+                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-indigo-900 bg-indigo-50/60 border border-indigo-200 px-3.5 py-2.5 rounded-xl">
+                    <input
+                      type="checkbox"
+                      checked={formData.aplicarFamilia !== false}
+                      onChange={(e) => updateField('aplicarFamilia', e.target.checked)}
+                      className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                    />
+                    <span>
+                      Aplicar este precio especial a <strong>todos los colores de esta familia de tela</strong> para este cliente (recomendado para que aplique en cualquier tono cotizado)
+                    </span>
+                  </label>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -928,16 +958,47 @@ export default function CatalogosPage() {
         </div>
       )}
 
-      {/* Buscador Rápido */}
+      {/* Buscador Rápido y Filtro de Empresas con Precio Especial */}
       {tab !== 'priceLists' && (
-        <div className="relative max-w-md">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={`Buscar en ${activeTab.label.toLowerCase()}...`}
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all shadow-sm"
-          />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={`Buscar en ${activeTab.label.toLowerCase()} (empresa, tela, proyecto)...`}
+              className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all shadow-sm"
+            />
+          </div>
+
+          {tab === 'specialPrices' && (
+            <div className="flex items-center gap-2">
+              <Filter size={14} className="text-indigo-600 shrink-0" />
+              <select
+                value={specialPriceClientFilter}
+                onChange={(e) => setSpecialPriceClientFilter(e.target.value)}
+                className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 shadow-sm min-w-[260px]"
+              >
+                <option value="">Todas las empresas con Precio Especial ({allClientsList.filter((c: any) => c._count?.specialPrices > 0).length})</option>
+                {allClientsList
+                  .filter((c: any) => c._count?.specialPrices > 0)
+                  .map((c: any) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nombre} ({c.codigo}) — {c._count.specialPrices} SKUs
+                    </option>
+                  ))}
+              </select>
+              {specialPriceClientFilter && (
+                <button
+                  type="button"
+                  onClick={() => setSpecialPriceClientFilter('')}
+                  className="px-2.5 py-2 text-xs text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold"
+                >
+                  Ver todas
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 

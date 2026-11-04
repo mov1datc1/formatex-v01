@@ -9,6 +9,7 @@ import {
 interface OrderLineSmartProps {
   index: number;
   clientId?: string;
+  clientSpecialPrices?: any[];
   line: {
     skuId: string;
     metrajeRequerido: number;
@@ -25,7 +26,7 @@ interface OrderLineSmartProps {
   canRemove: boolean;
 }
 
-export default function OrderLineSmart({ index, clientId, line, skus, onChange, onRemove, canRemove }: OrderLineSmartProps) {
+export default function OrderLineSmart({ index, clientId, clientSpecialPrices = [], line, skus, onChange, onRemove, canRemove }: OrderLineSmartProps) {
   const [skuSearch, setSkuSearch] = useState('');
   const [showSkuDropdown, setShowSkuDropdown] = useState(false);
   const [suggestions, setSuggestions] = useState<any>(null);
@@ -34,14 +35,48 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
   const [viewMode, setViewMode] = useState<'plan' | 'individual'>('plan');
   const [pricingInfo, setPricingInfo] = useState<any>(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
+  const [manualListaOverride, setManualListaOverride] = useState<string>('');
+  const [selectedSkuCache, setSelectedSkuCache] = useState<any>(null);
   const skuRef = useRef<HTMLDivElement>(null);
   const suggRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<any>(null);
   const priceDebounceRef = useRef<any>(null);
 
-  const selectedSku = skus.find((s: any) => s.id === line.skuId);
+  const selectedSku = useMemo(() => {
+    const fromProp = skus.find((s: any) => s.id === line.skuId);
+    if (fromProp) return fromProp;
+    if (selectedSkuCache && selectedSkuCache.id === line.skuId) return selectedSkuCache;
+    return undefined;
+  }, [skus, line.skuId, selectedSkuCache]);
+
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+
+  // Resetear override manual cuando cambia el cliente
+  useEffect(() => {
+    setManualListaOverride('');
+  }, [clientId]);
+
+  // Helper para saber si un SKU en el buscador tiene precio especial para este cliente
+  const getSpecialPriceForSku = useCallback((sku: any) => {
+    if (!sku || !clientSpecialPrices?.length) return null;
+    if (sku.tipoArticulo === 'MUESTRARIO' || sku.nombre?.toUpperCase().startsWith('MUESTRARIO')) return null;
+    const exact = clientSpecialPrices.find((sp: any) => sp.skuId === sku.id);
+    if (exact) return exact;
+    const skuNameUpper = (sku.nombre || '').trim().toUpperCase();
+    return clientSpecialPrices.find((sp: any) => {
+      const spSkuName = (sp.sku?.nombre || '').trim().toUpperCase();
+      if (!spSkuName) return false;
+      const multiWords = ['HOLLAND VELVET', 'ITALIAN VELVET', 'FOREVER PLUS'];
+      for (const mw of multiWords) {
+        if ((spSkuName === mw || spSkuName.startsWith(mw + ' ')) && (skuNameUpper === mw || skuNameUpper.startsWith(mw + ' '))) {
+          return true;
+        }
+      }
+      const fam = spSkuName.split(/\s+/)[0];
+      return fam && (skuNameUpper === fam || skuNameUpper.startsWith(fam + ' '));
+    });
+  }, [clientSpecialPrices]);
 
   // Detección de Muestras / Muestrarios / Carpetas (Unidades PZA)
   const isMuestrario = Boolean(
@@ -59,19 +94,20 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
     (line.listaPrecios && pricingInfo?.precioUnitario !== undefined)
   );
 
-  // Auto-resolución de lista y precio exacto según Matriz Oficial Formatex (Rollo vs Corte y Tipo de Cliente)
+  // Auto-resolución de lista y precio exacto según Matriz Oficial Formatex (Precio Especial > Rollo/Corte)
   const fetchPricing = useCallback((overrideLista?: string) => {
     if (!line.skuId) {
       setPricingInfo(null);
       return;
     }
+    const listaToSend = overrideLista !== undefined ? overrideLista : manualListaOverride;
     setLoadingPrice(true);
     api.get('/catalog/pricing/resolve', {
       params: {
         skuId: line.skuId,
         clientId,
         metraje: line.metrajeRequerido || 50,
-        lista: overrideLista !== undefined ? overrideLista : line.listaPrecios,
+        lista: listaToSend || undefined,
       },
     })
       .then(res => {
@@ -86,7 +122,7 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
           if (data.listaCodigo) {
             onChangeRef.current(index, 'listaPrecios', data.listaCodigo);
           }
-          if (!overrideLista && (!line.listaPrecios || line.listaPrecios === 'ESPECIAL')) {
+          if (!listaToSend) {
             onChangeRef.current(index, 'descuentoPct', 0);
           }
         }
@@ -97,14 +133,14 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
       .finally(() => {
         setLoadingPrice(false);
       });
-  }, [index, clientId, line.skuId, line.metrajeRequerido, line.listaPrecios]);
+  }, [index, clientId, line.skuId, line.metrajeRequerido, manualListaOverride]);
 
   useEffect(() => {
     if (priceDebounceRef.current) clearTimeout(priceDebounceRef.current);
     if (line.skuId) {
       priceDebounceRef.current = setTimeout(() => {
         fetchPricing();
-      }, 250);
+      }, 200);
     } else {
       setPricingInfo(null);
     }
@@ -201,13 +237,23 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
   }, [line.skuId, line.metrajeRequerido, isMuestrario, fetchSuggestions]);
 
   const selectSku = (sku: any) => {
+    setSelectedSkuCache(sku);
+    setManualListaOverride('');
+    setPricingInfo(null);
     onChange(index, 'skuId', sku.id);
-    if (!pricingInfo?.esPrecioEspecial) {
+    const spMatch = getSpecialPriceForSku(sku);
+    if (spMatch) {
+      onChange(index, 'precioUnitario', Number(spMatch.precioPactado));
+      onChange(index, 'listaPrecios', 'ESPECIAL');
+      onChange(index, 'descuentoPct', 0);
+    } else {
       onChange(index, 'precioUnitario', Number(sku.precioReferencia) || 0);
+      onChange(index, 'listaPrecios', '');
     }
     onChange(index, 'selectedHUs', []);
     onChange(index, 'fulfillmentPlan', null);
-    setSkuSearch(''); setShowSkuDropdown(false);
+    setSkuSearch('');
+    setShowSkuDropdown(false);
   };
 
   const descPct = line.descuentoPct || 0;
@@ -258,18 +304,35 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
                   </div>
                 </div>
                 <div className="overflow-y-auto max-h-48">
-                  {filteredSkus.map((sku: any) => (
-                    <button key={sku.id} onClick={() => selectSku(sku)}
-                      className={`w-full text-left px-3 py-2.5 text-sm hover:bg-indigo-50 transition-colors flex items-center justify-between ${
-                        line.skuId === sku.id ? 'bg-indigo-50 text-indigo-700' : ''
-                      }`}>
-                      <div>
-                        <p className="font-medium">{sku.nombre}</p>
-                        <p className="text-[11px] text-gray-400">{sku.codigo} · {sku.color} · {sku.composicion || ''}</p>
-                      </div>
-                      <span className="text-xs text-emerald-600 font-mono font-semibold">${Number(sku.precioReferencia || 0).toFixed(2)}/m</span>
-                    </button>
-                  ))}
+                  {filteredSkus.map((sku: any) => {
+                    const spMatch = getSpecialPriceForSku(sku);
+                    return (
+                      <button key={sku.id} onClick={() => selectSku(sku)}
+                        className={`w-full text-left px-3 py-2.5 text-sm hover:bg-indigo-50 transition-colors flex items-center justify-between ${
+                          line.skuId === sku.id ? 'bg-indigo-50 text-indigo-700' : ''
+                        }`}>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-medium">{sku.nombre}</p>
+                            {spMatch && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 border border-violet-200">
+                                Precio Esp.
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-gray-400">{sku.codigo} · {sku.color} · {sku.composicion || ''}</p>
+                        </div>
+                        {spMatch ? (
+                          <div className="text-right">
+                            <span className="text-xs text-violet-700 font-mono font-bold block">${Number(spMatch.precioPactado).toFixed(2)}/m</span>
+                            <span className="text-[10px] text-gray-400 line-through font-mono">${Number(sku.precioReferencia || 0).toFixed(2)}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-emerald-600 font-mono font-semibold">${Number(sku.precioReferencia || 0).toFixed(2)}/m</span>
+                        )}
+                      </button>
+                    );
+                  })}
                   {filteredSkus.length === 0 && <p className="text-center text-xs text-gray-400 py-4">No se encontraron telas</p>}
                 </div>
               </div>
@@ -299,10 +362,12 @@ export default function OrderLineSmart({ index, clientId, line, skus, onChange, 
             onChange={(e) => {
               const nuevaLista = e.target.value;
               if (nuevaLista === 'ESPECIAL') {
+                setManualListaOverride('');
                 onChange(index, 'listaPrecios', 'ESPECIAL');
                 onChange(index, 'precioUnitario', Number(pricingInfo?.precioUnitario || 0));
                 onChange(index, 'descuentoPct', 0);
               } else {
+                setManualListaOverride(nuevaLista);
                 fetchPricing(nuevaLista);
               }
             }}
