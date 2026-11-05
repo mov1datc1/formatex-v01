@@ -40,6 +40,7 @@ import PlanificacionPage from '../pages/planning/PlanificacionPage';
 import FacturacionPage from '../pages/invoicing/FacturacionPage';
 import CobranzaPage from '../pages/cobranza/CobranzaPage';
 import ComprasPage from '../pages/compras/ComprasPage';
+import RequisicionesAlmacenPage from '../pages/compras/RequisicionesAlmacenPage';
 import ComisionesPage from '../pages/comisiones/ComisionesPage';
 import ConsultaClientesPage from '../pages/catalog/ConsultaClientesPage';
 
@@ -147,6 +148,7 @@ export function AppRouter() {
           <Route path="compras" element={<RoleGuard allowedRoles={['ADMIN', 'DIRECTOR_OPERACIONES', 'DIRECTOR_COMPRAS', 'COMPRAS', 'GERENCIA']}><ComprasPage /></RoleGuard>} />
 
           {/* Almacén */}
+          <Route path="requisiciones" element={<RoleGuard allowedRoles={['ADMIN', 'DIRECTOR_OPERACIONES', 'JEFE_ALMACEN', 'COORDINADOR_ALMACEN', 'SUPERVISOR', 'GERENCIA']}><RequisicionesAlmacenPage /></RoleGuard>} />
           <Route path="picking" element={<RoleGuard excludeRoles={['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR', 'DIRECTOR_COMPRAS', 'COMPRAS']}><PickingPage /></RoleGuard>} />
           <Route path="corte" element={<RoleGuard excludeRoles={['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR', 'DIRECTOR_COMPRAS', 'COMPRAS']}><CortePage /></RoleGuard>} />
           <Route path="empaque" element={<RoleGuard excludeRoles={['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR', 'DIRECTOR_COMPRAS', 'COMPRAS']}><EmpaquePage /></RoleGuard>} />

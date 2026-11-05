@@ -868,7 +868,17 @@ export class PurchasingService {
         ...order,
         totalRollos,
         totalMetros,
-        solicitante: parsedMeta.solicitante || 'Almacén / Compras',
+        folioSto: parsedMeta.folioSto || order.codigo,
+        empresaEmisora: parsedMeta.empresaEmisora || 'FORMATEX',
+        proveedorNombre: 'TELARES Y TEJIDOS',
+        proveedorRfc: 'TTE140429HZ6',
+        proveedorDomicilio: 'Avenida Dr. Roberto Michel 2903, El Mirador Álamo, C.P. 44895, Guadalajara, Jalisco',
+        domicilioEntrega: parsedMeta.domicilioEntrega || 'Clz. J. Gonzalez Gallo 1505 Col. Atlas / Río La Barca 1680, Guadalajara, Jalisco',
+        referencia: parsedMeta.referencia || (order.prioridad === 1 ? 'PRIORIDAD #1' : 'RESURTIDO ALMACÉN'),
+        emailTelares: parsedMeta.emailTelares || 'encargada.telares@telaresytejidos.com.mx',
+        enviadoCorreoAt: parsedMeta.enviadoCorreoAt || null,
+        conceptosCustom: parsedMeta.conceptosCustom || null,
+        solicitante: parsedMeta.solicitante || 'Israel (Jefe de Almacén)',
         ruta: parsedMeta.ruta || 'Camioneta Tototlán ➔ Zapopan',
         horaEstimada: parsedMeta.horaEstimada || 'Vuelta regular',
       };
@@ -881,10 +891,17 @@ export class PurchasingService {
     ruta?: string;
     horaEstimada?: string;
     notas?: string;
+    referencia?: string;
+    domicilioEntrega?: string;
+    empresaEmisora?: string;
+    emailTelares?: string;
+    folioSto?: string;
     creadoPor: string;
     lineas: Array<{
       skuId: string;
-      cantidadRollos: number;
+      cantidadRollos?: number;
+      metrajeTotal?: number;
+      conceptoOverride?: string;
     }>;
   }) {
     const telaresSupplier = await this.getOrCreateTelaresSupplier();
@@ -892,23 +909,33 @@ export class PurchasingService {
       where: { supplierId: telaresSupplier.id },
     });
     const year = new Date().getFullYear();
-    const codigo = `REQ-TNT-${year}-${String(count + 1).padStart(4, '0')}`;
+    const stoNumber = 7177 + count;
+    const codigo = data.folioSto || `STO ${stoNumber}`;
 
     const lineasData = data.lineas.map(l => {
-      const metrajeTotal = l.cantidadRollos * 50;
+      const metrajeTotal = l.metrajeTotal && l.metrajeTotal > 0
+        ? Number(l.metrajeTotal)
+        : (l.cantidadRollos || 1) * 50;
+      const cantidadRollos = l.cantidadRollos || Math.max(1, Math.ceil(metrajeTotal / 50));
       return {
         skuId: l.skuId,
-        cantidadRollos: l.cantidadRollos,
+        cantidadRollos,
         metrajePorRollo: 50,
         metrajeTotal,
         precioUnitario: 0,
         importe: 0,
         precioFuente: 'INTERCOMPANIA_TELARES',
+        notas: l.conceptoOverride || undefined,
       };
     });
 
     const meta = {
       tipo: 'REQUISICION_TELARES',
+      folioSto: codigo,
+      empresaEmisora: data.empresaEmisora || 'FORMATEX',
+      domicilioEntrega: data.domicilioEntrega || 'Clz. J. Gonzalez Gallo 1505 Col. Atlas',
+      referencia: data.referencia || (data.prioridad === 1 ? 'PRIORIDAD #1' : 'PRIORIDAD #1'),
+      emailTelares: data.emailTelares || 'encargada.telares@telaresytejidos.com.mx',
       solicitante: data.solicitante || 'Israel (Jefe de Almacén)',
       ruta: data.ruta || 'Camioneta Tototlán ➔ Zapopan',
       horaEstimada: data.horaEstimada || 'Vuelta de la tarde',
@@ -919,7 +946,7 @@ export class PurchasingService {
         codigo,
         supplierId: telaresSupplier.id,
         estado: 'CONFIRMADA',
-        prioridad: data.prioridad || 3,
+        prioridad: data.prioridad || 1,
         notas: data.notas,
         notasInternas: JSON.stringify(meta),
         creadoPor: data.creadoPor,
@@ -935,6 +962,136 @@ export class PurchasingService {
         lineas: { include: { sku: true } },
       },
     });
+  }
+
+  async markRequisicionEmailSent(id: string, emailTelares: string) {
+    const order = await this.prisma.purchaseOrder.findUniqueOrThrow({ where: { id } });
+    let parsedMeta: any = {};
+    try {
+      if (order.notasInternas && order.notasInternas.startsWith('{')) {
+        parsedMeta = JSON.parse(order.notasInternas);
+      }
+    } catch {}
+
+    parsedMeta.emailTelares = emailTelares || parsedMeta.emailTelares || 'encargada.telares@telaresytejidos.com.mx';
+    parsedMeta.enviadoCorreoAt = new Date().toISOString();
+
+    return this.prisma.purchaseOrder.update({
+      where: { id },
+      data: {
+        notasInternas: JSON.stringify(parsedMeta),
+      },
+    });
+  }
+
+  /**
+   * Monitor de Backorders vs. Pedidos con Stock para el Jefe de Almacén
+   * Permite revisar qué pedidos/telas están en Backorder y cuáles sí tienen stock en Formatex,
+   * para generar la Orden de Compra / Requisición a Telares.
+   */
+  async getBackordersMonitorForWarehouse() {
+    const activeOrders: any[] = await this.prisma.order.findMany({
+      where: {
+        estado: {
+          in: ['COTIZADO', 'PAGO_RECIBIDO', 'POR_SURTIR', 'EN_SURTIDO', 'EN_CORTE'] as any,
+        },
+      },
+      orderBy: [{ esBackorder: 'desc' }, { createdAt: 'desc' }],
+      take: 60,
+      include: {
+        client: { select: { id: true, codigo: true, nombre: true, poblacion: true } },
+        lineas: true,
+      },
+    });
+
+    const skuIds = [
+      ...new Set(
+        activeOrders.flatMap((o: any) => (o.lineas || []).map((l: any) => l.skuId)).filter(Boolean),
+      ),
+    ] as string[];
+
+    const skus = skuIds.length
+      ? await this.prisma.skuMaster.findMany({
+          where: { id: { in: skuIds } },
+          include: {
+            handlingUnits: {
+              where: { estadoHu: 'DISPONIBLE' },
+              select: { metrajeActual: true },
+            },
+          },
+        })
+      : [];
+
+    const skuMap = new Map<string, any>();
+    for (const s of skus) {
+      const stockDisponibleMetros = (s.handlingUnits || []).reduce(
+        (acc: number, hu: any) => acc + Number(hu.metrajeActual || 0),
+        0,
+      );
+      skuMap.set(s.id, {
+        id: s.id,
+        codigo: s.codigo,
+        nombre: s.nombre,
+        color: s.color,
+        metrajeEstandar: s.metrajeEstandar || 50,
+        stockDisponibleMetros: Math.round(stockDisponibleMetros * 100) / 100,
+      });
+    }
+
+    const items: any[] = [];
+    for (const order of activeOrders) {
+      for (const line of order.lineas || []) {
+        const skuInfo = skuMap.get(line.skuId) || {
+          id: line.skuId,
+          codigo: 'SKU',
+          nombre: 'Tela Catálogo',
+          color: '',
+          metrajeEstandar: 50,
+          stockDisponibleMetros: 0,
+        };
+        const requerido = Number(line.metrajeRequerido || 0);
+        const surtido = Number(line.metrajeSurtido || 0);
+        const pendiente = Math.max(0, requerido - surtido);
+        const stockLocal = skuInfo.stockDisponibleMetros;
+        const faltaStock = order.esBackorder || stockLocal < pendiente;
+        const metrosFaltantes = faltaStock
+          ? Math.max(pendiente - stockLocal, order.esBackorder ? requerido : 0)
+          : 0;
+        const rollosSugeridos = Math.max(1, Math.ceil((metrosFaltantes || requerido) / (skuInfo.metrajeEstandar || 50)));
+
+        items.push({
+          id: `${order.id}-${line.id}`,
+          orderId: order.id,
+          orderCodigo: order.codigo,
+          orderEstado: order.estado,
+          esBackorder: Boolean(order.esBackorder || faltaStock),
+          esBackorderExplicito: Boolean(order.esBackorder),
+          backorderStatus: order.backorderStatus || (faltaStock ? 'FALTA_STOCK_LOCAL' : 'CUBIERTO'),
+          contenedorNumero: order.contenedorNumero || null,
+          fechaCreated: order.createdAt,
+          clienteNombre: order.client?.nombre || 'Cliente',
+          vendedorNombre: order.vendedor || order.user?.nombre || 'ATC',
+          skuId: skuInfo.id,
+          skuCodigo: skuInfo.codigo,
+          skuNombre: skuInfo.nombre,
+          skuColor: skuInfo.color,
+          metrajeRequerido: requerido,
+          stockDisponibleFormatex: stockLocal,
+          metrosASolicitarTelares: metrosFaltantes > 0 ? metrosFaltantes : requerido,
+          rollosASolicitarTelares: rollosSugeridos,
+        });
+      }
+    }
+
+    const totalEnBackorder = items.filter((i) => i.esBackorder).length;
+    const totalCubiertos = items.filter((i) => !i.esBackorder).length;
+
+    return {
+      totalLineasMonitoreadas: items.length,
+      totalEnBackorder,
+      totalCubiertos,
+      items,
+    };
   }
 
   async updateRequisicionStatus(id: string, nuevoEstado: 'EN_TRANSITO' | 'COMPLETADA') {

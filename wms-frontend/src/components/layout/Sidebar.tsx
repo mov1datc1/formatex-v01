@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Package, Scissors, PackageCheck, Truck,
   Warehouse, MapPin, ClipboardList, Bell, Users, Settings,
   ChevronLeft, ChevronRight, LogOut, ScrollText, ScanBarcode, Tag,
-  Ship, Search, ArrowRightLeft, CalendarRange, FileText, BadgeDollarSign, ShoppingCart, Calculator
+  Ship, Search, ArrowRightLeft, CalendarRange, FileText, BadgeDollarSign, ShoppingCart, Calculator, Building2
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
@@ -66,6 +66,7 @@ const menuSections: MenuSection[] = [
     title: 'Almacén',
     excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'VENDEDOR', 'GERENTE_VENTAS', 'DIRECTOR_COMPRAS', 'COMPRAS'],
     items: [
+      { label: 'Requisiciones a Telares', path: '/requisiciones', icon: Building2, permission: 'warehouse', allowedRoles: ['ADMIN', 'DIRECTOR_OPERACIONES', 'JEFE_ALMACEN', 'COORDINADOR_ALMACEN', 'SUPERVISOR'] },
       { label: 'Ubicaciones', path: '/almacen', icon: MapPin, permission: 'warehouse', excludeRoles: ['ATC', 'JEFE_ATC', 'COBRANZA', 'FACTURACION', 'PICKER', 'CORTADOR', 'EMPACADOR', 'DESPACHADOR', 'VENDEDOR', 'GERENTE_VENTAS', 'DIRECTOR_COMPRAS', 'COMPRAS'] },
       { label: 'Picking', path: '/picking', icon: Package, permission: 'picking' },
       { label: 'Corte', path: '/corte', icon: Scissors, permission: 'cutting' },

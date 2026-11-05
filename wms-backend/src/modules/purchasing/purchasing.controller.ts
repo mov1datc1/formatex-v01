@@ -82,6 +82,12 @@ export class PurchasingController {
 
   // ===== REQUISICIONES INTER-COMPAÑÍA (FORMATEX ➔ TELARES) =====
 
+  @Get('requisiciones-telares/backorders-monitor')
+  @ApiOperation({ summary: 'Monitor de Backorders vs Stock para el Jefe de Almacén (Requisiciones a Telares)' })
+  getBackordersMonitorForWarehouse() {
+    return this.purchasingService.getBackordersMonitorForWarehouse();
+  }
+
   @Get('requisiciones-telares/sugerencia-8-meses')
   @ApiOperation({ summary: 'Sugerencia automática de resurtido a Telares con meta de 8 meses de stock y horario de corte 13:00 / 14:00 hrs' })
   getRequisicionTelaresSugerida8Meses() {
@@ -101,6 +107,12 @@ export class PurchasingController {
       ...body,
       creadoPor: req.user.sub,
     });
+  }
+
+  @Post('requisiciones-telares/:id/send-email')
+  @ApiOperation({ summary: 'Registrar envío de Orden de Compra PDF por correo a la encargada de Telares' })
+  markRequisicionEmailSent(@Param('id') id: string, @Body('emailTelares') emailTelares: string) {
+    return this.purchasingService.markRequisicionEmailSent(id, emailTelares);
   }
 
   @Put('requisiciones-telares/:id/status')
