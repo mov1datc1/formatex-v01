@@ -76,6 +76,13 @@ Este documento establece las **10 reglas de negocio y parámetros operativos fun
     - *Pedidos Urgentes ATC:* Corte diario a las **13:00 hrs**; Israel envía la orden consolidada a Telares a las **14:00 hrs** para surtido al día hábil siguiente.
     - *Doble Etiquetado:* Telares etiqueta el contenedor de China; al ingresar a la nave de Formatex, se genera y coloca la etiqueta oficial Formatex con SKU, lote y ubicación asignada.
 
+11. **Candado de Embarque por Escaneo en Handheld antes de Subir a Camioneta (Ajuste 02-Nov-2026):**
+    - Antes de cargar cualquier pedido a la camioneta de embarque, el operador escanea el código con el Handheld Zebra TC22 (`/zebra/envio`) o en rampa (`/envio`).
+    - El sistema despliega un **Pop-up visual (`✅ SÍ SUBIR` / `⛔ NO SUBIR`)** validando que el pedido esté facturado y listo para embarque, que su fecha de envío corresponda al día de **HOY** (bloqueando envíos programados para otra fecha) y que coincida con la ruta/destino de la unidad.
+
+12. **Módulo de Requisiciones a Telares y Monitor de Backorders para Jefe de Almacén (Ajuste 02-Nov-2026):**
+    - Las requisiciones hacia Telares se centralizan en el perfil de **Jefe de Almacén (`/requisiciones`)**, integrando el monitor de pedidos en Backorder vs. stock local y la generación del documento **PDF de Orden de Compra (formato `STO` hacia `TELARES Y TEJIDOS`)** para su envío por correo a la encargada de Telares.
+
 ---
 
 ### Próximos Pasos:

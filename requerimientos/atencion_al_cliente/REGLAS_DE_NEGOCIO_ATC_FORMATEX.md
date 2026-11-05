@@ -209,6 +209,25 @@ Aplica para pedidos respaldados por rollos que vienen en tránsito marítimo (em
 - **Mandato Directivo:** Andrea Ramírez y la Jefatura de ATC determinaron que los precios especiales acordados por Dirección y los precios derivados de las 10 listas oficiales deben estar **estrictamente precargados y bloqueados para edición manual** en la pantalla de pedidos.
 - **Candado de Integridad:** Se prohíbe que el agente de ATC teclee manualmente o modifique a discreción el precio unitario del metro de tela. Cualquier excepción comercial no tabulada deberá ser gestionada como descuento porcentual sujeto a las políticas de autorización, o requerirá el alta formal previa del convenio en la Matriz de Precios Especiales.
 
+### 9.7. Regla 14: Aplicación Híbrida Automática de Precios Especiales por Tela + Cliente y Alta por Jefatura ATC (Ajuste 02-Nov-2026)
+- **Resolución por Partida en Cotización:** Cuando un cliente solicita múltiples telas en una misma cotización, el WMS evalúa cada tela de forma individual: si el cliente cuenta con un **Precio Especial** autorizado en esa tela específica, aplica automáticamente el Precio Especial; para el resto de las telas no incluidas en convenio especial, aplica su precio de lista base (`F1`–`F10`).
+- **Alta en Catálogo por Alma (`JEFE_ATC`):** Una vez que Dirección aprueba un nuevo precio especial para un cliente en una tela determinada, Alma lo da de alta directamente en `/catalogos` (*Pestaña Precios Especiales*), quedando activo de inmediato para futuras cotizaciones.
+
+### 9.8. Regla 15: Visibilidad de Rollos Reservados con Tooltip de Responsable y Liberación Ágil por ATC (Ajuste 02-Nov-2026)
+- **Pestaña Permanente de Reservados:** Al consultar o cotizar cualquier tela, el sistema muestra siempre tanto los rollos **Disponibles** como una pestaña con los rollos **Reservados / Apartados**.
+- **Tooltip de Identificación y Liberación Directa:** Al pasar el cursor sobre un rollo reservado, un tooltip indica qué agente de ATC lo tiene apartado, para qué cliente/pedido y la antigüedad del apartado. El agente de ATC puede consultar verbalmente con su compañero en sala y **liberar el rollo directamente** desde su propio perfil sin requerir intervención de la Jefatura de ATC.
+
+### 9.9. Regla 16: Carga de Pantallazo de Pago por ATC para Validación de Cobranza (Ajuste 02-Nov-2026)
+- **Flujo WhatsApp ➔ ATC ➔ Cobranza:** Cuando el cliente confirma su pedido y envía por WhatsApp el pantallazo (screenshot) de su transferencia o depósito, el agente de ATC adjunta dicho comprobante directamente en el modal de envío a Cobranza (`EN_REVISION_COBRANZA`).
+- **Validación Bancaria:** César (Cobranza) visualiza el pantallazo precargado por ATC, coteja el ingreso real en la cuenta bancaria y libera el pedido hacia almacén.
+
+### 9.10. Regla 17: Directorio Rápido "¿Quién atiende a este cliente?" y Perfiles de Ventas Externas (Ajuste 02-Nov-2026)
+- **Módulo de Consulta de Clientes (`/clientes`):** Tabla con buscador instantáneo en tiempo real para que ATC y Alma identifiquen de inmediato qué Agente de Ventas y qué Ejecutiva de ATC atienden a un cliente cuando llama por teléfono, mostrando además teléfono, correo, dirección y consulta de adeudos en modo lectura.
+- **Separación de Perfiles `VENDEDOR` y `GERENTE_VENTAS`:**
+  - Los **Agentes de Ventas (`VENDEDOR`)** acceden únicamente a consultar el estatus de **sus propios pedidos** (sin ver pedidos de otros vendedores), consultar adeudos de facturas de su cartera y revisar su módulo de **Mis Comisiones**. No tienen acceso a los módulos de *Disponibilidad* ni *En Tránsito*.
+  - El **Gerente de Ventas (`GERENTE_VENTAS`)** supervisa todos los pedidos comerciales, cartera de clientes y comisiones del equipo de ventas.
+  - Las agentes de **ATC (`ATC` y `JEFE_ATC`)** no visualizan el módulo de Comisiones, dado que las comisiones corresponden exclusivamente a la fuerza de ventas externa.
+
 ---
 
 ## 10. Matriz de Compromisos y Entregables Actualizada (Checklist)

@@ -159,9 +159,12 @@ Se reemplaza la práctica informal de enviar mensajes de texto y fotos por Whats
    ```
 3. **Vale de Carga Impreso:** Formato físico con desglose de partidas y recuadros de firma (*Entrega Bodega Tototlán* vs. *Recibe Chofer Formatex*).
 4. **Flujo Operativo de 3 Estados:**
-   - 🟡 `SOLICITADA`: Requisición creada en WMS por Israel o Elba.
+   - 🟡 `SOLICITADA`: Requisición creada en WMS por el Jefe de Almacén (Israel).
    - 🚚 `EN_RUTA_CAMIONETA`: Chofer cargó la camioneta en Tototlán e inicia trayecto a Zapopan.
    - ✅ `RECIBIDA_FORMATEX`: Rollos descargados y confirmados en Zapopan, sumándose al stock físico.
+5. **Separación de Perfiles: Importaciones (Elba) vs. Requisiciones de Almacén (Israel) — Ajuste 02-Nov-2026:**
+   - El perfil de **Directora de Importaciones (`DIRECTOR_COMPRAS` — Elba)** gestiona exclusivamente las **Órdenes de Compra Internacionales (China)**, contenedores y costeo aduanal en `/compras`.
+   - Las **Requisiciones Formatex ➔ Telares** se transfieren al perfil de **Jefe de Almacén (`JEFE_ALMACEN` — Israel)** en `/requisiciones`, quien monitorea los pedidos en Backorder vs. stock local y emite el documento **PDF de Orden de Compra (formato `STO`, Proveedor: `TELARES Y TEJIDOS`, RFC: `TTE140429HZ6`, Unidad: `METRO`, Impuestos: `IVA - 0,`)** para enviarlo por correo a la encargada de Telares.
 
 ---
 

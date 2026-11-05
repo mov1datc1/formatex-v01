@@ -69,6 +69,19 @@ Este documento formaliza las **13 reglas de negocio y candados de seguridad oper
 13. **Bloqueo Estricto de Precios Especiales y Listas Asignadas en Captura:**
     - Se prohíbe la modificación manual o tecleo discrecional del precio unitario por parte de los agentes al capturar pedidos, garantizando la integridad de los márgenes comerciales de la empresa.
 
+14. **Aplicación Automática por Partida de Precios Especiales y Alta en Catálogo (Ajuste 02-Nov-2026):**
+    - Si un cliente cotiza varias telas y solo algunas tienen convenio de Precio Especial, el sistema aplica automáticamente el Precio Especial en esas telas y el precio de lista regular en las demás. Alma (`JEFE_ATC`) puede dar de alta nuevos convenios aprobados en `/catalogos`.
+
+15. **Pestaña de Rollos Reservados con Tooltip de Responsable y Liberación Directa por ATC (Ajuste 02-Nov-2026):**
+    - En cotización y disponibilidad se muestra siempre la pestaña de rollos reservados; al pasar el cursor se indica qué agente de ATC lo tiene apartado y desde cuándo, permitiendo que el propio agente de ATC lo libere tras acordarlo con su compañero sin requerir a Jefatura.
+
+16. **Carga de Pantallazo de Pago por ATC hacia Cobranza (Ajuste 02-Nov-2026):**
+    - ATC sube el screenshot de pago recibido por WhatsApp al enviar el pedido a validación de Cobranza, para que César valide en banco y libere el pedido.
+
+17. **Módulo "¿Quién atiende a este cliente?" (`/clientes`) y Perfiles de Agentes de Ventas Externos (Ajuste 02-Nov-2026):**
+    - Buscador instantáneo de clientes con teléfono, dirección, Agente de Ventas y Ejecutiva de ATC asignada.
+    - Nuevos perfiles `VENDEDOR` (acceso exclusivo al estatus de sus propios pedidos, adeudos de su cartera y sus comisiones; sin acceso a Disponibilidad ni En Tránsito) y `GERENTE_VENTAS` (supervisión global de ventas y comisiones).
+
 ---
 
 ### Estatus de Información Recibida:

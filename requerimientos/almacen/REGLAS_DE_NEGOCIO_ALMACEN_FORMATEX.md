@@ -251,6 +251,17 @@ $$\text{Requisición Sugerida} = \max\Big(0,\ \big(8 \times \overline{V}_{\text{
   - Código QR / Barras de Formatex.
   - Ubicación asignada sugerida en rack (nave Formatex).
 
+### 11.4. Regla 11: Candado de Embarque por Escaneo en Handheld antes de Subir a Camioneta (Ajuste 02-Nov-2026)
+- **Problemática Resuelta:** Evitar que el personal de embarques suba a la camioneta un pedido parecido a otro que estaba programado para otra fecha futura o para otra ruta/destino.
+- **Validación con Pop-up `SÍ / NO` en Handheld (`/zebra/envio`) y Rampa (`/envio`):** Antes de subir cualquier pedido a la camioneta, el operador escanea el código (Pedido, Packing List o Rollo HU) y el sistema despliega una alerta visual de pantalla completa (`✅ SÍ SUBIR A CAMIONETA` en verde o `⛔ ¡ALTO! NO SUBIR A CAMIONETA` en rojo) tras verificar 3 candados:
+  1. **¿Está listo para embarque?** (Estado `FACTURADO` o `EMPACADO`).
+  2. **¿Es un envío programado para HOY?** (`fechaPromesaEntrega <= hoy`; si es para fecha futura, bloquea la carga).
+  3. **¿Corresponde a la ruta/destino de la camioneta activa?** (`1. Local`, `2. Foránea`, `3. Ruta Ocotlán`, `4. Paquetería`).
+
+### 11.5. Regla 12: Requisiciones a Telares y Monitor de Backorders exclusivos para Jefe de Almacén (Ajuste 02-Nov-2026)
+- **Asignación de Perfil (`JEFE_ALMACEN`):** El módulo de **Requisiciones a Telares** (`/requisiciones`) se asigna al perfil de **Jefe de Almacén (Israel)** y se retira del perfil de Directora de Importaciones (Elba), quien conserva exclusivamente las órdenes de compra internacionales a China.
+- **Monitoreo de Backorders y Orden de Compra PDF (Formato `STO`):** El Jefe de Almacén monitorea en una tabla unificada qué pedidos/partidas están en **Backorder (sin stock local)** frente a los cubiertos en almacén, selecciona los faltantes y genera el documento **PDF de Orden de Compra** con formato oficial (Proveedor: `TELARES Y TEJIDOS`, RFC: `TTE140429HZ6`, Unidad: `METRO`, Impuestos: `IVA - 0,`, Importe con letra: `cero Pesos 00/100 M.N.`, Referencia: `PRIORIDAD #1`) para enviarlo por correo electrónico a la encargada de Telares.
+
 ---
 
 ## 12. Matriz de Estados y Responsabilidades Operativas

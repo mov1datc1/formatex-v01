@@ -40,14 +40,9 @@ Este documento formaliza cada criterio técnico, fórmula matemática de costeo,
      $$\text{Costo Landed} = (\text{Precio FOB USD} \times \text{TC Oficial Pedimento SAT} \times 1.23) + \frac{\text{Flete Marítimo y Seguro}}{\text{Metros Totales Contenedor}}$$
    - **Regla Crítica del Tipo de Cambio Histórico:** Queda estrictamente prohibido recalcular el costo histórico de compras anteriores usando tipos de cambio flotantes actuales. Todo costeo en pesos queda anclado permanentemente al **Tipo de Cambio Oficial del Pedimento pagado ante el SAT** (ej. $18.3688 MXN/USD según pedimento oficial), vinculando número de pedimento, fecha de pago y aduana de despacho.
 
-5. **Reposición Inter-Bodegas Digitalizada (Telares ➔ Formatex):**
-   - **Frecuencia:** Entre 5 y 6 pedidos semanales de Formatex a Telares (consolidado matutino diario y traspasos exprés vespertinos desde 1 rollo).
-   - **Regla Operativa:** Telares **únicamente despacha rollos enteros de 50 metros**.
-   - **Eliminación del WhatsApp:** El WMS reemplaza las fotos y mensajes informales con un submódulo de **Requisiciones Inter-Compañía**, que incluye:
-     1. Generación de folio oficial (ej. `REQ-TNT-2026-0001`).
-     2. Botón *"Copiar p/ WhatsApp"* para notificar al grupo de bodega con formato limpio.
-     3. Impresión de **Vale de Carga Oficial** para el chofer con firmas de entrega y recepción.
-     4. Semáforo de 3 estados: *Solicitada ➔ En Ruta Camioneta ➔ Recibida en Zapopan*.
+5. **Reposición Inter-Bodegas Digitalizada (Telares ➔ Formatex) — Ajuste 02-Nov-2026:**
+   - **Separación de Perfiles:** El perfil de **Elba (`DIRECTOR_COMPRAS`)** queda enfocado 100% en **Importaciones Internacionales (China)** y costeo aduanal en `/compras`.
+   - **Requisiciones por Jefe de Almacén (`JEFE_ALMACEN` — Israel):** La solicitud de requisiciones a Telares se gestiona desde el perfil de Jefe de Almacén (`/requisiciones`), monitoreando los pedidos en Backorder vs. stock local y generando el documento **PDF de Orden de Compra (formato oficial `STO` hacia `TELARES Y TEJIDOS`, RFC `TTE140429HZ6`)** para su envío por correo a la encargada de Telares.
 
 6. **Facturación Inter-Compañía y Regla de Protección de Margen:**
    - Telares factura a Formatex con un margen pactado del 7% al 12% sobre el costo puesto en México, o mediante el factor formal **FM = 0.88**.
