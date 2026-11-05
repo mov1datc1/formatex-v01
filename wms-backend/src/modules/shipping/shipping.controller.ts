@@ -26,6 +26,33 @@ export class ShippingController {
     return this.shippingService.findOrdersForShipping({ search, page, limit });
   }
 
+  @Get('validate-scan')
+  @ApiOperation({ summary: 'Candado de Embarque: validar código escaneado antes de subir a camioneta (Fecha de hoy, Estatus y Ruta)' })
+  validateScanGet(
+    @Query('code') code: string,
+    @Query('targetRoute') targetRoute?: string,
+    @Query('targetDate') targetDate?: string,
+  ) {
+    return this.shippingService.validateTruckLoadingScan({ code, targetRoute, targetDate });
+  }
+
+  @Post('validate-scan')
+  @ApiOperation({ summary: 'Candado de Embarque (POST): validar código escaneado antes de subir a camioneta' })
+  validateScanPost(
+    @Body() body: { code: string; targetRoute?: string; targetDate?: string },
+  ) {
+    return this.shippingService.validateTruckLoadingScan(body);
+  }
+
+  @Put('orders/:id/schedule')
+  @ApiOperation({ summary: 'Programar o reprogramar fecha de embarque y ruta de un pedido' })
+  updateSchedule(
+    @Param('id') id: string,
+    @Body() body: { fechaPromesaEntrega: string; tipoEtiquetaEmbarque?: string },
+  ) {
+    return this.shippingService.updateScheduledShippingDate(id, body.fechaPromesaEntrega, body.tipoEtiquetaEmbarque);
+  }
+
   @Get('shipments')
   @ApiOperation({ summary: 'Listar envíos con filtros' })
   findAll(

@@ -6,8 +6,109 @@ import toast from 'react-hot-toast';
 import { WmsIcon, KpiIcon } from '../../components/icons/WmsIcons';
 import {
   ArrowRight, X, FileText, Printer, Truck, Camera, CheckCircle2,
-  Calendar, Layers, MapPin, Scale, Clock, ShieldCheck, Upload, Eye
+  Calendar, Layers, MapPin, Scale, Clock, ShieldCheck, ShieldAlert,
+  Upload, Eye, ScanBarcode, XCircle, Check, Lock
 } from 'lucide-react';
+
+const ROUTE_LABELS: Record<string, string> = {
+  LOCAL_INFERIOR: '1. Local (Nivel Inferior)',
+  FORANEO_SUPERIOR: '2. Foránea (Nivel Superior)',
+  OCOTLAN: '3. Ruta Ocotlán (Fija)',
+  PAQUETERIA: '4. Paqueterías (Paquetexpress/Travisa)',
+};
+
+function inferOrderRouteDesktop(order: any): string {
+  if (order?.tipoEtiquetaEmbarque) return order.tipoEtiquetaEmbarque;
+  const fl = (order?.fletera || '').toLowerCase();
+  const pob = (order?.client?.poblacion || '').toLowerCase();
+  if (fl.includes('paquetexpress') || fl.includes('travisa') || fl.includes('dhl') || fl.includes('castores')) {
+    return 'PAQUETERIA';
+  }
+  if (pob.includes('ocotlan') || pob.includes('ocotlán') || pob.includes('poncitlan')) {
+    return 'OCOTLAN';
+  }
+  if (pob && !pob.includes('guadalajara') && !pob.includes('zapopan') && !pob.includes('tlaquepaque') && !pob.includes('tonala')) {
+    return 'FORANEO_SUPERIOR';
+  }
+  return 'LOCAL_INFERIOR';
+}
+
+function buildLocalValidationDesktop(order: any, scannedCode: string, targetRoute: string) {
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  const rawDate = order.fechaPromesaEntrega ? new Date(order.fechaPromesaEntrega) : null;
+  const schedStr = rawDate
+    ? `${rawDate.getFullYear()}-${String(rawDate.getMonth() + 1).padStart(2, '0')}-${String(rawDate.getDate()).padStart(2, '0')}`
+    : todayStr;
+
+  const isFutureOrder = schedStr > todayStr;
+  const dateMatchesToday = !isFutureOrder;
+
+  const readyStates = ['FACTURADO', 'EMPACADO'];
+  const alreadyDispatched = order.estado === 'DESPACHADO';
+  const statusReady = readyStates.includes(order.estado) && !alreadyDispatched;
+
+  const orderRoute = inferOrderRouteDesktop(order);
+  const routeMatches = !targetRoute || targetRoute === 'TODAS' ? true : orderRoute === targetRoute;
+
+  const allowed = statusReady && dateMatchesToday && routeMatches;
+
+  let blockReason = '';
+  let title = '✅ SÍ CORRESPONDE — AUTORIZADO PARA SUBIR A CAMIONETA';
+  let subtitle = 'El pedido está listo para embarque, programado para enviarse HOY y coincide con la ruta.';
+
+  if (!allowed) {
+    title = '⛔ ¡ALTO! NO SUBIR A LA CAMIONETA';
+    if (alreadyDispatched) {
+      blockReason = 'ALREADY_DISPATCHED';
+      subtitle = `El pedido ${order.codigo} YA FUE DESPACHADO anteriormente.`;
+    } else if (!statusReady) {
+      blockReason = 'NOT_READY_FOR_SHIPPING';
+      subtitle = `El pedido ${order.codigo} aún NO está listo para embarque (Estado actual: ${order.estado}).`;
+    } else if (isFutureOrder) {
+      blockReason = 'WRONG_DATE_FUTURE';
+      const formattedSched = rawDate?.toLocaleDateString('es-MX', {
+        weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
+      });
+      subtitle = `ENVÍO PROGRAMADO PARA OTRA FECHA (${formattedSched}). No se debe subir ni enviar antes de tiempo.`;
+    } else if (!routeMatches) {
+      blockReason = 'WRONG_ROUTE';
+      subtitle = `RUTA INCORRECTA: Este pedido pertenece a "${ROUTE_LABELS[orderRoute] || orderRoute}", pero estás cargando "${ROUTE_LABELS[targetRoute] || targetRoute}".`;
+    }
+  }
+
+  const totalMeters = (order.lineas || []).reduce(
+    (sum: number, l: any) => sum + Number(l.metrajeSurtido || l.metrajeRequerido || 0),
+    0
+  );
+
+  return {
+    found: true,
+    allowed,
+    scannedCode,
+    blockReason: allowed ? null : blockReason,
+    title,
+    subtitle,
+    checks: {
+      statusReady,
+      alreadyDispatched,
+      dateMatchesToday,
+      isFutureOrder,
+      routeMatches,
+    },
+    order: {
+      ...order,
+      scheduledDateStr: schedStr,
+      scheduledDateFormatted: rawDate
+        ? rawDate.toLocaleDateString('es-MX', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
+        : 'Hoy (Entrega inmediata)',
+      routeCode: orderRoute,
+      routeLabel: ROUTE_LABELS[orderRoute] || orderRoute,
+      totalMeters,
+    },
+  };
+}
 
 const LABEL_TYPES = [
   {
@@ -62,6 +163,12 @@ export default function EnvioPage() {
   const [evidenceInputUrl, setEvidenceInputUrl] = useState('');
   const [evidenceTracking, setEvidenceTracking] = useState('');
 
+  // Candado de Embarque (Escáner de validación antes de subir a camioneta)
+  const [scanInput, setScanInput] = useState('');
+  const [activeTruckRoute, setActiveTruckRoute] = useState('TODAS');
+  const [isScanning, setIsScanning] = useState(false);
+  const [validationResult, setValidationResult] = useState<any>(null);
+
   // Pedidos FACTURADOS listos para despacho
   const { data: resp, refetch } = useApi<PaginatedResponse<any>>(
     ['shipping-orders'],
@@ -70,6 +177,25 @@ export default function EnvioPage() {
   );
   const orders = resp?.data || [];
 
+  // Pedidos EN_CORTE para demostrar bloqueo cuando escanean uno no listo
+  const { data: notReadyResp } = useApi<PaginatedResponse<any>>(
+    ['shipping-not-ready'],
+    '/orders',
+    { estado: 'EN_CORTE', limit: 5 }
+  );
+  const notReadyOrders = notReadyResp?.data || [];
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayOrderSample = orders.find((o: any) => {
+    const d = o.fechaPromesaEntrega ? new Date(o.fechaPromesaEntrega).toISOString().slice(0, 10) : todayIso;
+    return d <= todayIso;
+  });
+  const futureOrderSample = orders.find((o: any) => {
+    const d = o.fechaPromesaEntrega ? new Date(o.fechaPromesaEntrega).toISOString().slice(0, 10) : todayIso;
+    return d > todayIso;
+  });
+  const unreadyOrderSample = notReadyOrders[0];
+
   // Envíos EN_TRANSITO
   const { data: shipmentsResp, refetch: refetchShipments } = useApi<PaginatedResponse<any>>(
     ['shipments-in-transit'],
@@ -77,6 +203,71 @@ export default function EnvioPage() {
     { estado: 'EN_TRANSITO', limit: 50 }
   );
   const inTransitShipments = shipmentsResp?.data || [];
+
+  const handleScanValidate = async (codeToValidate?: string) => {
+    const cleanCode = (codeToValidate ?? scanInput).trim();
+    if (!cleanCode) {
+      toast.error('Escanea o escribe el código del pedido, packing list o rollo');
+      return;
+    }
+
+    setIsScanning(true);
+    try {
+      const { data } = await api.get('/shipping/validate-scan', {
+        params: { code: cleanCode, targetRoute: activeTruckRoute },
+      });
+      setValidationResult(data);
+      setScanInput('');
+    } catch {
+      // Fallback local en caso de que el endpoint esté desplegando
+      try {
+        const { data: searchResp } = await api.get('/orders', {
+          params: { search: cleanCode, limit: 10 },
+        });
+        const match =
+          (searchResp?.data || []).find(
+            (o: any) =>
+              o.codigo?.toUpperCase() === cleanCode.toUpperCase() ||
+              o.folioContpaqi?.toUpperCase() === cleanCode.toUpperCase()
+          ) || searchResp?.data?.[0];
+
+        if (!match) {
+          setValidationResult({
+            found: false,
+            allowed: false,
+            scannedCode: cleanCode,
+            title: '⛔ CÓDIGO NO RECONOCIDO',
+            subtitle: `No se encontró ningún pedido o rollo con el código "${cleanCode}". NO SUBIR A LA CAMIONETA.`,
+          });
+        } else {
+          const detailRes = await api.get(`/orders/${match.id}`);
+          setValidationResult(buildLocalValidationDesktop(detailRes.data, cleanCode, activeTruckRoute));
+        }
+        setScanInput('');
+      } catch {
+        toast.error('Error al validar código de embarque');
+      }
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleUpdateOrderDate = async (orderId: string, newDateStr: string, reopenCode?: string) => {
+    try {
+      await api.put(`/shipping/orders/${orderId}/schedule`, {
+        fechaPromesaEntrega: newDateStr,
+      });
+      toast.success(`Fecha programada de envío actualizada a ${newDateStr}`);
+      refetch();
+      if (reopenCode) {
+        handleScanValidate(reopenCode);
+      } else if (selectedOrder?.id === orderId) {
+        loadDetail(orderId);
+      }
+    } catch {
+      toast.error('Error al actualizar fecha de embarque');
+    }
+  };
 
   const loadDetail = async (orderId: string) => {
     try {
@@ -336,7 +527,138 @@ export default function EnvioPage() {
 
       {/* TAB 1: FACTURADOS PENDIENTES DE DESPACHO */}
       {activeTab === 'pending' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="space-y-5">
+          {/* BARRA DEL CANDADO DE EMBARQUE — ESCÁNER DE CARGA A CAMIONETA */}
+          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-4 text-white border border-indigo-500/30 shadow-md space-y-3">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300">
+                  <Lock size={18} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm font-black tracking-tight text-white">
+                      Candado de Embarque — Validación por Escaneo antes de Subir a Camioneta
+                    </h2>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                      Activo en Handheld & Rampa
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-300">
+                    Escanea el código del pedido, packing list o rollo con el lector láser (Handheld) para verificar que{' '}
+                    <strong>sí esté listo para embarque</strong>, que <strong>su fecha de envío sea HOY</strong> y que{' '}
+                    <strong>corresponda a la ruta</strong> antes de subirlo a la unidad.
+                  </p>
+                </div>
+              </div>
+              <a
+                href="/zebra/envio"
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/15 rounded-xl text-[11px] font-bold text-amber-300 flex items-center gap-1.5 self-start md:self-auto shrink-0"
+              >
+                <ScanBarcode size={14} /> Abrir Vista Handheld Zebra
+              </a>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleScanValidate();
+              }}
+              className="grid grid-cols-1 md:grid-cols-12 gap-2.5 pt-1"
+            >
+              <div className="md:col-span-4">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-300 block mb-1">
+                  1. Camioneta / Ruta que se está cargando:
+                </label>
+                <select
+                  value={activeTruckRoute}
+                  onChange={(e) => setActiveTruckRoute(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-800/90 border border-slate-600 rounded-xl text-xs font-bold text-white focus:ring-2 focus:ring-amber-400"
+                >
+                  <option value="TODAS">Todas las Rutas (Validar Estado y Fecha de Hoy)</option>
+                  {LABEL_TYPES.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-6">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-300 block mb-1">
+                  2. Escanear Código de Pedido / Packing List / Rollo HU:
+                </label>
+                <div className="relative">
+                  <ScanBarcode size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
+                  <input
+                    type="text"
+                    value={scanInput}
+                    onChange={(e) => setScanInput(e.target.value)}
+                    placeholder="Escanea con el Handheld o escribe el folio (ej. PED-00010, PKL-..., HU-...) y presiona Enter"
+                    className="w-full pl-9 pr-3 py-2 bg-slate-950/90 border border-slate-600 focus:border-amber-400 rounded-xl text-xs font-mono text-white placeholder-slate-400 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="md:col-span-2 flex items-end">
+                <button
+                  type="submit"
+                  disabled={isScanning}
+                  className="w-full py-2 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <ShieldCheck size={15} />
+                  <span>{isScanning ? 'Validando...' : 'Validar Carga'}</span>
+                </button>
+              </div>
+            </form>
+
+            {/* Botones rápidos de demostración del Candado (SÍ vs NO) */}
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/10">
+              <span className="text-[10px] font-bold text-slate-300">
+                ⚡ Simular lectura de escáner:
+              </span>
+              {todayOrderSample && (
+                <button
+                  type="button"
+                  onClick={() => handleScanValidate(todayOrderSample.codigo)}
+                  className="px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 rounded-lg text-[11px] font-bold text-emerald-200 flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <CheckCircle2 size={13} className="text-emerald-400" />
+                  <span>
+                    Probar Envío de HOY ({todayOrderSample.codigo}) → <strong>SÍ SUBIR ✅</strong>
+                  </span>
+                </button>
+              )}
+              {futureOrderSample && (
+                <button
+                  type="button"
+                  onClick={() => handleScanValidate(futureOrderSample.codigo)}
+                  className="px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/40 rounded-lg text-[11px] font-bold text-rose-200 flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <XCircle size={13} className="text-rose-400" />
+                  <span>
+                    Probar Envío de OTRA FECHA ({futureOrderSample.codigo}) → <strong>NO SUBIR ⛔</strong>
+                  </span>
+                </button>
+              )}
+              {unreadyOrderSample && (
+                <button
+                  type="button"
+                  onClick={() => handleScanValidate(unreadyOrderSample.codigo)}
+                  className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 rounded-lg text-[11px] font-bold text-amber-200 flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <ShieldAlert size={13} className="text-amber-400" />
+                  <span>
+                    Probar Pedido Aún en Corte ({unreadyOrderSample.codigo}) → <strong>NO LISTO ⛔</strong>
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Lista de Pedidos */}
           <div className="lg:col-span-1 space-y-3">
             <div className="flex items-center justify-between">
@@ -344,7 +666,7 @@ export default function EnvioPage() {
                 Listos para Embarque ({orders?.length || 0})
               </h2>
               <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                Factura Emitida
+                Clic valida candado
               </span>
             </div>
 
@@ -355,33 +677,56 @@ export default function EnvioPage() {
                 <p className="text-[11px] text-slate-400 mt-0.5">Los pedidos aparecerán aquí al concluir facturación CFDI</p>
               </div>
             ) : (
-              orders.map((o: any) => (
-                <div
-                  key={o.id}
-                  onClick={() => loadDetail(o.id)}
-                  className={`w-full text-left bg-white rounded-2xl border p-4 hover:shadow-md transition-all cursor-pointer ${
-                    selectedOrder?.id === o.id
-                      ? 'border-indigo-600 ring-2 ring-indigo-100 shadow-xs'
-                      : 'border-slate-200 hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">
-                      {o.codigo}
-                    </span>
-                    <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                      {o.tiempoPromesaSlaHoras ? `⏱️ SLA ${o.tiempoPromesaSlaHoras}h` : 'SLA 48h'}
-                    </span>
+              orders.map((o: any) => {
+                const schedIso = o.fechaPromesaEntrega
+                  ? new Date(o.fechaPromesaEntrega).toISOString().slice(0, 10)
+                  : todayIso;
+                const isScheduledToday = schedIso <= todayIso;
+                const routeCode = inferOrderRouteDesktop(o);
+
+                return (
+                  <div
+                    key={o.id}
+                    onClick={() => handleScanValidate(o.codigo)}
+                    className={`w-full text-left bg-white rounded-2xl border p-4 hover:shadow-md transition-all cursor-pointer ${
+                      selectedOrder?.id === o.id
+                        ? 'border-indigo-600 ring-2 ring-indigo-100 shadow-xs'
+                        : isScheduledToday
+                        ? 'border-slate-200 hover:border-emerald-400'
+                        : 'border-rose-200 bg-rose-50/20 hover:border-rose-400'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-xs font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">
+                        {o.codigo}
+                      </span>
+                      <span
+                        className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${
+                          isScheduledToday
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-rose-50 text-rose-700 border-rose-200'
+                        }`}
+                      >
+                        {isScheduledToday
+                          ? '🟢 Envío HOY'
+                          : `⛔ Programado: ${new Date(o.fechaPromesaEntrega).toLocaleDateString('es-MX', {
+                              day: '2-digit',
+                              month: 'short',
+                            })}`}
+                      </span>
+                    </div>
+                    <p className="text-xs font-bold text-slate-900 mt-2 truncate">{o.client?.nombre}</p>
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
+                      <span className="truncate">
+                        {o.client?.poblacion || 'Guadalajara'} · {ROUTE_LABELS[routeCode]?.split(' ')[1] || routeCode}
+                      </span>
+                      <span className="font-mono font-bold text-slate-900">
+                        ${Number(o.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-xs font-bold text-slate-900 mt-2 truncate">{o.client?.nombre}</p>
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
-                    <span>{o.client?.poblacion || 'Guadalajara'}</span>
-                    <span className="font-mono font-bold text-slate-900">
-                      ${Number(o.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 
@@ -390,9 +735,11 @@ export default function EnvioPage() {
             {!selectedOrder ? (
               <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400 shadow-xs">
                 <WmsIcon.Shipping size={48} className="mx-auto mb-3 text-slate-300" />
-                <p className="font-bold text-sm text-slate-700">Selecciona un pedido para preparar su embarque</p>
+                <p className="font-bold text-sm text-slate-700">
+                  Escanea o selecciona un pedido para pasar el Candado de Embarque
+                </p>
                 <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-                  Podrás elegir entre las 4 etiquetas oficiales, ingresar peso/dimensiones para Paquetexpress y adjuntar la foto de la guía firmada.
+                  El sistema verificará que el pedido esté facturado, que su fecha programada de envío corresponda al día de hoy y que coincida con la ruta antes de autorizar subirlo a la camioneta.
                 </p>
               </div>
             ) : (
@@ -400,8 +747,11 @@ export default function EnvioPage() {
                 {/* Header del pedido seleccionado */}
                 <div className="flex justify-between items-start pb-4 border-b border-slate-100">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-lg font-black text-slate-900">{selectedOrder.codigo}</h2>
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-black text-[10px] rounded-md border border-emerald-300 flex items-center gap-1">
+                        <ShieldCheck size={12} /> CANDADO VALIDADO PARA EMBARQUE HOY
+                      </span>
                       {selectedOrder.facturaRef && (
                         <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold text-[10px] rounded-md border border-emerald-200">
                           CFDI: {selectedOrder.facturaRef}
@@ -417,6 +767,22 @@ export default function EnvioPage() {
                     <p className="text-[11px] text-slate-400">
                       RFC: {selectedOrder.client?.rfc || '—'} · Destino: {selectedOrder.client?.direccion || 'Domicilio Fiscal'} ({selectedOrder.client?.poblacion || ''})
                     </p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+                        <Calendar size={12} className="text-indigo-600" />
+                        Fecha Programada de Envío:
+                      </span>
+                      <input
+                        type="date"
+                        value={
+                          selectedOrder.fechaPromesaEntrega
+                            ? new Date(selectedOrder.fechaPromesaEntrega).toISOString().slice(0, 10)
+                            : todayIso
+                        }
+                        onChange={(e) => handleUpdateOrderDate(selectedOrder.id, e.target.value)}
+                        className="px-2 py-0.5 bg-slate-50 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-800"
+                      />
+                    </div>
                   </div>
                   <button onClick={() => setSelectedOrder(null)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600">
                     <X size={18} />
@@ -634,6 +1000,7 @@ export default function EnvioPage() {
                 </div>
               </div>
             )}
+          </div>
           </div>
         </div>
       )}
@@ -853,6 +1220,211 @@ export default function EnvioPage() {
               >
                 Guardar Acuse
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POP-UP MODAL DEL CANDADO DE EMBARQUE (SÍ / NO) */}
+      {validationResult && (
+        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div
+            className={`bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border-2 ${
+              validationResult.allowed ? 'border-emerald-500' : 'border-rose-600'
+            }`}
+          >
+            {/* Cabecera SÍ / NO */}
+            <div
+              className={`p-6 text-center text-white ${
+                validationResult.allowed
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-700'
+                  : 'bg-gradient-to-r from-rose-600 to-red-800'
+              }`}
+            >
+              <div className="w-16 h-16 rounded-full bg-white/20 mx-auto flex items-center justify-center mb-3 shadow-inner">
+                {validationResult.allowed ? (
+                  <ShieldCheck size={38} className="text-white" />
+                ) : (
+                  <ShieldAlert size={38} className="text-white" />
+                )}
+              </div>
+              <div className="text-xl font-black tracking-tight">{validationResult.title}</div>
+              <p className="text-xs text-white/95 font-medium mt-1.5 max-w-md mx-auto leading-relaxed">
+                {validationResult.subtitle}
+              </p>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {validationResult.order && (
+                <>
+                  {/* Ficha resumen del pedido escaneado */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-base font-black text-indigo-700">
+                          {validationResult.order.codigo}
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-800">
+                          Estado: {validationResult.order.estado}
+                        </span>
+                      </div>
+                      <span className="font-mono font-bold text-slate-900 text-xs">
+                        ${Number(validationResult.order.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+
+                    <p className="text-sm font-black text-slate-900">{validationResult.order.client?.nombre}</p>
+                    <p className="text-xs text-slate-600 flex items-center gap-1.5">
+                      <MapPin size={13} className="text-indigo-600 shrink-0" />
+                      <span>
+                        {validationResult.order.client?.direccion || 'Domicilio Cliente'} ·{' '}
+                        <strong>{validationResult.order.client?.poblacion || 'ZMG'}</strong>
+                      </span>
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 text-[11px]">
+                      <div className="bg-white p-2 rounded-xl border border-slate-200">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase block">
+                          Fecha Programada de Envío
+                        </span>
+                        <span
+                          className={`font-black ${
+                            validationResult.checks?.dateMatchesToday ? 'text-emerald-700' : 'text-rose-700'
+                          }`}
+                        >
+                          {validationResult.order.scheduledDateFormatted}
+                        </span>
+                      </div>
+                      <div className="bg-white p-2 rounded-xl border border-slate-200">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase block">
+                          Ruta / Etiqueta Asignada
+                        </span>
+                        <span className="font-black text-slate-800">{validationResult.order.routeLabel}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Checklist de los 3 Candados */}
+                  <div className="space-y-2">
+                    <div
+                      className={`flex items-center justify-between p-3 rounded-xl border font-bold text-xs ${
+                        validationResult.checks?.statusReady
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                          : 'bg-rose-50 border-rose-300 text-rose-900'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        {validationResult.checks?.statusReady ? (
+                          <CheckCircle2 size={16} className="text-emerald-600" />
+                        ) : (
+                          <XCircle size={16} className="text-rose-600" />
+                        )}
+                        1. ¿Está listo y facturado para embarque?
+                      </span>
+                      <span className="font-black">
+                        {validationResult.checks?.statusReady
+                          ? 'SÍ (FACTURADO)'
+                          : `NO (${validationResult.order.estado})`}
+                      </span>
+                    </div>
+
+                    <div
+                      className={`flex items-center justify-between p-3 rounded-xl border font-bold text-xs ${
+                        validationResult.checks?.dateMatchesToday
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                          : 'bg-rose-50 border-rose-300 text-rose-900'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        {validationResult.checks?.dateMatchesToday ? (
+                          <CheckCircle2 size={16} className="text-emerald-600" />
+                        ) : (
+                          <XCircle size={16} className="text-rose-600" />
+                        )}
+                        2. ¿Corresponde a la fecha de envío de HOY?
+                      </span>
+                      <span className="font-black">
+                        {validationResult.checks?.dateMatchesToday
+                          ? 'SÍ (ENVÍO HOY)'
+                          : `NO (${validationResult.order.scheduledDateFormatted})`}
+                      </span>
+                    </div>
+
+                    <div
+                      className={`flex items-center justify-between p-3 rounded-xl border font-bold text-xs ${
+                        validationResult.checks?.routeMatches
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                          : 'bg-rose-50 border-rose-300 text-rose-900'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        {validationResult.checks?.routeMatches ? (
+                          <CheckCircle2 size={16} className="text-emerald-600" />
+                        ) : (
+                          <XCircle size={16} className="text-rose-600" />
+                        )}
+                        3. ¿Corresponde al destino / camioneta activa?
+                      </span>
+                      <span className="font-black">
+                        {validationResult.checks?.routeMatches ? 'SÍ CORRESPONDE' : 'RUTA INCORRECTA'}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Acciones del Pop-up */}
+              <div className="flex flex-col gap-2 pt-2">
+                {validationResult.allowed ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      loadDetail(validationResult.order.id);
+                      setValidationResult(null);
+                      toast.success(`Pedido ${validationResult.order.codigo} autorizado para subir a camioneta`);
+                    }}
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all"
+                  >
+                    <CheckCircle2 size={18} />
+                    <span>SÍ — Autorizar Subida a Camioneta y Preparar Salida</span>
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setValidationResult(null)}
+                      className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black text-sm shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all"
+                    >
+                      <XCircle size={18} />
+                      <span>NO SUBIR A CAMIONETA — Devolver Pedido a Rampa</span>
+                    </button>
+
+                    {validationResult.checks?.isFutureOrder && validationResult.order?.id && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleUpdateOrderDate(
+                            validationResult.order.id,
+                            todayIso,
+                            validationResult.order.codigo
+                          )
+                        }
+                        className="w-full py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl font-bold text-xs cursor-pointer transition-all"
+                      >
+                        🔓 Autorización Jefe de Embarques: Reprogramar Envío para HOY y Desbloquear
+                      </button>
+                    )}
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setValidationResult(null)}
+                  className="w-full py-1.5 text-slate-400 hover:text-slate-600 font-bold text-xs cursor-pointer"
+                >
+                  Cerrar ventana
+                </button>
+              </div>
             </div>
           </div>
         </div>
